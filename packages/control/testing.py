@@ -18,6 +18,7 @@ from ..domain.ids import (
     ApprovalId,
     BranchId,
     MergeId,
+    PolicyEvaluationId,
     ProjectId,
     ProposalId,
     TaskId,
@@ -33,6 +34,7 @@ from .errors import (
 )
 from .merges import BranchMergeProposal
 from .pending import PendingTransition
+from .policy import PolicyRecommendation
 from .proposals import StateTransitionProposal
 from .tasks import ResearchTask, TaskStatus
 
@@ -131,6 +133,7 @@ __all__ = [
     "InMemoryForkPointStore",
     "InMemoryMergeStore",
     "InMemoryPendingTransitionStore",
+    "InMemoryPolicyRecommendationStore",
     "InMemoryStateStore",
     "InMemoryTaskStore",
 ]
@@ -338,3 +341,28 @@ class InMemoryMergeStore:
 
     def get(self, merge_id: MergeId) -> BranchMergeProposal:
         return self._proposals[merge_id]
+
+
+# =========================================================================
+# PolicyRecommendationStore
+# =========================================================================
+class InMemoryPolicyRecommendationStore:
+    """In-memory PolicyRecommendationStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._records: dict[PolicyEvaluationId, PolicyRecommendation] = {}
+
+    def save(self, recommendation: PolicyRecommendation) -> None:
+        self._records[recommendation.evaluation_id] = recommendation
+
+    def get(self, evaluation_id: PolicyEvaluationId) -> PolicyRecommendation:
+        return self._records[evaluation_id]
+
+    def list_for_project(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> list[PolicyRecommendation]:
+        return [
+            r
+            for r in self._records.values()
+            if r.project_id == project_id and r.branch_id == branch_id
+        ]

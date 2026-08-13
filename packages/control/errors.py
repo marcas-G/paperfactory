@@ -79,6 +79,23 @@ class BranchMergeError(BranchError):
     """A merge precondition failed or a merge operation is illegal."""
 
 
+# --- Policy errors (STEP-005 §35) --------------------------------------
+class PolicyError(ControlError):
+    """Base class for Research Policy failures."""
+
+
+class InvalidPolicySignalError(PolicyError):
+    """A priority signal value is outside [0, 1] or is NaN/inf."""
+
+
+class InvalidPolicyConfigError(PolicyError):
+    """A PolicyConfig is invalid (e.g. all weights zero, negative weight)."""
+
+
+class DuplicatePolicyCandidateError(PolicyError):
+    """The same action_id appears more than once in one evaluation input."""
+
+
 __all__ = [
     "ActionNotRegisteredError",
     "BranchBusyError",
@@ -90,9 +107,13 @@ __all__ = [
     "CrossBranchDependencyError",
     "DuplicateActionError",
     "DuplicateBranchError",
+    "DuplicatePolicyCandidateError",
     "IllegalActionError",
     "IllegalBranchTransitionError",
     "InvariantViolationError",
+    "InvalidPolicyConfigError",
+    "InvalidPolicySignalError",
+    "PolicyError",
     "StaleStateError",
     "TransitionRejectedError",
 ]

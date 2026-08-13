@@ -195,6 +195,7 @@ def test_store_ports_are_protocols() -> None:
         "BranchStore",
         "ForkPointStore",
         "MergeStore",
+        "PolicyRecommendationStore",
         "ControlEventSink",
     ]
     for name in expected_ports:
@@ -229,6 +230,7 @@ def test_inmemory_adapters_live_in_testing_module() -> None:
         "InMemoryBranchStore",
         "InMemoryForkPointStore",
         "InMemoryMergeStore",
+        "InMemoryPolicyRecommendationStore",
         "InMemoryControlEventSink",
     ]:
         assert hasattr(testing, adapter), f"missing in testing module: {adapter}"

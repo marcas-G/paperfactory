@@ -48,15 +48,32 @@ from .errors import (
     CrossBranchDependencyError,
     DuplicateActionError,
     DuplicateBranchError,
+    DuplicatePolicyCandidateError,
     IllegalActionError,
     IllegalBranchTransitionError,
+    InvalidPolicyConfigError,
+    InvalidPolicySignalError,
     InvariantViolationError,
+    PolicyError,
     StaleStateError,
     TransitionRejectedError,
 )
 from .gates import GateResult, aggregate_gates
 from .merges import BranchMergeProposal, MergeConflict, MergeStatus
 from .pending import PendingTransition, PendingTransitionStatus
+from .policy import (
+    ActionPrioritySignals,
+    ExcludedPolicyCandidate,
+    PolicyCandidate,
+    PolicyRecommendation,
+    PolicyScoreComponents,
+    PolicyStatus,
+    PolicyWeights,
+    RankedAction,
+    ResearchPolicyConfig,
+    score_candidate,
+)
+from .policy_engine import ResearchPolicyEngine
 from .proposals import StateTransitionProposal
 from .registry import ActionRegistry
 from .store import (
@@ -66,6 +83,7 @@ from .store import (
     ForkPointStore,
     MergeStore,
     PendingTransitionStore,
+    PolicyRecommendationStore,
     StateStore,
     TaskStore,
 )
@@ -100,6 +118,17 @@ __all__ = [
     "BranchMergeProposal",
     "MergeConflict",
     "MergeStatus",
+    # policy
+    "ActionPrioritySignals",
+    "ExcludedPolicyCandidate",
+    "PolicyCandidate",
+    "PolicyRecommendation",
+    "PolicyScoreComponents",
+    "PolicyStatus",
+    "PolicyWeights",
+    "RankedAction",
+    "ResearchPolicyConfig",
+    "score_candidate",
     # engine result
     "TransitionExecutionResult",
     # ports
@@ -109,11 +138,13 @@ __all__ = [
     "ForkPointStore",
     "MergeStore",
     "PendingTransitionStore",
+    "PolicyRecommendationStore",
     "StateStore",
     "TaskStore",
     # managers
     "ApprovalManager",
     "BranchManager",
+    "ResearchPolicyEngine",
     "TaskManager",
     # engine / controller
     "TransitionEngine",
@@ -130,9 +161,13 @@ __all__ = [
     "CrossBranchDependencyError",
     "DuplicateActionError",
     "DuplicateBranchError",
+    "DuplicatePolicyCandidateError",
     "IllegalActionError",
     "IllegalBranchTransitionError",
     "InvariantViolationError",
+    "InvalidPolicyConfigError",
+    "InvalidPolicySignalError",
+    "PolicyError",
     "StaleStateError",
     "TransitionRejectedError",
 ]

@@ -17,6 +17,7 @@ from packages.control import (
     BranchManager,
     ResearchAction,
     ResearchActionDefinition,
+    ResearchPolicyEngine,
     TaskManager,
     TransitionEngine,
 )
@@ -28,6 +29,7 @@ from packages.control.testing import (
     InMemoryForkPointStore,
     InMemoryMergeStore,
     InMemoryPendingTransitionStore,
+    InMemoryPolicyRecommendationStore,
     InMemoryStateStore,
     InMemoryTaskStore,
 )
@@ -134,6 +136,11 @@ def merge_store() -> InMemoryMergeStore:
 
 
 @pytest.fixture
+def recommendation_store() -> InMemoryPolicyRecommendationStore:
+    return InMemoryPolicyRecommendationStore()
+
+
+@pytest.fixture
 def event_sink() -> InMemoryControlEventSink:
     return InMemoryControlEventSink()
 
@@ -221,6 +228,7 @@ def controller(
     branch_store: InMemoryBranchStore,
     fork_point_store: InMemoryForkPointStore,
     merge_store: InMemoryMergeStore,
+    recommendation_store: InMemoryPolicyRecommendationStore,
     event_sink: InMemoryControlEventSink,
     draft_snapshot: ResearchStateSnapshot,
     seq_id_factory: _SeqIdFactory,
@@ -229,7 +237,7 @@ def controller(
     """Fully-wired controller with in-memory adapters + deterministic id/time.
 
     Initializes a main branch (ACTIVE) with the draft snapshot, so ordinary
-    STEP-002/003 transition tests run against an actionable branch."""
+    STEP-002/003/004 transition tests run against an actionable branch."""
     engine = TransitionEngine(store)
     task_manager = TaskManager(
         task_store, event_sink, id_factory=seq_id_factory, now=clock
@@ -247,16 +255,25 @@ def controller(
         id_factory=seq_id_factory,
         now=clock,
     )
+    policy_engine = ResearchPolicyEngine(
+        registry,
+        recommendation_store,
+        event_sink,
+        id_factory=seq_id_factory,
+        now=clock,
+    )
     controller = ResearchController(
         registry,
         engine,
         task_manager,
         approval_manager,
         branch_manager,
+        policy_engine,
         pending_store=pending_store,
         task_store=task_store,
         approval_store=approval_store,
         branch_store=branch_store,
+        recommendation_store=recommendation_store,
         event_sink=event_sink,
         proposal_id_factory=seq_id_factory,
         id_factory=seq_id_factory,

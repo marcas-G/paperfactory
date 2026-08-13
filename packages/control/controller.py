@@ -26,6 +26,7 @@ from ..domain.ids import (
     BranchId,
     EventId,
     ObjectId,
+    PolicyEvaluationId,
     ProjectId,
     ProposalId,
     TaskId,
@@ -55,6 +56,8 @@ from .errors import (
 from .gates import GateResult
 from .merges import BranchMergeProposal
 from .pending import PendingTransition, PendingTransitionStatus
+from .policy import PolicyCandidate, PolicyRecommendation, ResearchPolicyConfig
+from .policy_engine import ResearchPolicyEngine
 from .proposals import StateTransitionProposal
 from .registry import ActionRegistry
 from .store import (
@@ -62,6 +65,7 @@ from .store import (
     BranchStore,
     ControlEventSink,
     PendingTransitionStore,
+    PolicyRecommendationStore,
     TaskStore,
 )
 from .task_manager import TaskManager
@@ -84,11 +88,13 @@ class ResearchController:
         task_manager: TaskManager,
         approval_manager: ApprovalManager,
         branch_manager: BranchManager,
+        policy_engine: ResearchPolicyEngine,
         *,
         pending_store: PendingTransitionStore,
         task_store: TaskStore,
         approval_store: ApprovalStore,
         branch_store: BranchStore,
+        recommendation_store: PolicyRecommendationStore,
         event_sink: ControlEventSink,
         proposal_id_factory: Callable[[], str] | None = None,
         id_factory: IdFactory | None = None,
@@ -99,10 +105,12 @@ class ResearchController:
         self._tasks = task_manager
         self._approvals = approval_manager
         self._branches = branch_manager
+        self._policy = policy_engine
         self._pending_store = pending_store
         self._task_store = task_store
         self._approval_store = approval_store
         self._branch_store = branch_store
+        self._recommendation_store = recommendation_store
         self._sink = event_sink
         self._proposal_id_factory: Callable[[], str] = (
             proposal_id_factory or id_factory or default_id
@@ -254,6 +262,49 @@ class ResearchController:
             target_branch_id=target_branch_id,
             actor=actor,
         )
+
+    # ===================================================================
+    # Research Policy (STEP-005) — ranking only, never executes
+    # ===================================================================
+    def recommend_next_action(
+        self,
+        *,
+        branch_id: BranchId,
+        candidates: tuple[PolicyCandidate, ...] | list[PolicyCandidate],
+        policy_config: ResearchPolicyConfig,
+        actor_type: ActorType = ActorType.SYSTEM,
+    ) -> PolicyRecommendation:
+        """Rank provided candidates and return a PolicyRecommendation.
+
+        Does NOT create a task, does NOT create an approval, does NOT mutate
+        Research State. Candidates must already be supplied by upstream
+        (Policy generates nothing)."""
+        branch = self._branch_store.get(branch_id)
+        state = self.get_state(branch.project_id, branch_id)
+        return self._policy.evaluate(
+            project_id=branch.project_id,
+            branch_id=branch_id,
+            branch_status=branch.status,
+            state=state,
+            candidates=candidates,
+            policy_config=policy_config,
+            actor_type=actor_type,
+        )
+
+    def get_recommendation(self, evaluation_id: PolicyEvaluationId) -> PolicyRecommendation:
+        return self._recommendation_store.get(evaluation_id)
+
+    def is_recommendation_current(
+        self,
+        recommendation: PolicyRecommendation,
+        *,
+        branch_id: BranchId | None = None,
+    ) -> bool:
+        """A recommendation is current only if the branch state revision is
+        unchanged since it was produced (STEP-005 §33). No auto-refresh."""
+        bid = branch_id or recommendation.branch_id
+        current = self.get_state(recommendation.project_id, bid)
+        return current.revision == recommendation.state_revision
 
     # ===================================================================
     # Propose + execute (unified result)

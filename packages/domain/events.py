@@ -64,6 +64,9 @@ class ControlEventType(StrEnum):
     BRANCH_MERGE_PREPARED = "BRANCH_MERGE_PREPARED"
     BRANCH_MERGED = "BRANCH_MERGED"
 
+    # Research Policy (STEP-005 §23)
+    POLICY_EVALUATED = "POLICY_EVALUATED"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

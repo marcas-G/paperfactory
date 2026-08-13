@@ -15,12 +15,21 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from ..domain.events import ControlEvent, DomainEvent
-from ..domain.ids import ApprovalId, BranchId, MergeId, ProjectId, ProposalId, TaskId
+from ..domain.ids import (
+    ApprovalId,
+    BranchId,
+    MergeId,
+    PolicyEvaluationId,
+    ProjectId,
+    ProposalId,
+    TaskId,
+)
 from ..domain.models import ResearchStateSnapshot
 from .approvals import ApprovalRequest
 from .branches import BranchForkPoint, ResearchBranch
 from .merges import BranchMergeProposal
 from .pending import PendingTransition
+from .policy import PolicyRecommendation
 from .proposals import StateTransitionProposal
 from .tasks import ResearchTask, TaskStatus
 
@@ -204,6 +213,22 @@ class MergeStore(Protocol):
         ...
 
 
+@runtime_checkable
+class PolicyRecommendationStore(Protocol):
+    """Abstract store of PolicyRecommendation records (STEP-005 §25)."""
+
+    def save(self, recommendation: PolicyRecommendation) -> None:
+        ...
+
+    def get(self, evaluation_id: PolicyEvaluationId) -> PolicyRecommendation:
+        ...
+
+    def list_for_project(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> list[PolicyRecommendation]:
+        ...
+
+
 __all__ = [
     "ApprovalStore",
     "BranchStore",
@@ -211,6 +236,7 @@ __all__ = [
     "ForkPointStore",
     "MergeStore",
     "PendingTransitionStore",
+    "PolicyRecommendationStore",
     "StateStore",
     "TaskStore",
 ]

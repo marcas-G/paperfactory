@@ -42,6 +42,9 @@ ApprovalId = NewType("ApprovalId", str)
 MergeId = NewType("MergeId", str)
 """Identity of a BranchMergeProposal (merge preparation record)."""
 
+PolicyEvaluationId = NewType("PolicyEvaluationId", str)
+"""Identity of one Policy evaluation (a PolicyRecommendation record)."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -57,6 +60,7 @@ __all__ = [
     "EventId",
     "MergeId",
     "ObjectId",
+    "PolicyEvaluationId",
     "ProjectId",
     "ProposalId",
     "RunId",

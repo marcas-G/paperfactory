@@ -218,7 +218,8 @@ The following are deliberately out of scope and arrive in later steps:
 
 - Research semantics (ResearchQuestion, Gap, Hypothesis, Experiment, Claim,
   Evidence, Protocol, …)
-- Research Policy (action ranking, prioritization, information-gain scoring)
+- Research Policy is now implemented — see [research-policy.md](research-policy.md).
+  (Semantic signal inference remains a future M2/M4 concern.)
 - Task DAG *scheduler* / automatic execution (Tasks are Control Objects only)
 - Branch Control is now implemented — see [branch-control.md](branch-control.md).
   (Research-semantic merge commit and branch reopen remain out of scope.)
