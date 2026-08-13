@@ -17,14 +17,22 @@ from packages.cognition import (
     ContextBudget,
     ContextCompiler,
     ContextItem,
+    ContextItemType,
     ContextLayer,
     ContextPolicy,
     ContextProtectionTag,
     ContextRequest,
     ContextScope,
     ContextSourceRef,
+    RetrievalPolicy,
+    RetrievalRequirement,
+    RetrievalResolver,
 )
-from packages.cognition.testing import InMemoryContextBundleStore
+from packages.cognition.testing import (
+    InMemoryContextBundleStore,
+    InMemoryContextCatalog,
+    InMemoryRetrievalResolutionStore,
+)
 from packages.domain.ids import (
     ActionId,
     BranchId,
@@ -32,6 +40,9 @@ from packages.domain.ids import (
     ContextItemId,
     ContextRequestId,
     ProjectId,
+    RetrievalPolicyId,
+    RetrievalRequirementId,
+    RetrievalResolutionId,
 )
 
 PROJECT = ProjectId("P1")
@@ -115,6 +126,8 @@ def make_item(
     content: str = "some content",
     tokens: int = 10,
     priority: int = 50,
+    item_type=ContextItemType.NOTE,  # type: ignore[valid-type]
+    labels: frozenset[str] = frozenset(),
     project_id=PROJECT,  # type: ignore[valid-type]
     branch_id=BRANCH,  # type: ignore[valid-type]
     protection_tags: frozenset[ContextProtectionTag] = frozenset(),
@@ -135,9 +148,11 @@ def make_item(
         content=content,
         estimated_tokens=tokens,
         priority=priority,
+        item_type=item_type,
         project_id=pid,
         branch_id=bid,
         protection_tags=protection_tags,
+        labels=labels,
     )
 
 
@@ -165,3 +180,82 @@ def make_request(
         budget=ContextBudget(max_tokens=budget_tokens),
         created_at=datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
     )
+
+
+# --- retrieval fixtures ------------------------------------------------
+class _SeqResolutionId:
+    def __init__(self) -> None:
+        self._n = itertools.count(1)
+
+    def __call__(self) -> RetrievalResolutionId:
+        return RetrievalResolutionId(f"res-{next(self._n)}")
+
+
+@pytest.fixture
+def resolution_id_factory() -> _SeqResolutionId:
+    return _SeqResolutionId()
+
+
+@pytest.fixture
+def catalog() -> InMemoryContextCatalog:
+    return InMemoryContextCatalog()
+
+
+@pytest.fixture
+def resolution_store() -> InMemoryRetrievalResolutionStore:
+    return InMemoryRetrievalResolutionStore()
+
+
+@pytest.fixture
+def resolver(
+    catalog: InMemoryContextCatalog,
+    resolution_store: InMemoryRetrievalResolutionStore,
+    resolution_id_factory: _SeqResolutionId,
+    fixed_now: datetime,
+) -> RetrievalResolver:
+    return RetrievalResolver(
+        catalog,
+        resolution_store,
+        resolution_id_factory=resolution_id_factory,
+        now=lambda: fixed_now,
+    )
+
+
+@pytest.fixture
+def retrieval_policy() -> RetrievalPolicy:
+    return RetrievalPolicy(policy_id=RetrievalPolicyId("default"), version=1)
+
+
+def make_requirement(
+    rid: str,
+    *,
+    item_types: frozenset[ContextItemType] = frozenset({ContextItemType.NOTE}),
+    layers: frozenset[ContextLayer] = frozenset({ContextLayer.TASK}),
+    scopes: frozenset[ContextScope] = frozenset({ContextScope.BRANCH}),
+    required: bool = True,
+    minimum_count: int = 1,
+    maximum_count: int = 5,
+    priority: int = 50,
+    required_labels: frozenset[str] = frozenset(),
+    any_labels: frozenset[str] = frozenset(),
+    excluded_labels: frozenset[str] = frozenset(),
+) -> RetrievalRequirement:
+    return RetrievalRequirement(
+        requirement_id=RetrievalRequirementId(rid),
+        item_types=item_types,
+        layers=layers,
+        scopes=scopes,
+        required=required,
+        minimum_count=minimum_count,
+        maximum_count=maximum_count,
+        priority=priority,
+        required_labels=required_labels,
+        any_labels=any_labels,
+        excluded_labels=excluded_labels,
+    )
+
+
+def add_to_catalog(catalog: InMemoryContextCatalog, items) -> None:  # type: ignore[no-untyped-def]
+    for it in items:
+        catalog.add(it)
+

@@ -63,6 +63,26 @@ class ContextProtectionTag(StrEnum):
     REVIEW_OUTCOME = "REVIEW_OUTCOME"
 
 
+class ContextItemType(StrEnum):
+    """Stable content category of a ContextItem for retrieval policy
+    (STEP-007 §6).
+
+    Generic cognition categories only — NOT research-domain objects
+    (Hypothesis/Gap/Experiment/Claim arrive with the research domain and are
+    expressed via ``source_type``, never here).
+    """
+
+    INSTRUCTION = "INSTRUCTION"
+    STATE = "STATE"
+    EVIDENCE = "EVIDENCE"
+    DECISION = "DECISION"
+    CONSTRAINT = "CONSTRAINT"
+    FAILURE = "FAILURE"
+    ARTIFACT = "ARTIFACT"
+    REFERENCE = "REFERENCE"
+    NOTE = "NOTE"
+
+
 class ExcludedContextReason(StrEnum):
     """Why a candidate item was excluded from the bundle (STEP-006 §18)."""
 
@@ -106,10 +126,12 @@ class ContextItem:
     content: str
     estimated_tokens: int
     priority: int
+    item_type: ContextItemType
 
     project_id: ProjectId | None = None
     branch_id: BranchId | None = None
     protection_tags: frozenset[ContextProtectionTag] = field(default_factory=frozenset)
+    labels: frozenset[str] = field(default_factory=frozenset)
     metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -126,6 +148,12 @@ class ContextItem:
             raise InvalidContextItemError(
                 f"priority must be in [0,100], got {self.priority}"
             )
+        # labels: explicit metadata, no empty strings (STEP-007 §7)
+        for label in self.labels:
+            if not isinstance(label, str) or not label:
+                raise InvalidContextItemError(
+                    f"label must be a non-empty string, got {label!r}"
+                )
         # scope invariants (STEP-006 §7)
         if self.scope is ContextScope.SYSTEM:
             if self.project_id is not None or self.branch_id is not None:
@@ -276,6 +304,7 @@ __all__ = [
     "ContextBudget",
     "ContextBundle",
     "ContextItem",
+    "ContextItemType",
     "ContextLayer",
     "ContextProtectionTag",
     "ContextRequest",

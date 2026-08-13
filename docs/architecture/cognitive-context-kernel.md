@@ -65,6 +65,10 @@ timezone-aware.
 > **Explicit inclusion rule:** an item is included only if its id is in
 > `required` or `optional`. The compiler NEVER auto-includes "relevant" items.
 
+A `ContextRequest` may be constructed directly by a caller, or produced by
+converting a `RetrievalResolution` (see [retrieval-policy.md](retrieval-policy.md)).
+Either way, `ContextCompiler` behavior is identical.
+
 ## Blinding Model
 
 `ContextProtectionTag`: `FUTURE_RESULT`, `TEST_SET`, `CONFIRMATORY_RESULT`,

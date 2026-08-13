@@ -33,6 +33,9 @@ from .ids import (
     PolicyEvaluationId,
     ProjectId,
     ProposalId,
+    RetrievalPolicyId,
+    RetrievalRequirementId,
+    RetrievalResolutionId,
     RunId,
     TaskId,
 )
@@ -54,6 +57,9 @@ __all__ = [
     "PolicyEvaluationId",
     "ProjectId",
     "ProposalId",
+    "RetrievalPolicyId",
+    "RetrievalRequirementId",
+    "RetrievalResolutionId",
     "RunId",
     "TaskId",
     # enums

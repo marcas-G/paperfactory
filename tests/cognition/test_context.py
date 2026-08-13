@@ -14,6 +14,7 @@ from packages.cognition import (
     BlindingPolicy,
     CognitiveMode,
     ContextItem,
+    ContextItemType,
     ContextLayer,
     ContextPolicy,
     ContextProtectionTag,
@@ -72,6 +73,7 @@ def test_ctx_003_system_with_project_rejected() -> None:
             content="c",
             estimated_tokens=5,
             priority=10,
+            item_type=ContextItemType.NOTE,
             project_id=PROJECT,
         )
 
@@ -86,6 +88,7 @@ def test_ctx_004_project_with_branch_rejected() -> None:
             content="c",
             estimated_tokens=5,
             priority=10,
+            item_type=ContextItemType.NOTE,
             project_id=PROJECT,
             branch_id=BRANCH,
         )
@@ -101,6 +104,7 @@ def test_ctx_005_branch_missing_project_or_branch_rejected() -> None:
             content="c",
             estimated_tokens=5,
             priority=10,
+            item_type=ContextItemType.NOTE,
             project_id=PROJECT,
             branch_id=None,
         )
@@ -207,6 +211,7 @@ def test_ctx_019_different_project_required_scope_error(
         content="c",
         estimated_tokens=5,
         priority=10,
+            item_type=ContextItemType.NOTE,
         project_id=ProjectId("OTHER"),
     )
     req = make_request(required=["op"])
@@ -225,6 +230,7 @@ def test_ctx_020_different_project_optional_excluded(
         content="c",
         estimated_tokens=5,
         priority=10,
+            item_type=ContextItemType.NOTE,
         project_id=ProjectId("OTHER"),
     )
     req = make_request(optional=["op"])
@@ -255,6 +261,7 @@ def test_ctx_022_different_branch_required_scope_error(
         content="c",
         estimated_tokens=5,
         priority=10,
+            item_type=ContextItemType.NOTE,
         project_id=PROJECT,
         branch_id=BranchId("B2"),
     )
@@ -276,6 +283,7 @@ def test_ctx_023_different_branch_optional_excluded(
         content="c",
         estimated_tokens=5,
         priority=10,
+            item_type=ContextItemType.NOTE,
         project_id=PROJECT,
         branch_id=BranchId("B2"),
     )

@@ -51,15 +51,60 @@ class DuplicateContextItemError(CognitionError):
     """The same ContextItemId appears twice in one compilation's candidates."""
 
 
+# --- Retrieval errors (STEP-007 §34/§35) -------------------------------
+class RetrievalError(CognitionError):
+    """Base class for context retrieval failures."""
+
+
+class InvalidRetrievalRequirementError(RetrievalError):
+    """A RetrievalRequirement is malformed (empty sets, bad counts, etc.)."""
+
+
+class InvalidRetrievalPolicyError(RetrievalError):
+    """A RetrievalPolicy is malformed."""
+
+
+class DuplicateRetrievalRequirementError(RetrievalError):
+    """The same requirement_id appears twice in one resolution input."""
+
+
+class RequiredRetrievalRequirementUnsatisfiedError(RetrievalError):
+    """A required RetrievalRequirement could not reach its minimum_count.
+
+    Carries the requirement_id, minimum_count and actual_count so callers can
+    report precisely (STEP-007 §34).
+    """
+
+    def __init__(
+        self,
+        *,
+        requirement_id: str,
+        minimum_count: int,
+        actual_count: int,
+    ) -> None:
+        self.requirement_id = requirement_id
+        self.minimum_count = minimum_count
+        self.actual_count = actual_count
+        super().__init__(
+            f"required requirement {requirement_id!r} unsatisfied: "
+            f"minimum={minimum_count}, actual={actual_count}"
+        )
+
+
 __all__ = [
     "CognitionError",
     "ContextBudgetExceededError",
     "DuplicateContextItemError",
+    "DuplicateRetrievalRequirementError",
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidRetrievalPolicyError",
+    "InvalidRetrievalRequirementError",
     "RequiredContextBlindedError",
     "RequiredContextMissingError",
     "RequiredContextScopeError",
+    "RequiredRetrievalRequirementUnsatisfiedError",
+    "RetrievalError",
     "StaleContextRequestError",
 ]

@@ -61,6 +61,16 @@ ContextPolicyId = NewType("ContextPolicyId", str)
 BlindingPolicyId = NewType("BlindingPolicyId", str)
 """Identity of a BlindingPolicy version-family."""
 
+# --- Retrieval identities (STEP-007) -----------------------------------
+RetrievalRequirementId = NewType("RetrievalRequirementId", str)
+"""Identity of one RetrievalRequirement within a resolution."""
+
+RetrievalPolicyId = NewType("RetrievalPolicyId", str)
+"""Identity of a RetrievalPolicy version-family."""
+
+RetrievalResolutionId = NewType("RetrievalResolutionId", str)
+"""Identity of one RetrievalResolution."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -84,6 +94,9 @@ __all__ = [
     "PolicyEvaluationId",
     "ProjectId",
     "ProposalId",
+    "RetrievalPolicyId",
+    "RetrievalRequirementId",
+    "RetrievalResolutionId",
     "RunId",
     "TaskId",
 ]

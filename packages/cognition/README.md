@@ -17,23 +17,27 @@ should see and which cognitive mode it should reason in.
 - BlindingPolicy
 - Typed cognitive output validation
 
-## Current Implementation (STEP-006)
+## Current Implementation (STEP-006 + STEP-007)
 
 Implemented:
 - CognitiveMode (FRAME/EXPLORE/MAP/COMPARE/FALSIFY/DIAGNOSE/DISCRIMINATE/
   VERIFY/SYNTHESIZE/DECIDE)
 - Context contracts: ContextLayer, ContextScope, ContextProtectionTag,
-  ContextSourceRef, ContextItem, ContextBudget
+  ContextItemType, ContextSourceRef, ContextItem, ContextBudget
 - ContextPolicy, BlindingPolicy (versioned)
 - ContextRequest (revision-bound, explicit required/optional/forbidden)
 - ContextCompiler (deterministic: validate → scope → blind → require → budget)
 - ContextBundle (immutable, item-boundary-preserving, auditable)
+- RetrievalRequirement, RetrievalPolicy (versioned), deduplication strategy
+- ContextCatalog port (read-only, enumerable)
+- RetrievalResolver (deterministic metadata-based resolution)
+- RetrievalResolution → ContextRequest conversion
 
 Not implemented yet (later M2 steps):
+- Semantic retrieval / vector retrieval
 - PromptPolicy / PromptAssembler
-- RetrievalPolicy / semantic retrieval / vector retrieval
 - OutputValidator
-- Agent execution
+- LLM execution / agent execution
 
 ## Must Not Own
 
