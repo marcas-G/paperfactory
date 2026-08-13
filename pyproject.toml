@@ -12,13 +12,14 @@ license = { text = "Proprietary" }
 authors = [{ name = "PaperFactory" }]
 dependencies = []
 
-# Dev-only tooling. No runtime research/agent/infra dependencies are installed in STEP-001.
+# Dev-only tooling. No runtime research/agent/infra dependencies are installed.
 # Future runtime deps (FastAPI, SQLAlchemy, Pydantic AI, Temporal, pgvector, ...)
 # are recorded as ARCHITECTURE_DECISIONS in ADR-003 but are NOT installed yet.
 [dependency-groups]
 dev = [
     "pytest>=8",
     "ruff>=0.6",
+    "pyright>=1.1",
 ]
 
 [tool.setuptools.packages.find]
@@ -52,3 +53,20 @@ ignore = []
 [tool.ruff.lint.per-file-ignores]
 # Package markers may legitimately re-export names.
 "__init__.py" = ["F401"]
+
+# ---------------------------------------------------------------------------
+# pyright — static type checking for typed contracts.
+#   Kept deliberately pragmatic for the kernel phase: catch undefined names,
+#   invalid type usage, obvious incompatible assignments, and missing/invalid
+#   protocol usage — without turning on the strictest options that would
+#   create large amounts of low-value noise across the skeleton.
+# ---------------------------------------------------------------------------
+[tool.pyright]
+include = ["packages", "tests"]
+exclude = ["**/__pycache__", ".venv"]
+pythonVersion = "3.11"
+reportMissingImports = "error"
+reportUndefinedVariable = "error"
+reportInvalidTypeForm = "error"
+reportGeneralTypeIssues = "warning"
+typeCheckingMode = "basic"

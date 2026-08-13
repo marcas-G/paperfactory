@@ -1,10 +1,49 @@
-"""M4 — Research Domain contracts (skeleton).
+"""M4 — Research Domain contracts.
 
-Will own typed Research Objects (ResearchProject, ResearchQuestion, Gap,
-Hypothesis, StudyDesign, Protocol, Experiment, Result, Evidence, Claim,
-Decision, Failure, ReviewerConcern), DomainEvent contracts, and domain
-invariants.
+STEP-002 adds the *domain-agnostic primitives* shared by every future
+Research Object and by the Control Plane:
 
-Domain MUST NOT depend on any framework / infrastructure implementation.
-No business logic is implemented yet (STEP-001 = skeleton only).
+    * typed identities (ids)
+    * core control enums (GateStatus, TransitionDecision, ActorType,
+      SideEffectLevel)
+    * immutable DomainEvent contract
+    * immutable ResearchStateSnapshot contract
+
+Concrete research objects (ResearchProject, ResearchQuestion, Gap,
+Hypothesis, ...) are NOT implemented yet — this layer stays
+framework-independent (no FastAPI / SQLAlchemy / LLM SDKs).
 """
+
+from __future__ import annotations
+
+from .enums import ActorType, GateStatus, SideEffectLevel, TransitionDecision
+from .events import DomainEvent
+from .ids import (
+    ActionId,
+    BranchId,
+    EventId,
+    ObjectId,
+    ProjectId,
+    RunId,
+    TaskId,
+)
+from .models import ResearchStateSnapshot
+
+__all__ = [
+    # ids
+    "ActionId",
+    "BranchId",
+    "EventId",
+    "ObjectId",
+    "ProjectId",
+    "RunId",
+    "TaskId",
+    # enums
+    "ActorType",
+    "GateStatus",
+    "SideEffectLevel",
+    "TransitionDecision",
+    # contracts
+    "DomainEvent",
+    "ResearchStateSnapshot",
+]
