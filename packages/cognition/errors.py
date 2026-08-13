@@ -120,6 +120,24 @@ class StalePromptRequestError(PromptError):
     """A PromptRequest was built for a different state revision than current."""
 
 
+# --- Provider projection errors (STEP-009) -----------------------------
+class ProviderProjectionError(CognitionError):
+    """Base class for provider prompt projection failures."""
+
+
+class InvalidPromptPackageForProjectionError(ProviderProjectionError):
+    """A PromptPackage is malformed/contradictory for projection (bad
+    trust/kind/authority/order combination). Projection fails closed."""
+
+
+class UnknownProviderError(ProviderProjectionError):
+    """An unsupported ProviderKind was requested."""
+
+
+class UnknownSegmentKindError(ProviderProjectionError):
+    """A PromptSegmentKind not understood by the projector."""
+
+
 __all__ = [
     "CognitionError",
     "ContextBudgetExceededError",
@@ -128,6 +146,7 @@ __all__ = [
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidPromptPackageForProjectionError",
     "InvalidPromptPolicyError",
     "InvalidPromptRequestError",
     "InvalidRetrievalPolicyError",
@@ -136,6 +155,7 @@ __all__ = [
     "PromptError",
     "PromptTemplateError",
     "PromptTemplateVariableError",
+    "ProviderProjectionError",
     "RequiredContextBlindedError",
     "RequiredContextMissingError",
     "RequiredContextScopeError",
@@ -143,4 +163,6 @@ __all__ = [
     "RetrievalError",
     "StaleContextRequestError",
     "StalePromptRequestError",
+    "UnknownProviderError",
+    "UnknownSegmentKindError",
 ]

@@ -38,10 +38,12 @@ Implemented:
 - PromptRequest (references ContextBundle, no raw context)
 - PromptSegment / PromptPackage (structured, provider-neutral, auditable)
 - PromptAssembler (instruction/data separation; canonical JSON data boundary)
+- Provider projection (ProviderKind OPENAI/ANTHROPIC; OpenAI/Anthropic
+  projectors; provider-specific immutable DTOs; fail-closed validation;
+  deterministic; UNTRUSTED_CONTEXT never enters instruction/system channel)
 
 Not implemented yet (later M2 steps):
-- Provider Adapter (OpenAI/Anthropic message mapping)
-- Prompt Execution / model invocation
+- Prompt Execution / model invocation (no SDK, no network in projection)
 - Output Contract / OutputValidator
 - Semantic retrieval / vector retrieval
 - LLM execution / agent execution

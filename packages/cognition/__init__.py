@@ -56,6 +56,7 @@ from .errors import (
     InvalidContextItemError,
     InvalidContextPolicyError,
     InvalidContextRequestError,
+    InvalidPromptPackageForProjectionError,
     InvalidPromptPolicyError,
     InvalidPromptRequestError,
     InvalidRetrievalPolicyError,
@@ -64,6 +65,7 @@ from .errors import (
     PromptError,
     PromptTemplateError,
     PromptTemplateVariableError,
+    ProviderProjectionError,
     RequiredContextBlindedError,
     RequiredContextMissingError,
     RequiredContextScopeError,
@@ -71,6 +73,8 @@ from .errors import (
     RetrievalError,
     StaleContextRequestError,
     StalePromptRequestError,
+    UnknownProviderError,
+    UnknownSegmentKindError,
 )
 from .modes import CognitiveMode
 from .policies import COMPILER_VERSION, BlindingPolicy, ContextPolicy
@@ -90,6 +94,20 @@ from .prompt import (
     render_context_data,
 )
 from .prompt_engine import PromptAssembler
+from .provider import (
+    AnthropicProviderProjection,
+    OpenAIProviderProjection,
+    ProviderDataEntry,
+    ProviderKind,
+    ProviderProjectionTrace,
+    ProviderPromptProjection,
+    SegmentTrace,
+)
+from .provider_projection import (
+    AnthropicProjector,
+    OpenAIProjector,
+    ProviderPromptProjector,
+)
 from .retrieval import (
     RESOLVER_VERSION,
     RequirementResolution,
@@ -166,6 +184,17 @@ __all__ = [
     "TemplateRef",
     "is_prompt_package_current",
     "render_context_data",
+    # provider projection
+    "AnthropicProjector",
+    "AnthropicProviderProjection",
+    "OpenAIProjector",
+    "OpenAIProviderProjection",
+    "ProviderDataEntry",
+    "ProviderKind",
+    "ProviderProjectionTrace",
+    "ProviderPromptProjection",
+    "ProviderPromptProjector",
+    "SegmentTrace",
     # errors
     "CognitionError",
     "ContextBudgetExceededError",
@@ -174,6 +203,7 @@ __all__ = [
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidPromptPackageForProjectionError",
     "InvalidPromptPolicyError",
     "InvalidPromptRequestError",
     "InvalidRetrievalPolicyError",
@@ -182,6 +212,7 @@ __all__ = [
     "PromptError",
     "PromptTemplateError",
     "PromptTemplateVariableError",
+    "ProviderProjectionError",
     "RequiredContextBlindedError",
     "RequiredContextMissingError",
     "RequiredContextScopeError",
@@ -189,4 +220,6 @@ __all__ = [
     "RetrievalError",
     "StaleContextRequestError",
     "StalePromptRequestError",
+    "UnknownProviderError",
+    "UnknownSegmentKindError",
 ]
