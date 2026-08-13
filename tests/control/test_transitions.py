@@ -87,6 +87,7 @@ def test_ctrl_008_009_commit_advances_state_and_emits_event(
     new_snapshot, event, decision = controller.commit_transition(
         proposal,
         ActorType.SYSTEM,
+        advance_definition,
         now=lambda: fixed_now,
         id_factory=seq_id_factory,
     )
@@ -125,6 +126,7 @@ def test_ctrl_010_stale_revision_rejected_and_state_unchanged(
         controller.commit_transition(
             stale,
             ActorType.SYSTEM,
+            advance_definition,
             now=lambda: fixed_now,
             id_factory=seq_id_factory,
         )
@@ -137,7 +139,7 @@ def test_ctrl_010_stale_revision_rejected_and_state_unchanged(
 
 # CTRL-011 ----------------------------------------------------------------
 def test_ctrl_011_wrong_from_state_not_committed(
-    controller, store, advance_action, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
+    controller, store, advance_action, advance_definition, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.control.errors import InvariantViolationError
 
@@ -156,6 +158,7 @@ def test_ctrl_011_wrong_from_state_not_committed(
         controller.commit_transition(
             proposal,
             ActorType.SYSTEM,
+            advance_definition,
             now=lambda: fixed_now,
             id_factory=seq_id_factory,
         )
@@ -175,7 +178,7 @@ def test_reject_decision_does_not_commit(
         gate_results=failing,
     )
     with pytest.raises(TransitionRejectedError):
-        controller.commit_transition(proposal, ActorType.SYSTEM)
+        controller.commit_transition(proposal, ActorType.SYSTEM, advance_definition)
     assert store.get_snapshot(PROJECT, BRANCH).revision == 0
     assert store.events() == []
 
@@ -191,7 +194,7 @@ def test_wait_decision_does_not_commit(
         gate_results=blocked,
     )
     with pytest.raises(TransitionRejectedError):
-        controller.commit_transition(proposal, ActorType.SYSTEM)
+        controller.commit_transition(proposal, ActorType.SYSTEM, advance_definition)
     assert store.events() == []
 
 
@@ -219,6 +222,7 @@ def test_ctrl_015_full_closed_loop_without_llm_db_temporal(
     after, event, decision = controller.commit_transition(
         proposal,
         ActorType.SYSTEM,
+        advance_definition,
         now=lambda: fixed_now,
         id_factory=seq_id_factory,
     )

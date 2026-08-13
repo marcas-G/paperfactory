@@ -14,10 +14,13 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from ..domain.events import DomainEvent
-from ..domain.ids import BranchId, ProjectId
+from ..domain.events import ControlEvent, DomainEvent
+from ..domain.ids import ApprovalId, BranchId, ProjectId, ProposalId, TaskId
 from ..domain.models import ResearchStateSnapshot
+from .approvals import ApprovalRequest
+from .pending import PendingTransition
 from .proposals import StateTransitionProposal
+from .tasks import ResearchTask, TaskStatus
 
 
 @runtime_checkable
@@ -53,4 +56,89 @@ class StateStore(Protocol):
         ...
 
 
-__all__ = ["StateStore"]
+@runtime_checkable
+class TaskStore(Protocol):
+    """Abstract store of ResearchTask snapshots (STEP-003 §10)."""
+
+    def save(self, task: ResearchTask) -> None:
+        """Persist an immutable task snapshot. Must NOT silently overwrite a
+        different task that happens to share a TaskId (raise instead)."""
+        ...
+
+    def get(self, task_id: TaskId) -> ResearchTask:
+        """Return the task or raise ``KeyError``."""
+        ...
+
+    def list_for_project(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> list[ResearchTask]:
+        """Return all tasks in a (project, branch)."""
+        ...
+
+    def get_status(self, task_id: TaskId) -> TaskStatus:
+        """Return the current status of a task."""
+        ...
+
+
+@runtime_checkable
+class PendingTransitionStore(Protocol):
+    """Abstract store of PendingTransition records (STEP-003 §15)."""
+
+    def save(self, pending: PendingTransition) -> None:
+        ...
+
+    def get(self, proposal_id: ProposalId) -> PendingTransition:
+        ...
+
+    def list_pending(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> list[PendingTransition]:
+        """Return pending transitions still awaiting resolution."""
+        ...
+
+    def update(self, pending: PendingTransition) -> None:
+        """Replace a pending transition with a new immutable version."""
+        ...
+
+
+@runtime_checkable
+class ApprovalStore(Protocol):
+    """Abstract store of ApprovalRequest records (STEP-003 §20)."""
+
+    def save(self, approval: ApprovalRequest) -> None:
+        ...
+
+    def get(self, approval_id: ApprovalId) -> ApprovalRequest:
+        ...
+
+    def list_pending(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> list[ApprovalRequest]:
+        ...
+
+    def update(self, approval: ApprovalRequest) -> None:
+        ...
+
+
+@runtime_checkable
+class ControlEventSink(Protocol):
+    """Single append-only outlet for all control events (STEP-003 §33).
+
+    Keeps control events from scattering across stores. Deliberately NOT an
+    event-sourcing framework.
+    """
+
+    def append(self, event: ControlEvent) -> None:
+        ...
+
+    def list_for_project(self, project_id: ProjectId) -> list[ControlEvent]:
+        ...
+
+
+__all__ = [
+    "ApprovalStore",
+    "ControlEventSink",
+    "PendingTransitionStore",
+    "StateStore",
+    "TaskStore",
+]

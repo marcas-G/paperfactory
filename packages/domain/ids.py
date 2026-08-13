@@ -31,7 +31,13 @@ ActionId = NewType("ActionId", str)
 """Identity of a concrete Action instance (an executed action, not a type)."""
 
 TaskId = NewType("TaskId", str)
-"""Identity of a Research Task (DAG node). Reserved for later steps."""
+"""Identity of a Research Task (Control-plane DAG node)."""
+
+ProposalId = NewType("ProposalId", str)
+"""Identity of a (pending or committed) State Transition Proposal."""
+
+ApprovalId = NewType("ApprovalId", str)
+"""Identity of an ApprovalRequest (Human-in-the-loop decision)."""
 
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
@@ -43,10 +49,12 @@ EventId = NewType("EventId", str)
 
 __all__ = [
     "ActionId",
+    "ApprovalId",
     "BranchId",
     "EventId",
     "ObjectId",
     "ProjectId",
+    "ProposalId",
     "RunId",
     "TaskId",
 ]

@@ -7,18 +7,26 @@ DRAFT/READY/COMPLETE) per STEP-002 §24 — NO research semantics here.
 from __future__ import annotations
 
 import itertools
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from packages.control import (
     ActionRegistry,
+    ApprovalManager,
     ResearchAction,
     ResearchActionDefinition,
+    TaskManager,
     TransitionEngine,
 )
 from packages.control.controller import ResearchController
-from packages.control.testing import InMemoryStateStore
+from packages.control.testing import (
+    InMemoryApprovalStore,
+    InMemoryControlEventSink,
+    InMemoryPendingTransitionStore,
+    InMemoryStateStore,
+    InMemoryTaskStore,
+)
 from packages.domain.enums import ActorType, SideEffectLevel
 from packages.domain.ids import ActionId, BranchId, ObjectId, ProjectId
 from packages.domain.models import ResearchStateSnapshot
@@ -34,6 +42,27 @@ STATE_READY = "READY"
 STATE_COMPLETE = "COMPLETE"
 
 
+class _SeqIdFactory:
+    """Deterministic, incrementing id factory (event_id / proposal_id / ...)."""
+
+    def __init__(self) -> None:
+        self._counter = itertools.count(1)
+
+    def __call__(self) -> str:
+        return f"id-{next(self._counter)}"
+
+
+class _Clock:
+    """Monotonically-increasing tz-aware clock for deterministic timestamps."""
+
+    def __init__(self) -> None:
+        self._base = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        self._ticks = itertools.count()
+
+    def __call__(self) -> datetime:
+        return self._base + timedelta(seconds=next(self._ticks))
+
+
 @pytest.fixture
 def fixed_now() -> datetime:
     """A fixed, timezone-aware timestamp for deterministic events."""
@@ -42,16 +71,13 @@ def fixed_now() -> datetime:
 
 @pytest.fixture
 def seq_id_factory() -> _SeqIdFactory:
-    """Deterministic, incrementing id factory (event_id / proposal_id)."""
+    """Deterministic, incrementing id factory."""
     return _SeqIdFactory()
 
 
-class _SeqIdFactory:
-    def __init__(self) -> None:
-        self._counter = itertools.count(1)
-
-    def __call__(self) -> str:
-        return f"id-{next(self._counter)}"
+@pytest.fixture
+def clock() -> _Clock:
+    return _Clock()
 
 
 @pytest.fixture
@@ -70,6 +96,26 @@ def store(draft_snapshot: ResearchStateSnapshot) -> InMemoryStateStore:
     store = InMemoryStateStore()
     store.seed_snapshot(draft_snapshot)
     return store
+
+
+@pytest.fixture
+def task_store() -> InMemoryTaskStore:
+    return InMemoryTaskStore()
+
+
+@pytest.fixture
+def pending_store() -> InMemoryPendingTransitionStore:
+    return InMemoryPendingTransitionStore()
+
+
+@pytest.fixture
+def approval_store() -> InMemoryApprovalStore:
+    return InMemoryApprovalStore()
+
+
+@pytest.fixture
+def event_sink() -> InMemoryControlEventSink:
+    return InMemoryControlEventSink()
 
 
 @pytest.fixture
@@ -96,13 +142,28 @@ def blocked_advance_definition() -> ResearchActionDefinition:
 
 
 @pytest.fixture
+def approval_definition() -> ResearchActionDefinition:
+    """DRAFT -> READY action that REQUIRES approval."""
+    return ResearchActionDefinition(
+        action_type="TEST_APPROVAL_ADVANCE",
+        target_object_type=OBJECT_TYPE,
+        allowed_source_states=frozenset({STATE_DRAFT}),
+        required_gate_ids=frozenset(),
+        side_effect_level=SideEffectLevel.EXTERNAL_WRITE,
+        requires_approval=True,
+    )
+
+
+@pytest.fixture
 def registry(
     advance_definition: ResearchActionDefinition,
     blocked_advance_definition: ResearchActionDefinition,
+    approval_definition: ResearchActionDefinition,
 ) -> ActionRegistry:
     registry = ActionRegistry()
     registry.register(advance_definition)
     registry.register(blocked_advance_definition)
+    registry.register(approval_definition)
     return registry
 
 
@@ -119,13 +180,49 @@ def advance_action() -> ResearchAction:
 
 
 @pytest.fixture
+def approval_action() -> ResearchAction:
+    return ResearchAction(
+        action_id=ActionId("act-2"),
+        action_type="TEST_APPROVAL_ADVANCE",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        target_object_id=OBJ,
+        actor_type=ActorType.SYSTEM,
+    )
+
+
+@pytest.fixture
 def controller(
     registry: ActionRegistry,
     store: InMemoryStateStore,
+    task_store: InMemoryTaskStore,
+    pending_store: InMemoryPendingTransitionStore,
+    approval_store: InMemoryApprovalStore,
+    event_sink: InMemoryControlEventSink,
     seq_id_factory: _SeqIdFactory,
+    clock: _Clock,
 ) -> ResearchController:
+    """Fully-wired controller with in-memory adapters + deterministic id/time."""
     engine = TransitionEngine(store)
-    return ResearchController(registry, engine, proposal_id_factory=seq_id_factory)
+    task_manager = TaskManager(
+        task_store, event_sink, id_factory=seq_id_factory, now=clock
+    )
+    approval_manager = ApprovalManager(
+        approval_store, event_sink, id_factory=seq_id_factory, now=clock
+    )
+    return ResearchController(
+        registry,
+        engine,
+        task_manager,
+        approval_manager,
+        pending_store=pending_store,
+        task_store=task_store,
+        approval_store=approval_store,
+        event_sink=event_sink,
+        proposal_id_factory=seq_id_factory,
+        id_factory=seq_id_factory,
+        now=clock,
+    )
 
 
 @pytest.fixture

@@ -96,15 +96,131 @@ PostgreSQL because the Domain/Control layers never depend on the database.
 `ActionNotRegisteredError`, `DuplicateActionError`. The exception **type**
 encodes the failure category; messages are human context only.
 
+## Task Lifecycle (STEP-003)
+
+A `ResearchTask` is a Control Object tracking one Action's execution. It is
+managed by `TaskManager`; status changes go through `with_status(...)` (a new
+immutable task) and emit a `TASK_STATE_CHANGED` event. No `task.status = ...`
+anywhere.
+
+```
+PENDING  -> READY | CANCELLED
+READY    -> RUNNING | CANCELLED
+RUNNING  -> WAITING | SUCCEEDED | FAILED
+WAITING  -> READY | SUCCEEDED | FAILED | CANCELLED
+```
+
+Terminal states (never revived): **SUCCEEDED, FAILED, CANCELLED**.
+
+A task with no `dependencies` starts READY; with dependencies it starts
+PENDING and `refresh_readiness()` flips it to READY once every dependency task
+is SUCCEEDED.
+
+> **Task ≠ Runtime Job.** There is no scheduler, no async worker, no queue.
+> A Task is a *Control-plane* record of an Action's lifecycle, not something
+> the Runtime executes automatically.
+
+## Pending Transition & WAIT Semantics (STEP-003)
+
+In STEP-002 a `WAIT` decision dropped the proposal. STEP-003 makes WAIT
+*recoverable*: `TransitionEngine.execute(...)` returns a unified
+`TransitionExecutionResult`:
+
+| decision | snapshot | event | pending_transition |
+| --- | :---: | :---: | :---: |
+| COMMIT  | set | set | None |
+| WAIT    | None | None | set |
+| REJECT  | None | None | None |
+
+On WAIT the engine materializes a `PendingTransition` (the captured proposal +
+reason + `waiting_on`). WAIT is triggered by UNCERTAIN/BLOCKED gates, OR by a
+`requires_approval` action whose approval is not yet APPROVED.
+
+```
+PENDING -> RESUMABLE | REJECTED | CANCELLED
+RESUMABLE -> COMMITTED | REJECTED | CANCELLED
+```
+
+Terminal: **COMMITTED, REJECTED, CANCELLED**.
+
+> **WAIT ≠ Runtime Failure.** WAIT is a *recoverable control state* (awaiting
+> approval / external / uncertainty), not a tool timeout or OOM. Runtime
+> failures are a separate concern (constitution §26).
+
+## Approval Lifecycle (STEP-003)
+
+An `ApprovalRequest` is a formal, versioned Human-in-the-loop decision — not a
+UI popup. Managed by `ApprovalManager`; only PENDING may be resolved;
+`resolved_by` is always recorded.
+
+```
+PENDING -> APPROVED | REJECTED | EXPIRED | CANCELLED
+```
+
+Terminal: **APPROVED, REJECTED, EXPIRED, CANCELLED** (never re-resolved).
+
+> **Approval ≠ UI Popup.** It is an auditable Control Object whose resolution
+> drives state, not a transient UI event.
+
+### Resume flow
+
+```
+ApprovalRequest APPROVED
+  -> PendingTransition PENDING -> RESUMABLE
+  -> resume_pending_transition(...)
+  -> re-validate CURRENT revision (StaleStateError if stale)
+  -> COMMIT | REJECT | WAIT
+```
+
+**Resume MUST re-check revision.** Approval being valid when granted does not
+license skipping stale-state protection: the engine re-reads the store on
+resume and raises `StaleStateError` if `expected_revision` no longer matches.
+
+### Rejection flow
+
+```
+ApprovalRequest REJECTED
+  -> PendingTransition -> REJECTED
+  -> Task WAITING -> FAILED   (reason: APPROVAL_REJECTED)
+  -> Research State unchanged
+```
+
+A rejected approval FAILS (not cancels) the task, because the request was
+executed and produced a definite negative result.
+
+## Logical Atomicity (STEP-003)
+
+With no DB transaction yet, atomicity is a *logical* contract the in-memory
+adapters honor, to be enforced by a real transaction in the persistence
+adapter later:
+
+- **State commit** = state mutation + DomainEvent, applied together.
+- **Task status update** = task mutation + ControlEvent, together.
+- **Approval resolution** = approval update + pending-transition update +
+  task update + ControlEvent, as one control operation.
+
+In-memory adapters never leave a test observing a half-applied update.
+
+## Event Inventory
+
+Control events flow through a single `ControlEventSink` port (so events do not
+scatter across stores). Types (`ControlEventType`):
+
+- `OBJECT_STATE_CHANGED`, `TASK_CREATED`, `TASK_STATE_CHANGED`,
+  `TRANSITION_WAITING`, `TRANSITION_RESUMED`, `APPROVAL_REQUESTED`,
+  `APPROVAL_APPROVED`, `APPROVAL_REJECTED`.
+
+No control state change happens without an event.
+
 ## What Is Explicitly Not Implemented Yet
 
-The following are deliberately out of scope for the kernel and arrive in
-later steps:
+The following are deliberately out of scope and arrive in later steps:
 
 - Research semantics (ResearchQuestion, Gap, Hypothesis, Experiment, Claim,
   Evidence, Protocol, …)
-- Research Policy (action ranking, prioritization)
-- Task DAG
+- Research Policy (action ranking, prioritization, information-gain scoring)
+- Task DAG *scheduler* / automatic execution (Tasks are Control Objects only)
+- Branch Manager (fork / merge / archive / inheritance)
 - Cognition (CognitiveMode, ContextCompiler, PromptPolicy, BlindingPolicy)
 - Agent Runtime (Pydantic AI, Session/Run, sandbox, hooks)
 - Persistence (PostgreSQL, SQLAlchemy, Alembic, event store)

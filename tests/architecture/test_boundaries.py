@@ -153,3 +153,77 @@ def test_control_may_depend_on_domain() -> None:
     # problem rather than a rule violation.
     import packages.control  # noqa: F401
     import packages.domain  # noqa: F401
+
+
+# --- PORTS must stay abstract (STEP-003 §36) ---------------------------
+
+CONTROL_FRAMEWORK_BLACKLIST = {
+    "fastapi",
+    "sqlalchemy",
+    "temporalio",
+    "pydantic_ai",
+    "openai",
+    "anthropic",
+}
+
+
+def test_control_does_not_import_frameworks() -> None:
+    control_root = REPO_ROOT / "packages" / "control"
+    violations: list[str] = []
+    for path in _py_files(control_root):
+        tree = _parse(path)
+        names = _imported_names(tree)
+        hit = names & CONTROL_FRAMEWORK_BLACKLIST
+        for name in hit:
+            violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "control imports forbidden framework(s):\n" + "\n".join(violations)
+    )
+
+
+def test_store_ports_are_protocols() -> None:
+    """All persistence ports in packages/control/store.py MUST be typing
+    Protocol classes (Ports & Adapters), not concrete adapters and not bound
+    to SQLAlchemy / FastAPI."""
+    from packages.control import store as store_mod
+
+    expected_ports = [
+        "StateStore",
+        "TaskStore",
+        "PendingTransitionStore",
+        "ApprovalStore",
+        "ControlEventSink",
+    ]
+    for name in expected_ports:
+        obj = getattr(store_mod, name, None)
+        assert obj is not None, f"missing port: {name}"
+        # runtime_checkable Protocol classes expose _is_protocol = True.
+        bases = [getattr(c, "__name__", "") for c in getattr(obj, "__bases__", ())]
+        assert getattr(obj, "_is_protocol", False), (
+            f"{name} is not a Protocol (bases={bases})"
+        )
+
+
+def test_inmemory_adapters_live_in_testing_module() -> None:
+    """Concrete (test/dev) adapters MUST live in packages/control/testing.py,
+    NOT in the public store/controller modules (STEP-003 §11/§19)."""
+    import packages.control as public
+    import packages.control.testing as testing
+
+    # public surface should not leak in-memory adapter classes
+    leaked = [
+        n
+        for n in dir(public)
+        if n.startswith("InMemory")
+    ]
+    assert not leaked, f"in-memory adapters leaked into public API: {leaked}"
+    # they should exist in the testing module instead
+    for adapter in [
+        "InMemoryStateStore",
+        "InMemoryTaskStore",
+        "InMemoryPendingTransitionStore",
+        "InMemoryApprovalStore",
+        "InMemoryControlEventSink",
+    ]:
+        assert hasattr(testing, adapter), f"missing in testing module: {adapter}"
+

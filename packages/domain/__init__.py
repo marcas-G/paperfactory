@@ -17,13 +17,15 @@ framework-independent (no FastAPI / SQLAlchemy / LLM SDKs).
 from __future__ import annotations
 
 from .enums import ActorType, GateStatus, SideEffectLevel, TransitionDecision
-from .events import DomainEvent
+from .events import ControlEvent, ControlEventType, DomainEvent
 from .ids import (
     ActionId,
+    ApprovalId,
     BranchId,
     EventId,
     ObjectId,
     ProjectId,
+    ProposalId,
     RunId,
     TaskId,
 )
@@ -32,10 +34,12 @@ from .models import ResearchStateSnapshot
 __all__ = [
     # ids
     "ActionId",
+    "ApprovalId",
     "BranchId",
     "EventId",
     "ObjectId",
     "ProjectId",
+    "ProposalId",
     "RunId",
     "TaskId",
     # enums
@@ -44,6 +48,8 @@ __all__ = [
     "SideEffectLevel",
     "TransitionDecision",
     # contracts
+    "ControlEvent",
+    "ControlEventType",
     "DomainEvent",
     "ResearchStateSnapshot",
 ]

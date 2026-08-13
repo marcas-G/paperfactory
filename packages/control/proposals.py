@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ..domain.ids import ActionId, BranchId, ObjectId, ProjectId
+from ..domain.ids import ActionId, BranchId, ObjectId, ProjectId, ProposalId
 from .actions import StateLabel
 from .gates import GateResult
 
@@ -20,7 +20,7 @@ from .gates import GateResult
 class StateTransitionProposal:
     """A proposed, not-yet-committed Research State transition."""
 
-    proposal_id: str
+    proposal_id: ProposalId
     project_id: ProjectId
     branch_id: BranchId
 

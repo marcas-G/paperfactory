@@ -1,11 +1,15 @@
-"""Immutable Domain Event contracts.
+"""Immutable event contracts.
 
-A Domain Event is a *fact record*: it states "this state transition
-happened". It is NOT a command and carries no executable behavior. Events
-are produced only by the Transition Engine upon a successful commit.
+Two event shapes coexist:
 
-Persistence is out of scope here (STEP-002 §12): events are kept in memory
-for tests. The ``created_at`` timestamp is timezone-aware.
+* ``DomainEvent`` — the STEP-002 record of a *committed Research State
+  transition* (carries previous/new state + revision).
+* ``ControlEvent`` — a general control-plane fact (Task lifecycle,
+  PendingTransition, Approval, ...). Carries a typed ``event_type`` and a
+  free-form ``aggregate_id`` + payload. Used by ``ControlEventSink``.
+
+Both are immutable fact records, not commands. Persistence is out of scope
+(events are kept in memory for tests). Timestamps are timezone-aware.
 """
 
 from __future__ import annotations
@@ -13,15 +17,38 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import StrEnum
 
 from .enums import ActorType
 from .ids import ActionId, BranchId, EventId, ObjectId, ProjectId
 
-# A free-form event-type tag, e.g. "OBJECT_STATE_CHANGED". Typed event-type
-# enums arrive with real research semantics in later steps.
+# A free-form event-type tag for DomainEvent.
 EventType = str
 StateLabel = str
 Revision = int
+
+
+class ControlEventType(StrEnum):
+    """Typed control-plane event kinds (STEP-003 §31).
+
+    A lightweight, control-only enum — NOT a full research event ontology.
+    """
+
+    # State transitions
+    OBJECT_STATE_CHANGED = "OBJECT_STATE_CHANGED"
+
+    # Task lifecycle
+    TASK_CREATED = "TASK_CREATED"
+    TASK_STATE_CHANGED = "TASK_STATE_CHANGED"
+
+    # Pending transitions
+    TRANSITION_WAITING = "TRANSITION_WAITING"
+    TRANSITION_RESUMED = "TRANSITION_RESUMED"
+
+    # Approvals
+    APPROVAL_REQUESTED = "APPROVAL_REQUESTED"
+    APPROVAL_APPROVED = "APPROVAL_APPROVED"
+    APPROVAL_REJECTED = "APPROVAL_REJECTED"
 
 
 @dataclass(frozen=True)
@@ -48,4 +75,32 @@ class DomainEvent:
     metadata: Mapping[str, object] = field(default_factory=dict)
 
 
-__all__ = ["DomainEvent", "EventType", "Revision", "StateLabel"]
+@dataclass(frozen=True)
+class ControlEvent:
+    """An immutable, general control-plane fact record.
+
+    ``aggregate_id`` is an opaque string identity of whatever the event is
+    about (a task id, an approval id, a proposal id, an object id, ...).
+    ``payload`` carries event-specific structured detail.
+    """
+
+    event_id: EventId
+    project_id: ProjectId
+    branch_id: BranchId | None
+
+    event_type: ControlEventType
+    aggregate_id: str
+
+    actor_type: ActorType
+    created_at: datetime
+    payload: Mapping[str, object] = field(default_factory=dict)
+
+
+__all__ = [
+    "ControlEvent",
+    "ControlEventType",
+    "DomainEvent",
+    "EventType",
+    "Revision",
+    "StateLabel",
+]
