@@ -42,11 +42,56 @@ class DuplicateActionError(ControlError):
     """An ActionDefinition with the same action_type was already registered."""
 
 
+# --- Branch errors (STEP-004 §30) --------------------------------------
+class BranchError(ControlError):
+    """Base class for Research Branch control failures."""
+
+
+class BranchNotFoundError(BranchError):
+    """A referenced branch does not exist."""
+
+
+class IllegalBranchTransitionError(BranchError):
+    """A branch lifecycle transition is not legal (e.g. reviving a terminal
+    branch, transitioning from a terminal state)."""
+
+
+class DuplicateBranchError(BranchError):
+    """A branch with the same identity already exists (e.g. a second main
+    branch for a project — BR-INV-01)."""
+
+
+class BranchBusyError(BranchError):
+    """A branch has RUNNING tasks and cannot be paused / archived / rejected
+    (STEP-004 §38)."""
+
+
+class CrossBranchDependencyError(BranchError):
+    """A task dependency crosses branch boundaries (STEP-004 §20)."""
+
+
+class BranchScopeMismatchError(BranchError):
+    """An object (task/approval/pending transition) does not belong to the
+    branch it is being applied to (STEP-004 §20/§21/§22)."""
+
+
+class BranchMergeError(BranchError):
+    """A merge precondition failed or a merge operation is illegal."""
+
+
 __all__ = [
     "ActionNotRegisteredError",
+    "BranchBusyError",
+    "BranchError",
+    "BranchMergeError",
+    "BranchNotFoundError",
+    "BranchScopeMismatchError",
     "ControlError",
+    "CrossBranchDependencyError",
     "DuplicateActionError",
+    "DuplicateBranchError",
     "IllegalActionError",
+    "IllegalBranchTransitionError",
     "InvariantViolationError",
     "StaleStateError",
     "TransitionRejectedError",

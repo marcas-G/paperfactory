@@ -220,7 +220,8 @@ The following are deliberately out of scope and arrive in later steps:
   Evidence, Protocol, …)
 - Research Policy (action ranking, prioritization, information-gain scoring)
 - Task DAG *scheduler* / automatic execution (Tasks are Control Objects only)
-- Branch Manager (fork / merge / archive / inheritance)
+- Branch Control is now implemented — see [branch-control.md](branch-control.md).
+  (Research-semantic merge commit and branch reopen remain out of scope.)
 - Cognition (CognitiveMode, ContextCompiler, PromptPolicy, BlindingPolicy)
 - Agent Runtime (Pydantic AI, Session/Run, sandbox, hooks)
 - Persistence (PostgreSQL, SQLAlchemy, Alembic, event store)

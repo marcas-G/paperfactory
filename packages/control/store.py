@@ -15,9 +15,11 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from ..domain.events import ControlEvent, DomainEvent
-from ..domain.ids import ApprovalId, BranchId, ProjectId, ProposalId, TaskId
+from ..domain.ids import ApprovalId, BranchId, MergeId, ProjectId, ProposalId, TaskId
 from ..domain.models import ResearchStateSnapshot
 from .approvals import ApprovalRequest
+from .branches import BranchForkPoint, ResearchBranch
+from .merges import BranchMergeProposal
 from .pending import PendingTransition
 from .proposals import StateTransitionProposal
 from .tasks import ResearchTask, TaskStatus
@@ -33,6 +35,17 @@ class StateStore(Protocol):
         Implementations decide how to represent "not found" (e.g. empty
         snapshot at revision 0, or raise). The in-memory adapter seeds an
         initial snapshot.
+        """
+        ...
+
+    def initialize_branch_snapshot(self, snapshot: ResearchStateSnapshot) -> None:
+        """Seed the initial snapshot for a NEW branch (STEP-004 §14).
+
+        This is the formal port contract for establishing a branch's state —
+        used at main-branch creation and at fork time. It MUST reject a
+        snapshot for an already-initialized (project, branch). It is NOT a
+        production state-mutation shortcut: it only sets the starting point
+        for a branch that has no state yet.
         """
         ...
 
@@ -135,9 +148,68 @@ class ControlEventSink(Protocol):
         ...
 
 
+@runtime_checkable
+class BranchStore(Protocol):
+    """Abstract store of ResearchBranch records (STEP-004 §9)."""
+
+    def save_new(self, branch: ResearchBranch) -> None:
+        """Strict create: reject (DuplicateBranchError) if the BranchId already
+        exists. Used for main-branch creation and fork (BR-INV-01)."""
+        ...
+
+    def save(self, branch: ResearchBranch) -> None:
+        """Upsert: persist a new immutable version of an existing branch
+        (status evolution)."""
+        ...
+
+    def get(self, branch_id: BranchId) -> ResearchBranch:
+        """Return the branch or raise ``BranchNotFoundError``."""
+        ...
+
+    def list_for_project(self, project_id: ProjectId) -> list[ResearchBranch]:
+        ...
+
+    def exists(self, branch_id: BranchId) -> bool:
+        ...
+
+    def get_main(self, project_id: ProjectId) -> ResearchBranch | None:
+        """Return the main branch for a project, or None if none exists."""
+        ...
+
+
+@runtime_checkable
+class ForkPointStore(Protocol):
+    """Abstract store of BranchForkPoint base snapshots (STEP-004 §27).
+
+    Needed for three-way merge comparison since the in-memory StateStore does
+    not keep historical revisions.
+    """
+
+    def save(self, fork_point: BranchForkPoint) -> None:
+        ...
+
+    def get(self, branch_id: BranchId) -> BranchForkPoint:
+        """Return the fork point for a branch or raise ``KeyError``."""
+        ...
+
+
+@runtime_checkable
+class MergeStore(Protocol):
+    """Abstract store of BranchMergeProposal records (STEP-004 §24)."""
+
+    def save(self, proposal: BranchMergeProposal) -> None:
+        ...
+
+    def get(self, merge_id: MergeId) -> BranchMergeProposal:
+        ...
+
+
 __all__ = [
     "ApprovalStore",
+    "BranchStore",
     "ControlEventSink",
+    "ForkPointStore",
+    "MergeStore",
     "PendingTransitionStore",
     "StateStore",
     "TaskStore",

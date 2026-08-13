@@ -14,6 +14,7 @@ import pytest
 from packages.control import (
     ActionRegistry,
     ApprovalManager,
+    BranchManager,
     ResearchAction,
     ResearchActionDefinition,
     TaskManager,
@@ -22,7 +23,10 @@ from packages.control import (
 from packages.control.controller import ResearchController
 from packages.control.testing import (
     InMemoryApprovalStore,
+    InMemoryBranchStore,
     InMemoryControlEventSink,
+    InMemoryForkPointStore,
+    InMemoryMergeStore,
     InMemoryPendingTransitionStore,
     InMemoryStateStore,
     InMemoryTaskStore,
@@ -92,10 +96,11 @@ def draft_snapshot() -> ResearchStateSnapshot:
 
 
 @pytest.fixture
-def store(draft_snapshot: ResearchStateSnapshot) -> InMemoryStateStore:
-    store = InMemoryStateStore()
-    store.seed_snapshot(draft_snapshot)
-    return store
+def store() -> InMemoryStateStore:
+    """Empty state store. The controller fixture initializes the main branch
+    snapshot via create_main_branch (the formal port path); tests that need a
+    bare store without a branch use this directly."""
+    return InMemoryStateStore()
 
 
 @pytest.fixture
@@ -111,6 +116,21 @@ def pending_store() -> InMemoryPendingTransitionStore:
 @pytest.fixture
 def approval_store() -> InMemoryApprovalStore:
     return InMemoryApprovalStore()
+
+
+@pytest.fixture
+def branch_store() -> InMemoryBranchStore:
+    return InMemoryBranchStore()
+
+
+@pytest.fixture
+def fork_point_store() -> InMemoryForkPointStore:
+    return InMemoryForkPointStore()
+
+
+@pytest.fixture
+def merge_store() -> InMemoryMergeStore:
+    return InMemoryMergeStore()
 
 
 @pytest.fixture
@@ -198,11 +218,18 @@ def controller(
     task_store: InMemoryTaskStore,
     pending_store: InMemoryPendingTransitionStore,
     approval_store: InMemoryApprovalStore,
+    branch_store: InMemoryBranchStore,
+    fork_point_store: InMemoryForkPointStore,
+    merge_store: InMemoryMergeStore,
     event_sink: InMemoryControlEventSink,
+    draft_snapshot: ResearchStateSnapshot,
     seq_id_factory: _SeqIdFactory,
     clock: _Clock,
 ) -> ResearchController:
-    """Fully-wired controller with in-memory adapters + deterministic id/time."""
+    """Fully-wired controller with in-memory adapters + deterministic id/time.
+
+    Initializes a main branch (ACTIVE) with the draft snapshot, so ordinary
+    STEP-002/003 transition tests run against an actionable branch."""
     engine = TransitionEngine(store)
     task_manager = TaskManager(
         task_store, event_sink, id_factory=seq_id_factory, now=clock
@@ -210,19 +237,38 @@ def controller(
     approval_manager = ApprovalManager(
         approval_store, event_sink, id_factory=seq_id_factory, now=clock
     )
-    return ResearchController(
+    branch_manager = BranchManager(
+        branch_store,
+        fork_point_store,
+        store,
+        merge_store,
+        task_store,
+        event_sink,
+        id_factory=seq_id_factory,
+        now=clock,
+    )
+    controller = ResearchController(
         registry,
         engine,
         task_manager,
         approval_manager,
+        branch_manager,
         pending_store=pending_store,
         task_store=task_store,
         approval_store=approval_store,
+        branch_store=branch_store,
         event_sink=event_sink,
         proposal_id_factory=seq_id_factory,
         id_factory=seq_id_factory,
         now=clock,
     )
+    # Establish the main branch + its initial state via the formal port path.
+    controller.create_main_branch(
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        initial_snapshot=draft_snapshot,
+    )
+    return controller
 
 
 @pytest.fixture

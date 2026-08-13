@@ -38,19 +38,28 @@ from .actions import (
 )
 from .approval_manager import ApprovalManager
 from .approvals import ApprovalRequest, ApprovalStatus
+from .branch_manager import BranchManager
+from .branches import ACTIONABLE_BRANCH_STATUSES, ResearchBranch
 from .clock import IdFactory, TimeProvider, default_id, default_now
 from .engine import (
     TransitionEngine,
     TransitionExecutionResult,
     assert_action_legal,
 )
-from .errors import TransitionRejectedError
+from .errors import (
+    BranchScopeMismatchError,
+    CrossBranchDependencyError,
+    IllegalActionError,
+    TransitionRejectedError,
+)
 from .gates import GateResult
+from .merges import BranchMergeProposal
 from .pending import PendingTransition, PendingTransitionStatus
 from .proposals import StateTransitionProposal
 from .registry import ActionRegistry
 from .store import (
     ApprovalStore,
+    BranchStore,
     ControlEventSink,
     PendingTransitionStore,
     TaskStore,
@@ -74,10 +83,12 @@ class ResearchController:
         engine: TransitionEngine,
         task_manager: TaskManager,
         approval_manager: ApprovalManager,
+        branch_manager: BranchManager,
         *,
         pending_store: PendingTransitionStore,
         task_store: TaskStore,
         approval_store: ApprovalStore,
+        branch_store: BranchStore,
         event_sink: ControlEventSink,
         proposal_id_factory: Callable[[], str] | None = None,
         id_factory: IdFactory | None = None,
@@ -87,9 +98,11 @@ class ResearchController:
         self._engine = engine
         self._tasks = task_manager
         self._approvals = approval_manager
+        self._branches = branch_manager
         self._pending_store = pending_store
         self._task_store = task_store
         self._approval_store = approval_store
+        self._branch_store = branch_store
         self._sink = event_sink
         self._proposal_id_factory: Callable[[], str] = (
             proposal_id_factory or id_factory or default_id
@@ -108,6 +121,17 @@ class ResearchController:
         state: ResearchStateSnapshot,
         target_object_id: ObjectId,
     ) -> list[ResearchActionDefinition]:
+        """Ordinary research actions legal for ``target_object_id`` in the
+        current state. Returns [] when the branch is not ACTIVE — a PAUSED or
+        terminal branch may not start ordinary research actions (STEP-004
+        §16). Branch-control actions are handled via BranchManager methods
+        (their own audit path)."""
+        try:
+            branch = self._branch_store.get(state.branch_id)
+        except KeyError:
+            return []
+        if branch.status not in ACTIONABLE_BRANCH_STATUSES:
+            return []
         current = state.object_states.get(target_object_id)
         if current is None:
             return []
@@ -129,6 +153,14 @@ class ResearchController:
         dependencies: tuple[TaskId, ...] = (),
         created_by: ActorType = ActorType.SYSTEM,
     ) -> ResearchTask:
+        # Task dependencies MUST stay within the same branch (STEP-004 §20).
+        for dep_id in dependencies:
+            dep = self._task_store.get(dep_id)
+            if dep.branch_id != branch_id or dep.project_id != project_id:
+                raise CrossBranchDependencyError(
+                    f"task dependency {dep_id} belongs to a different branch "
+                    f"({dep.project_id}/{dep.branch_id})"
+                )
         return self._tasks.create_task(
             project_id=project_id,
             branch_id=branch_id,
@@ -144,6 +176,84 @@ class ResearchController:
 
     def refresh_readiness(self, task_id: TaskId) -> ResearchTask:
         return self._tasks.refresh_readiness(task_id)
+
+    # ===================================================================
+    # Branches (STEP-004) — delegate to BranchManager
+    # ===================================================================
+    def create_main_branch(
+        self,
+        *,
+        project_id: ProjectId,
+        branch_id: BranchId,
+        name: str = "main",
+        purpose: str = "",
+        created_by: ActorType = ActorType.SYSTEM,
+        initial_snapshot: ResearchStateSnapshot | None = None,
+    ) -> ResearchBranch:
+        return self._branches.create_main_branch(
+            project_id=project_id,
+            branch_id=branch_id,
+            name=name,
+            purpose=purpose,
+            created_by=created_by,
+            initial_snapshot=initial_snapshot,
+        )
+
+    def fork_branch(
+        self,
+        *,
+        source_branch_id: BranchId,
+        new_branch_id: BranchId,
+        name: str,
+        purpose: str = "",
+        created_by: ActorType = ActorType.SYSTEM,
+    ) -> ResearchBranch:
+        return self._branches.fork_branch(
+            source_branch_id=source_branch_id,
+            new_branch_id=new_branch_id,
+            name=name,
+            purpose=purpose,
+            created_by=created_by,
+        )
+
+    def get_branch(self, branch_id: BranchId) -> ResearchBranch:
+        return self._branches.get_branch(branch_id)
+
+    def list_branches(self, project_id: ProjectId) -> list[ResearchBranch]:
+        return self._branches.list_branches(project_id)
+
+    def pause_branch(
+        self, branch_id: BranchId, *, actor: ActorType = ActorType.SYSTEM
+    ) -> ResearchBranch:
+        return self._branches.pause_branch(branch_id, actor=actor)
+
+    def resume_branch(
+        self, branch_id: BranchId, *, actor: ActorType = ActorType.SYSTEM
+    ) -> ResearchBranch:
+        return self._branches.resume_branch(branch_id, actor=actor)
+
+    def archive_branch(
+        self, branch_id: BranchId, *, actor: ActorType = ActorType.SYSTEM
+    ) -> ResearchBranch:
+        return self._branches.archive_branch(branch_id, actor=actor)
+
+    def reject_branch(
+        self, branch_id: BranchId, *, actor: ActorType = ActorType.SYSTEM
+    ) -> ResearchBranch:
+        return self._branches.reject_branch(branch_id, actor=actor)
+
+    def prepare_branch_merge(
+        self,
+        *,
+        source_branch_id: BranchId,
+        target_branch_id: BranchId,
+        actor: ActorType = ActorType.SYSTEM,
+    ) -> BranchMergeProposal:
+        return self._branches.prepare_merge(
+            source_branch_id=source_branch_id,
+            target_branch_id=target_branch_id,
+            actor=actor,
+        )
 
     # ===================================================================
     # Propose + execute (unified result)
@@ -190,6 +300,10 @@ class ResearchController:
         Returns the unified ``TransitionExecutionResult`` (never raises for a
         normal WAIT/REJECT — only for illegal action / stale / invariant).
         """
+        self._assert_branch_actionable(proposal.project_id, proposal.branch_id)
+        if task_id is not None:
+            self._assert_task_in_branch(task_id, proposal.project_id, proposal.branch_id)
+
         result = self._engine.execute(
             proposal,
             definition=definition,
@@ -279,8 +393,16 @@ class ResearchController:
 
         MUST re-check revision (STEP-003 §24): the engine re-reads the store
         during execute, so a stale expected_revision surfaces as
-        ``StaleStateError`` and nothing is committed.
+        ``StaleStateError`` and nothing is committed. The branch MUST be
+        ACTIVE — a PAUSED/terminal branch cannot commit a pending transition
+        (STEP-004 §21/§35).
         """
+        self._assert_branch_actionable(pending.project_id, pending.branch_id)
+        if pending.related_task_id is not None:
+            self._assert_task_in_branch(
+                pending.related_task_id, pending.project_id, pending.branch_id
+            )
+
         result = self._engine.resume(
             pending,
             definition=definition,
@@ -347,6 +469,55 @@ class ResearchController:
 
     # ===================================================================
     # Internals
+    # ===================================================================
+    # Branch-aware guards (STEP-004 §16/§20/§21/§22)
+    # ===================================================================
+    def _assert_branch_actionable(
+        self, project_id: ProjectId, branch_id: BranchId
+    ) -> None:
+        """Ordinary research actions/transitions require an ACTIVE branch
+        (STEP-004 §16). PAUSED/terminal branches raise IllegalActionError."""
+        try:
+            branch = self._branch_store.get(branch_id)
+        except KeyError:
+            raise IllegalActionError(f"branch not found: {branch_id}") from None
+        if branch.project_id != project_id:
+            raise BranchScopeMismatchError(
+                f"branch {branch_id} belongs to project {branch.project_id}, "
+                f"not {project_id}"
+            )
+        if branch.status not in ACTIONABLE_BRANCH_STATUSES:
+            raise IllegalActionError(
+                f"branch {branch_id} is {branch.status.value}; "
+                f"ordinary actions require an ACTIVE branch"
+            )
+
+    def _assert_task_in_branch(
+        self, task_id: TaskId, project_id: ProjectId, branch_id: BranchId
+    ) -> None:
+        try:
+            task = self._task_store.get(task_id)
+        except KeyError:
+            raise IllegalActionError(f"task not found: {task_id}") from None
+        if task.project_id != project_id or task.branch_id != branch_id:
+            raise BranchScopeMismatchError(
+                f"task {task_id} belongs to {task.project_id}/{task.branch_id}, "
+                f"not {project_id}/{branch_id}"
+            )
+
+    def assert_approval_branch_matches(
+        self, approval_id: ApprovalId, project_id: ProjectId, branch_id: BranchId
+    ) -> None:
+        """Public guard: an approval must belong to the same branch as the
+        pending transition it is being used to resume (STEP-004 §22)."""
+        approval = self._approval_store.get(approval_id)
+        if approval.project_id != project_id or approval.branch_id != branch_id:
+            raise BranchScopeMismatchError(
+                f"approval {approval_id} belongs to "
+                f"{approval.project_id}/{approval.branch_id}, "
+                f"not {project_id}/{branch_id}"
+            )
+
     # ===================================================================
     def _request_approval_for(
         self,

@@ -14,10 +14,24 @@ from __future__ import annotations
 from copy import deepcopy
 
 from ..domain.events import ControlEvent, DomainEvent
-from ..domain.ids import ApprovalId, BranchId, ProjectId, ProposalId, TaskId
+from ..domain.ids import (
+    ApprovalId,
+    BranchId,
+    MergeId,
+    ProjectId,
+    ProposalId,
+    TaskId,
+)
 from ..domain.models import ResearchStateSnapshot
 from .approvals import ApprovalRequest
-from .errors import InvariantViolationError, StaleStateError
+from .branches import BranchForkPoint, ResearchBranch
+from .errors import (
+    BranchNotFoundError,
+    DuplicateBranchError,
+    InvariantViolationError,
+    StaleStateError,
+)
+from .merges import BranchMergeProposal
 from .pending import PendingTransition
 from .proposals import StateTransitionProposal
 from .tasks import ResearchTask, TaskStatus
@@ -33,19 +47,33 @@ class InMemoryStateStore:
 
     # --- test/dev helpers (NOT on the StateStore Protocol) --------------
     def seed_snapshot(self, snapshot: ResearchStateSnapshot) -> None:
-        """Seed an initial snapshot. Test/dev only — no production path."""
-        key = (snapshot.project_id, snapshot.branch_id)
-        if key in self._snapshots:
-            raise InvariantViolationError(
-                f"snapshot already seeded for {snapshot.project_id}/{snapshot.branch_id}"
-            )
-        self._snapshots[key] = snapshot
+        """Seed an initial snapshot. Test/dev convenience alias for the
+        formal ``initialize_branch_snapshot`` port method."""
+        self.initialize_branch_snapshot(snapshot)
 
     def events(self) -> list[DomainEvent]:
         """Return a copy of all committed events (test assertion helper)."""
         return list(self._events)
 
     # --- StateStore Protocol --------------------------------------------
+    def initialize_branch_snapshot(self, snapshot: ResearchStateSnapshot) -> None:
+        """Seed the initial snapshot for a branch. Rejects re-seeding."""
+        key = (snapshot.project_id, snapshot.branch_id)
+        if key in self._snapshots:
+            raise InvariantViolationError(
+                f"snapshot already initialized for "
+                f"{snapshot.project_id}/{snapshot.branch_id}"
+            )
+        # Store a deep copy so callers cannot mutate branch state through an
+        # alias to the source snapshot (STEP-004 §13 state isolation).
+        self._snapshots[key] = ResearchStateSnapshot(
+            project_id=snapshot.project_id,
+            branch_id=snapshot.branch_id,
+            revision=snapshot.revision,
+            object_states=dict(snapshot.object_states),
+            metadata=deepcopy(dict(snapshot.metadata)),
+        )
+
     def get_snapshot(self, project_id: ProjectId, branch_id: BranchId) -> ResearchStateSnapshot:
         key = (project_id, branch_id)
         if key not in self._snapshots:
@@ -98,7 +126,10 @@ class InMemoryStateStore:
 
 __all__ = [
     "InMemoryApprovalStore",
+    "InMemoryBranchStore",
     "InMemoryControlEventSink",
+    "InMemoryForkPointStore",
+    "InMemoryMergeStore",
     "InMemoryPendingTransitionStore",
     "InMemoryStateStore",
     "InMemoryTaskStore",
@@ -226,3 +257,84 @@ class InMemoryControlEventSink:
     def all_events(self) -> list[ControlEvent]:
         """Test helper: return every event regardless of project."""
         return list(self._events)
+
+
+# =========================================================================
+# BranchStore
+# =========================================================================
+class InMemoryBranchStore:
+    """In-memory BranchStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._branches: dict[BranchId, ResearchBranch] = {}
+
+    def save(self, branch: ResearchBranch) -> None:
+        # Creation vs evolution: a brand-new branch_id must not already exist
+        # (BR-INV-01 duplicate main). Evolution of an existing branch (status
+        # change) overwrites with the new immutable version.
+        existing = self._branches.get(branch.branch_id)
+        if existing is not None and existing.status is not branch.status:
+            # status change -> allowed upsert
+            pass
+        self._branches[branch.branch_id] = branch
+
+    def save_new(self, branch: ResearchBranch) -> None:
+        """Strict create: reject if branch_id already exists (duplicate main
+        guard). Test/dev helper used by BranchManager for creation."""
+        if branch.branch_id in self._branches:
+            raise DuplicateBranchError(f"branch already exists: {branch.branch_id}")
+        self._branches[branch.branch_id] = branch
+
+    def get(self, branch_id: BranchId) -> ResearchBranch:
+        if branch_id not in self._branches:
+            raise BranchNotFoundError(f"branch not found: {branch_id}")
+        return self._branches[branch_id]
+
+    def list_for_project(self, project_id: ProjectId) -> list[ResearchBranch]:
+        return [b for b in self._branches.values() if b.project_id == project_id]
+
+    def exists(self, branch_id: BranchId) -> bool:
+        return branch_id in self._branches
+
+    def get_main(self, project_id: ProjectId) -> ResearchBranch | None:
+        for b in self._branches.values():
+            if b.project_id == project_id and b.is_main():
+                return b
+        return None
+
+
+# =========================================================================
+# ForkPointStore
+# =========================================================================
+class InMemoryForkPointStore:
+    """In-memory ForkPointStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._points: dict[BranchId, BranchForkPoint] = {}
+
+    def save(self, fork_point: BranchForkPoint) -> None:
+        # Fork provenance is immutable (BR-INV-05): write once.
+        if fork_point.branch_id in self._points:
+            raise InvariantViolationError(
+                f"fork point already recorded for {fork_point.branch_id}"
+            )
+        self._points[fork_point.branch_id] = fork_point
+
+    def get(self, branch_id: BranchId) -> BranchForkPoint:
+        return self._points[branch_id]
+
+
+# =========================================================================
+# MergeStore
+# =========================================================================
+class InMemoryMergeStore:
+    """In-memory MergeStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._proposals: dict[MergeId, BranchMergeProposal] = {}
+
+    def save(self, proposal: BranchMergeProposal) -> None:
+        self._proposals[proposal.merge_id] = proposal
+
+    def get(self, merge_id: MergeId) -> BranchMergeProposal:
+        return self._proposals[merge_id]

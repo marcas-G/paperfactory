@@ -96,12 +96,28 @@ class ApprovalManager:
     def cancel(
         self, approval_id: ApprovalId, *, resolved_by: ActorType, note: str = ""
     ) -> ApprovalRequest:
+        """Withdraw a PENDING approval. Distinct from reject: this is a
+        withdrawal, not an explicit denial (STEP-004 §3)."""
         return self._resolve(
             approval_id,
             status=ApprovalStatus.CANCELLED,
             resolved_by=resolved_by,
             note=note,
-            event_type=ControlEventType.APPROVAL_REJECTED,
+            event_type=ControlEventType.APPROVAL_CANCELLED,
+        )
+
+    def expire(
+        self, approval_id: ApprovalId, *, resolved_by: ActorType, note: str = ""
+    ) -> ApprovalRequest:
+        """Mark a PENDING approval EXPIRED. No automatic TTL is implemented
+        in this step (STEP-004 §3); expire() is a deterministic control
+        operation to be driven by a future scheduler."""
+        return self._resolve(
+            approval_id,
+            status=ApprovalStatus.EXPIRED,
+            resolved_by=resolved_by,
+            note=note,
+            event_type=ControlEventType.APPROVAL_EXPIRED,
         )
 
     def get(self, approval_id: ApprovalId) -> ApprovalRequest:

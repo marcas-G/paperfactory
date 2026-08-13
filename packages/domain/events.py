@@ -29,7 +29,7 @@ Revision = int
 
 
 class ControlEventType(StrEnum):
-    """Typed control-plane event kinds (STEP-003 §31).
+    """Typed control-plane event kinds (STEP-003 §31, STEP-004 §18).
 
     A lightweight, control-only enum — NOT a full research event ontology.
     """
@@ -45,10 +45,24 @@ class ControlEventType(StrEnum):
     TRANSITION_WAITING = "TRANSITION_WAITING"
     TRANSITION_RESUMED = "TRANSITION_RESUMED"
 
-    # Approvals
+    # Approvals — reject / cancel / expire are DISTINCT audit events so audit
+    # can tell "explicitly denied" from "withdrawn" from "timed out"
+    # (STEP-004 §3).
     APPROVAL_REQUESTED = "APPROVAL_REQUESTED"
     APPROVAL_APPROVED = "APPROVAL_APPROVED"
     APPROVAL_REJECTED = "APPROVAL_REJECTED"
+    APPROVAL_CANCELLED = "APPROVAL_CANCELLED"
+    APPROVAL_EXPIRED = "APPROVAL_EXPIRED"
+
+    # Branch lifecycle (STEP-004 §18)
+    BRANCH_CREATED = "BRANCH_CREATED"
+    BRANCH_FORKED = "BRANCH_FORKED"
+    BRANCH_PAUSED = "BRANCH_PAUSED"
+    BRANCH_RESUMED = "BRANCH_RESUMED"
+    BRANCH_ARCHIVED = "BRANCH_ARCHIVED"
+    BRANCH_REJECTED = "BRANCH_REJECTED"
+    BRANCH_MERGE_PREPARED = "BRANCH_MERGE_PREPARED"
+    BRANCH_MERGED = "BRANCH_MERGED"
 
 
 @dataclass(frozen=True)

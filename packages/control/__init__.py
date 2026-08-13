@@ -1,5 +1,6 @@
 """M1 — Research Control Plane: deterministic transition kernel + task /
-approval control semantics (STEP-002 + STEP-003).
+approval control semantics + research branch control
+(STEP-002 + STEP-003 + STEP-004).
 
 Public kernel surface:
     * errors        — ControlError taxonomy
@@ -10,10 +11,13 @@ Public kernel surface:
     * tasks         — ResearchTask / TaskStatus
     * pending       — PendingTransition / PendingTransitionStatus
     * approvals     — ApprovalRequest / ApprovalStatus
+    * branches      — ResearchBranch / BranchStatus / BranchForkPoint
+    * merges        — BranchMergeProposal / MergeStatus / MergeConflict
     * engine        — TransitionEngine + TransitionExecutionResult
     * store         — StateStore / TaskStore / PendingTransitionStore /
-                      ApprovalStore / ControlEventSink Protocols
-    * managers      — TaskManager / ApprovalManager
+                      ApprovalStore / BranchStore / ForkPointStore /
+                      MergeStore / ControlEventSink Protocols
+    * managers      — TaskManager / ApprovalManager / BranchManager
     * controller    — ResearchController facade
 
 The in-memory test adapters live in ``packages.control.testing`` and are NOT
@@ -25,6 +29,8 @@ from __future__ import annotations
 from .actions import ResearchAction, ResearchActionDefinition
 from .approval_manager import ApprovalManager
 from .approvals import ApprovalRequest, ApprovalStatus
+from .branch_manager import BranchManager
+from .branches import BranchForkPoint, BranchStatus, ResearchBranch
 from .controller import ResearchController
 from .engine import (
     TransitionEngine,
@@ -33,20 +39,32 @@ from .engine import (
 )
 from .errors import (
     ActionNotRegisteredError,
+    BranchBusyError,
+    BranchError,
+    BranchMergeError,
+    BranchNotFoundError,
+    BranchScopeMismatchError,
     ControlError,
+    CrossBranchDependencyError,
     DuplicateActionError,
+    DuplicateBranchError,
     IllegalActionError,
+    IllegalBranchTransitionError,
     InvariantViolationError,
     StaleStateError,
     TransitionRejectedError,
 )
 from .gates import GateResult, aggregate_gates
+from .merges import BranchMergeProposal, MergeConflict, MergeStatus
 from .pending import PendingTransition, PendingTransitionStatus
 from .proposals import StateTransitionProposal
 from .registry import ActionRegistry
 from .store import (
     ApprovalStore,
+    BranchStore,
     ControlEventSink,
+    ForkPointStore,
+    MergeStore,
     PendingTransitionStore,
     StateStore,
     TaskStore,
@@ -74,16 +92,28 @@ __all__ = [
     # approvals
     "ApprovalRequest",
     "ApprovalStatus",
+    # branches
+    "BranchForkPoint",
+    "BranchStatus",
+    "ResearchBranch",
+    # merges
+    "BranchMergeProposal",
+    "MergeConflict",
+    "MergeStatus",
     # engine result
     "TransitionExecutionResult",
     # ports
     "ApprovalStore",
+    "BranchStore",
     "ControlEventSink",
+    "ForkPointStore",
+    "MergeStore",
     "PendingTransitionStore",
     "StateStore",
     "TaskStore",
     # managers
     "ApprovalManager",
+    "BranchManager",
     "TaskManager",
     # engine / controller
     "TransitionEngine",
@@ -91,9 +121,17 @@ __all__ = [
     "ResearchController",
     # errors
     "ActionNotRegisteredError",
+    "BranchBusyError",
+    "BranchError",
+    "BranchMergeError",
+    "BranchNotFoundError",
+    "BranchScopeMismatchError",
     "ControlError",
+    "CrossBranchDependencyError",
     "DuplicateActionError",
+    "DuplicateBranchError",
     "IllegalActionError",
+    "IllegalBranchTransitionError",
     "InvariantViolationError",
     "StaleStateError",
     "TransitionRejectedError",
