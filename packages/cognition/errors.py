@@ -138,19 +138,64 @@ class UnknownSegmentKindError(ProviderProjectionError):
     """A PromptSegmentKind not understood by the projector."""
 
 
+# --- Structured output validation errors (STEP-010 §44) ----------------
+class OutputValidationError(CognitionError):
+    """Base class for structured output validation failures."""
+
+
+class InvalidOutputContractError(OutputValidationError):
+    """An OutputContract is malformed."""
+
+
+class DuplicateOutputContractError(OutputValidationError):
+    """(contract_id, version) already registered."""
+
+
+class DuplicateOutputValidatorError(OutputValidationError):
+    """(schema_id, version) already registered."""
+
+
+class OutputCandidateMismatchError(OutputValidationError):
+    """A StructuredOutputCandidate disagrees with its PromptPackage."""
+
+
+class StaleOutputCandidateError(OutputValidationError):
+    """A candidate's state_revision does not match the current revision."""
+
+
+class OutputContractNotFoundError(OutputValidationError):
+    """The referenced OutputContract is not in the registry (system error)."""
+
+
+class OutputValidatorNotFoundError(OutputValidationError):
+    """No validator is registered for the contract's schema_ref (system error)."""
+
+
+class InvalidSchemaValidationOutcomeError(OutputValidationError):
+    """A validator returned a contradictory SchemaValidationOutcome."""
+
+
 __all__ = [
     "CognitionError",
     "ContextBudgetExceededError",
     "DuplicateContextItemError",
+    "DuplicateOutputContractError",
+    "DuplicateOutputValidatorError",
     "DuplicateRetrievalRequirementError",
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidOutputContractError",
     "InvalidPromptPackageForProjectionError",
     "InvalidPromptPolicyError",
     "InvalidPromptRequestError",
     "InvalidRetrievalPolicyError",
     "InvalidRetrievalRequirementError",
+    "InvalidSchemaValidationOutcomeError",
+    "OutputCandidateMismatchError",
+    "OutputContractNotFoundError",
+    "OutputValidationError",
+    "OutputValidatorNotFoundError",
     "PromptContextMismatchError",
     "PromptError",
     "PromptTemplateError",
@@ -162,6 +207,7 @@ __all__ = [
     "RequiredRetrievalRequirementUnsatisfiedError",
     "RetrievalError",
     "StaleContextRequestError",
+    "StaleOutputCandidateError",
     "StalePromptRequestError",
     "UnknownProviderError",
     "UnknownSegmentKindError",

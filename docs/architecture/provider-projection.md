@@ -93,12 +93,18 @@ Every projection carries a `ProviderProjectionTrace` answering:
 
 - which `package_id` / `request_id` / `state_revision` produced it
 - which provider / assembler_version / policy_id+version
+- `output_contract_id` / `output_contract_version` (STEP-010 binding)
 - per-segment `SegmentTrace` (ordinal, kind, trust, authority, template ref,
   context_item_id, source_refs)
 - template_refs + context_source_refs from the package
 
 Provider content pieces are connected back to original PromptSegments by
 ordinal; entire source objects are NOT duplicated (IDs/references only).
+
+The projector preserves the OutputContract identity as metadata only — it does
+NOT implement provider structured-output APIs (no response_format /
+json_schema); that is the future provider execution adapter's concern (see
+[output-validation.md](output-validation.md)).
 
 ## What Is NOT Implemented (future layers)
 

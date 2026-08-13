@@ -130,8 +130,13 @@ GLOBAL layer is still ordered as BRANCH.
 
 Immutable, provider-neutral. Records package_id, request_id, project/branch,
 state_revision, action/mode, context_bundle_id, prompt policy id/version,
-assembler_version, ordered `segments`, `template_refs`, `source_refs`,
-created_at.
+`output_contract_id`/`output_contract_version`, assembler_version, ordered
+`segments`, `template_refs`, `source_refs`, created_at.
+
+`output_contract_id/version` are propagated verbatim from the PromptRequest;
+the assembler does NOT interpret the OutputContract, does NOT render a schema,
+and does NOT perform output validation (see
+[output-validation.md](output-validation.md)).
 
 > **PromptPackage is a structured provider-neutral artifact, not a flattened
 > prompt string.** No `prompt_text` / `prompt` / `messages` fields exist.

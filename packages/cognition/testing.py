@@ -8,17 +8,34 @@ and dev harnesses import from here.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import cast
+
 from ..domain.ids import (
     BranchId,
+    CognitiveResultId,
     ContextBundleId,
     ContextItemId,
+    OutputContractId,
+    OutputSchemaId,
+    OutputValidationId,
     ProjectId,
     PromptPackageId,
     PromptTemplateId,
     RetrievalResolutionId,
 )
 from .context import ContextBundle, ContextItem, ContextScope
-from .errors import CognitionError
+from .errors import CognitionError, DuplicateOutputContractError
+from .output import (
+    CognitiveResultEnvelope,
+    OutputContract,
+    OutputSchemaRef,
+    OutputValidationResult,
+    SchemaValidationIssue,
+    SchemaValidationOutcome,
+    StructuredOutputValidator,
+)
 from .prompt import PromptPackage, PromptTemplate
 from .retrieval import RetrievalResolution
 
@@ -158,10 +175,216 @@ class InMemoryPromptPackageStore:
         ]
 
 
+class InMemoryOutputContractRegistry:
+    """In-memory OutputContractRegistry adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._contracts: dict[tuple[OutputContractId, int], OutputContract] = {}
+
+    def register(self, contract: OutputContract) -> None:
+        key = (contract.contract_id, contract.version)
+        if key in self._contracts:
+            raise DuplicateOutputContractError(
+                f"contract already registered: {contract.contract_id}@v{contract.version}"
+            )
+        self._contracts[key] = contract
+
+    def get(self, contract_id: OutputContractId, version: int) -> OutputContract:
+        return self._contracts[(contract_id, version)]
+
+    def list_versions(self, contract_id: OutputContractId) -> list[int]:
+        return sorted(v for (cid, v) in self._contracts if cid == contract_id)
+
+
+class InMemoryStructuredOutputValidatorRegistry:
+    """In-memory StructuredOutputValidatorRegistry adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._validators: dict[tuple[OutputSchemaId, int], StructuredOutputValidator] = {}
+
+    def register(self, validator: StructuredOutputValidator) -> None:
+        key = (validator.schema_ref.schema_id, validator.schema_ref.version)
+        if key in self._validators:
+            raise CognitionError(
+                f"validator already registered: "
+                f"{validator.schema_ref.schema_id}@v{validator.schema_ref.version}"
+            )
+        self._validators[key] = validator
+
+    def get(self, schema_id: OutputSchemaId, version: int) -> StructuredOutputValidator:
+        return self._validators[(schema_id, version)]
+
+
+class InMemoryOutputValidationResultStore:
+    """In-memory OutputValidationResultStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._results: dict[OutputValidationId, OutputValidationResult] = {}
+
+    def save(self, result: OutputValidationResult) -> None:
+        if result.validation_id in self._results:
+            raise CognitionError(f"validation already saved: {result.validation_id}")
+        self._results[result.validation_id] = result
+
+    def get(self, validation_id: OutputValidationId) -> OutputValidationResult:
+        return self._results[validation_id]
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[OutputValidationResult]:
+        return [
+            r
+            for r in self._results.values()
+            if r.project_id == project_id and r.branch_id == branch_id
+        ]
+
+
+class InMemoryCognitiveResultStore:
+    """In-memory CognitiveResultStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._results: dict[CognitiveResultId, CognitiveResultEnvelope] = {}
+
+    def save(self, result: CognitiveResultEnvelope) -> None:
+        if result.result_id in self._results:
+            raise CognitionError(f"cognitive result already saved: {result.result_id}")
+        self._results[result.result_id] = result
+
+    def get(self, result_id: CognitiveResultId) -> CognitiveResultEnvelope:
+        return self._results[result_id]
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[CognitiveResultEnvelope]:
+        return [
+            r
+            for r in self._results.values()
+            if r.project_id == project_id and r.branch_id == branch_id
+        ]
+
+
+# =========================================================================
+# Test-only example schema + validator (STEP-010 §40/§41)
+# =========================================================================
+
+
+@dataclass(frozen=True)
+class ExampleCognitiveAssessment:
+    """Neutral test-only result type. NOT a production cognition contract."""
+
+    judgement: str
+    confidence: float
+    reason_codes: tuple[str, ...] = ()
+
+
+_JUDGEMENTS = frozenset({"SUPPORT", "CONTRADICT", "INCONCLUSIVE"})
+
+
+class ExampleCognitiveAssessmentValidator:
+    """Test-only validator for ExampleCognitiveAssessment.
+
+    Rules: judgement in {SUPPORT, CONTRADICT, INCONCLUSIVE};
+    0 <= confidence <= 1; reason_codes is a tuple of non-empty strings.
+    strict=True rejects unknown fields; strict=False ignores them (but the
+    normalized payload never includes them). Issue order is fixed by schema
+    traversal order (judgement, confidence, reason_codes).
+    """
+
+    schema_ref = OutputSchemaRef(OutputSchemaId("example-assessment"), 1)
+
+    def validate(
+        self, payload: object, contract: OutputContract
+    ) -> SchemaValidationOutcome:
+        issues: list[SchemaValidationIssue] = []
+        if not isinstance(payload, Mapping):
+            return SchemaValidationOutcome(
+                valid=False,
+                normalized_payload=None,
+                issues=(
+                    SchemaValidationIssue("NOT_OBJECT", (), "payload must be a mapping"),
+                ),
+            )
+        data: Mapping = payload
+        known = {"judgement", "confidence", "reason_codes"}
+        if contract.strict:
+            for key in data:
+                if key not in known:
+                    issues.append(
+                        SchemaValidationIssue("UNKNOWN_FIELD", (key,), "unknown field")
+                    )
+
+        judgement = cast(object, data.get("judgement"))
+        if judgement not in _JUDGEMENTS:
+            issues.append(
+                SchemaValidationIssue("INVALID_JUDGEMENT", ("judgement",), "bad judgement")
+            )
+
+        confidence = cast(object, data.get("confidence"))
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            issues.append(
+                SchemaValidationIssue(
+                    "INVALID_CONFIDENCE_TYPE",
+                    ("confidence",),
+                    "confidence must be a number",
+                )
+            )
+        elif confidence < 0.0 or confidence > 1.0:
+            issues.append(
+                SchemaValidationIssue(
+                    "CONFIDENCE_OUT_OF_RANGE",
+                    ("confidence",),
+                    "confidence out of range",
+                )
+            )
+
+        reason_codes = cast(object, data.get("reason_codes"))
+        if not isinstance(reason_codes, (list, tuple)):
+            issues.append(
+                SchemaValidationIssue(
+                    "INVALID_REASON_CODES",
+                    ("reason_codes",),
+                    "reason_codes must be a list",
+                )
+            )
+        else:
+            for idx, code in enumerate(reason_codes):
+                if not isinstance(code, str) or not code:
+                    issues.append(
+                        SchemaValidationIssue(
+                            "EMPTY_REASON_CODE",
+                            ("reason_codes", idx),
+                            "reason code must be non-empty",
+                        )
+                    )
+
+        if issues:
+            return SchemaValidationOutcome(
+                valid=False, normalized_payload=None, issues=tuple(issues)
+            )
+
+        # Narrowed for type checkers; guaranteed by the validation above.
+        assert isinstance(judgement, str)
+        assert isinstance(confidence, (int, float)) and not isinstance(confidence, bool)
+        assert isinstance(reason_codes, (list, tuple))
+
+        normalized = ExampleCognitiveAssessment(
+            judgement=judgement,
+            confidence=float(confidence),
+            reason_codes=tuple(str(c) for c in reason_codes),
+        )
+        return SchemaValidationOutcome(valid=True, normalized_payload=normalized, issues=())
+
+
 __all__ = [
+    "ExampleCognitiveAssessment",
+    "ExampleCognitiveAssessmentValidator",
+    "InMemoryCognitiveResultStore",
     "InMemoryContextBundleStore",
     "InMemoryContextCatalog",
+    "InMemoryOutputContractRegistry",
+    "InMemoryOutputValidationResultStore",
     "InMemoryPromptPackageStore",
     "InMemoryPromptTemplateRegistry",
     "InMemoryRetrievalResolutionStore",
+    "InMemoryStructuredOutputValidatorRegistry",
 ]

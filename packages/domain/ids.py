@@ -87,6 +87,22 @@ PromptPackageId = NewType("PromptPackageId", str)
 PromptSegmentId = NewType("PromptSegmentId", str)
 """Identity of one PromptSegment within a package."""
 
+# --- Structured output identities (STEP-010) ---------------------------
+OutputContractId = NewType("OutputContractId", str)
+"""Identity of an OutputContract version-family."""
+
+OutputSchemaId = NewType("OutputSchemaId", str)
+"""Identity of a logical output schema version-family."""
+
+OutputCandidateId = NewType("OutputCandidateId", str)
+"""Identity of one StructuredOutputCandidate (an untrusted model output)."""
+
+OutputValidationId = NewType("OutputValidationId", str)
+"""Identity of one OutputValidationResult."""
+
+CognitiveResultId = NewType("CognitiveResultId", str)
+"""Identity of one validated CognitiveResultEnvelope."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -100,6 +116,7 @@ __all__ = [
     "ApprovalId",
     "BlindingPolicyId",
     "BranchId",
+    "CognitiveResultId",
     "ContextBundleId",
     "ContextItemId",
     "ContextPolicyId",
@@ -107,6 +124,10 @@ __all__ = [
     "EventId",
     "MergeId",
     "ObjectId",
+    "OutputCandidateId",
+    "OutputContractId",
+    "OutputSchemaId",
+    "OutputValidationId",
     "PolicyEvaluationId",
     "ProjectId",
     "PromptPackageId",

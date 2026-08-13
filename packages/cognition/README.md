@@ -41,10 +41,16 @@ Implemented:
 - Provider projection (ProviderKind OPENAI/ANTHROPIC; OpenAI/Anthropic
   projectors; provider-specific immutable DTOs; fail-closed validation;
   deterministic; UNTRUSTED_CONTEXT never enters instruction/system channel)
+- OutputSchemaRef / OutputContract (versioned; strict flag; registries)
+- StructuredOutputCandidate (untrusted model output) + OutputValidationEngine
+  (consistency/staleness/contract/validator resolve; validate once)
+- SchemaValidationIssue / SchemaValidationOutcome / OutputValidationResult
+- CognitiveResultEnvelope (normalized typed result; not state, not auth)
 
 Not implemented yet (later M2 steps):
-- Prompt Execution / model invocation (no SDK, no network in projection)
-- Output Contract / OutputValidator
+- Provider Execution Adapter / model calling (no SDK, no network)
+- Retry / Output repair (belongs to Agent Runtime)
+- Tool calling
 - Semantic retrieval / vector retrieval
 - LLM execution / agent execution
 

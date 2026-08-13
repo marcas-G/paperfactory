@@ -42,7 +42,7 @@ from packages.cognition.errors import (
     PromptTemplateVariableError,
     StalePromptRequestError,
 )
-from packages.domain.ids import ContextBundleId, ContextItemId, PromptTemplateId
+from packages.domain.ids import ContextBundleId, ContextItemId, OutputContractId, PromptTemplateId
 
 from .conftest import (
     ACTION,
@@ -273,6 +273,8 @@ def test_prm_027_request_immutable() -> None:
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=ContextBundleId("b"), task_objective="do X",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(FrozenInstanceError):
         req.task_objective = "do Y"  # type: ignore[misc]
@@ -286,6 +288,8 @@ def test_prm_028_empty_objective_rejected() -> None:
             request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
             state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
             context_bundle_id=ContextBundleId("b"), task_objective="  ",
+            output_contract_id=OutputContractId("example-assessment"),
+            output_contract_version=1,
         )
 
 
@@ -297,6 +301,8 @@ def test_prm_029_empty_constraint_rejected() -> None:
             request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
             state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
             context_bundle_id=ContextBundleId("b"), task_objective="x",
+            output_contract_id=OutputContractId("example-assessment"),
+            output_contract_version=1,
             task_constraints=("",),
         )
 
@@ -309,6 +315,8 @@ def test_prm_030_duplicate_constraints_rejected() -> None:
             request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
             state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
             context_bundle_id=ContextBundleId("b"), task_objective="x",
+            output_contract_id=OutputContractId("example-assessment"),
+            output_contract_version=1,
             task_constraints=("c", "c"),
         )
 
@@ -321,6 +329,8 @@ def test_prm_031_naive_datetime_rejected() -> None:
             request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
             state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
             context_bundle_id=ContextBundleId("b"), task_objective="x",
+            output_contract_id=OutputContractId("example-assessment"),
+            output_contract_version=1,
             created_at=datetime(2026, 1, 1),  # naive
         )
 
@@ -359,6 +369,8 @@ def test_prm_032_project_mismatch_rejected(assembler, prompt_policy, template_re
         request_id=PromptRequestId("r"), project_id=ProjectId("OTHER"), branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(PromptContextMismatchError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry)
@@ -372,6 +384,8 @@ def test_prm_033_branch_mismatch_rejected(assembler, prompt_policy, template_reg
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BranchId("B2"),
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(PromptContextMismatchError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry)
@@ -385,6 +399,8 @@ def test_prm_034_revision_mismatch_rejected(assembler, prompt_policy, template_r
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(PromptContextMismatchError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry)
@@ -398,6 +414,8 @@ def test_prm_035_action_mismatch_rejected(assembler, prompt_policy, template_reg
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ActionId("OTHER"), cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(PromptContextMismatchError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry)
@@ -411,6 +429,8 @@ def test_prm_036_mode_mismatch_rejected(assembler, prompt_policy, template_regis
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(PromptContextMismatchError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry)
@@ -424,6 +444,8 @@ def test_prm_037_stale_request_rejected(assembler, prompt_policy, template_regis
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id, task_objective="x",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
     )
     with pytest.raises(StalePromptRequestError):
         _assemble_ok(assembler, req, bundle, prompt_policy, template_registry, revision=8)
@@ -442,6 +464,8 @@ def _assemble_full(assembler, policy, registry, items, *, mode="FALSIFY", constr
         request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode=mode,
         context_bundle_id=bundle.bundle_id, task_objective="objective text",
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
         task_constraints=constraints,
     )
     return assembler.assemble(req, bundle, policy, registry, REVISION), bundle
@@ -903,6 +927,8 @@ def test_m2_prm_001_full_pipeline(
         request_id=PromptRequestId("pr"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id,
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
         task_objective="Decide H1 support.",
         task_constraints=("no overclaim",),
         created_at=datetime(2026, 1, 1, tzinfo=UTC),

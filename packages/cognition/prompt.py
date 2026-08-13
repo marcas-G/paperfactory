@@ -31,6 +31,7 @@ from ..domain.ids import (
     BranchId,
     ContextBundleId,
     ContextItemId,
+    OutputContractId,
     ProjectId,
     PromptPackageId,
     PromptPolicyId,
@@ -224,6 +225,9 @@ class PromptRequest:
 
     context_bundle_id: ContextBundleId
 
+    output_contract_id: OutputContractId
+    output_contract_version: int
+
     task_objective: str
     task_constraints: tuple[str, ...] = ()
 
@@ -232,6 +236,10 @@ class PromptRequest:
     created_at: datetime = field(default_factory=lambda: _EPOCH)
 
     def __post_init__(self) -> None:
+        if not self.output_contract_id:
+            raise InvalidPromptRequestError("output_contract_id must be non-empty")
+        if self.output_contract_version < 1:
+            raise InvalidPromptRequestError("output_contract_version must be >= 1")
         if not self.task_objective or not self.task_objective.strip():
             raise InvalidPromptRequestError("task_objective must be non-empty")
         for c in self.task_constraints:
@@ -279,6 +287,9 @@ class PromptPackage:
     action_id: ActionId | None
     cognitive_mode: str
     context_bundle_id: ContextBundleId
+
+    output_contract_id: OutputContractId
+    output_contract_version: int
 
     prompt_policy_id: str
     prompt_policy_version: int

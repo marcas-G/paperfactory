@@ -146,6 +146,8 @@ def _build_trace(package: PromptPackage, provider: ProviderKind) -> ProviderProj
         prompt_policy_id=package.prompt_policy_id,
         prompt_policy_version=package.prompt_policy_version,
         context_bundle_id=package.context_bundle_id,
+        output_contract_id=package.output_contract_id,
+        output_contract_version=package.output_contract_version,
         source_segment_traces=tuple(_build_segment_trace(s) for s in package.segments),
         template_refs=package.template_refs,
         context_source_refs=package.source_refs,

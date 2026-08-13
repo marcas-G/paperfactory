@@ -29,6 +29,7 @@ from packages.cognition.errors import InvalidPromptPackageForProjectionError
 from packages.domain.ids import (
     ContextBundleId,
     ContextItemId,
+    OutputContractId,
     PromptPackageId,
     PromptRequestId,
     PromptSegmentId,
@@ -87,6 +88,8 @@ def _package(
         action_id=ACTION,
         cognitive_mode="FALSIFY",
         context_bundle_id=ContextBundleId("bundle-1"),
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
         prompt_policy_id="default",
         prompt_policy_version=1,
         assembler_version="prompt-assembler/0.1",
@@ -468,6 +471,8 @@ def test_m2_prov_001_full_pipeline_to_projection(
         request_id=PromptRequestId("pr"), project_id=PROJECT, branch_id=BRANCH,
         state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id,
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
         task_objective="Decide H1 support.",
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )

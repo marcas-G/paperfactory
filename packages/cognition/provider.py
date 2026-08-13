@@ -22,6 +22,7 @@ from enum import StrEnum
 from ..domain.ids import (
     ContextBundleId,
     ContextItemId,
+    OutputContractId,
     PromptPackageId,
     PromptRequestId,
     PromptTemplateId,
@@ -62,6 +63,9 @@ class ProviderProjectionTrace:
     prompt_policy_id: str
     prompt_policy_version: int
     context_bundle_id: ContextBundleId
+
+    output_contract_id: OutputContractId
+    output_contract_version: int
 
     # one SegmentTrace per PromptSegment in the source package, in ordinal order
     source_segment_traces: tuple[SegmentTrace, ...] = ()

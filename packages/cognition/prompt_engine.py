@@ -170,6 +170,8 @@ class PromptAssembler:
             action_id=request.action_id,
             cognitive_mode=request.cognitive_mode,
             context_bundle_id=context_bundle.bundle_id,
+            output_contract_id=request.output_contract_id,
+            output_contract_version=request.output_contract_version,
             prompt_policy_id=request.prompt_policy_id,
             prompt_policy_version=request.prompt_policy_version,
             assembler_version=ASSEMBLER_VERSION,

@@ -16,14 +16,24 @@ from typing import Protocol, runtime_checkable
 
 from ..domain.ids import (
     BranchId,
+    CognitiveResultId,
     ContextBundleId,
     ContextItemId,
+    OutputContractId,
+    OutputSchemaId,
+    OutputValidationId,
     ProjectId,
     PromptPackageId,
     PromptTemplateId,
     RetrievalResolutionId,
 )
 from .context import ContextBundle, ContextItem
+from .output import (
+    CognitiveResultEnvelope,
+    OutputContract,
+    OutputValidationResult,
+    StructuredOutputValidator,
+)
 from .prompt import PromptPackage, PromptTemplate
 from .retrieval import RetrievalResolution
 
@@ -119,10 +129,77 @@ class PromptPackageStore(Protocol):
         ...
 
 
+@runtime_checkable
+class OutputContractRegistry(Protocol):
+    """Registry of versioned OutputContracts (STEP-010 §8).
+
+    ``(contract_id, version)`` is unique; duplicate registration is rejected.
+    """
+
+    def register(self, contract: OutputContract) -> None:
+        ...
+
+    def get(self, contract_id: OutputContractId, version: int) -> OutputContract:
+        ...
+
+    def list_versions(self, contract_id: OutputContractId) -> list[int]:
+        ...
+
+
+@runtime_checkable
+class StructuredOutputValidatorRegistry(Protocol):
+    """Registry of schema validators (STEP-010 §10).
+
+    ``(schema_id, version)`` is unique; duplicate registration is rejected.
+    """
+
+    def register(self, validator: StructuredOutputValidator) -> None:
+        ...
+
+    def get(self, schema_id: OutputSchemaId, version: int) -> StructuredOutputValidator:
+        ...
+
+
+@runtime_checkable
+class OutputValidationResultStore(Protocol):
+    """Store of OutputValidationResult records (STEP-010 §34)."""
+
+    def save(self, result: OutputValidationResult) -> None:
+        ...
+
+    def get(self, validation_id: OutputValidationId) -> OutputValidationResult:
+        ...
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[OutputValidationResult]:
+        ...
+
+
+@runtime_checkable
+class CognitiveResultStore(Protocol):
+    """Store of CognitiveResultEnvelope records (STEP-010 §34)."""
+
+    def save(self, result: CognitiveResultEnvelope) -> None:
+        ...
+
+    def get(self, result_id: CognitiveResultId) -> CognitiveResultEnvelope:
+        ...
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[CognitiveResultEnvelope]:
+        ...
+
+
 __all__ = [
+    "CognitiveResultStore",
     "ContextBundleStore",
     "ContextCatalog",
+    "OutputContractRegistry",
+    "OutputValidationResultStore",
     "PromptPackageStore",
     "PromptTemplateRegistry",
     "RetrievalResolutionStore",
+    "StructuredOutputValidatorRegistry",
 ]

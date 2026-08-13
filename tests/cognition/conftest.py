@@ -47,6 +47,8 @@ from packages.domain.ids import (
     ContextBundleId,
     ContextItemId,
     ContextRequestId,
+    OutputContractId,
+    OutputSchemaId,
     ProjectId,
     PromptPolicyId,
     PromptRequestId,
@@ -364,6 +366,8 @@ def make_prompt_request(
     state_revision: int = REVISION,
     project_id=PROJECT,  # type: ignore[valid-type]
     branch_id=BRANCH,  # type: ignore[valid-type]
+    output_contract_id=OutputContractId("example-assessment"),  # type: ignore[valid-type]
+    output_contract_version: int = 1,
 ) -> PromptRequest:
     return PromptRequest(
         request_id=PromptRequestId("pr-1"),
@@ -373,7 +377,86 @@ def make_prompt_request(
         action_id=ACTION,
         cognitive_mode=cognitive_mode,
         context_bundle_id=context_bundle_id,
+        output_contract_id=output_contract_id,
+        output_contract_version=output_contract_version,
         task_objective=task_objective,
         task_constraints=task_constraints,
         created_at=datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+    )
+
+
+# --- structured output fixtures ----------------------------------------
+@pytest.fixture
+def contract_registry():
+    from packages.cognition import OutputContract, OutputSchemaRef
+    from packages.cognition.testing import InMemoryOutputContractRegistry
+
+    reg = InMemoryOutputContractRegistry()
+    reg.register(OutputContract(
+        contract_id=OutputContractId("example-assessment"), version=1,
+        schema_ref=OutputSchemaRef(OutputSchemaId("example-assessment"), 1),
+        strict=True, description="Example cognitive assessment",
+    ))
+    return reg
+
+
+@pytest.fixture
+def validator_registry():
+    from packages.cognition.testing import (
+        ExampleCognitiveAssessmentValidator,
+        InMemoryStructuredOutputValidatorRegistry,
+    )
+
+    reg = InMemoryStructuredOutputValidatorRegistry()
+    reg.register(ExampleCognitiveAssessmentValidator())
+    return reg
+
+
+@pytest.fixture
+def validation_store():
+    from packages.cognition.testing import InMemoryOutputValidationResultStore
+
+    return InMemoryOutputValidationResultStore()
+
+
+@pytest.fixture
+def result_store():
+    from packages.cognition.testing import InMemoryCognitiveResultStore
+
+    return InMemoryCognitiveResultStore()
+
+
+@pytest.fixture
+def validation_engine(
+    contract_registry,  # type: ignore[no-untyped-def]
+    validator_registry,  # type: ignore[no-untyped-def]
+    validation_store,  # type: ignore[no-untyped-def]
+    result_store,  # type: ignore[no-untyped-def]
+    fixed_now,  # type: ignore[no-untyped-def]
+):
+    from packages.cognition import OutputValidationEngine
+    from packages.domain.ids import CognitiveResultId, OutputValidationId
+
+    class _Vid:
+        def __init__(self) -> None:
+            self._n = itertools.count(1)
+
+        def __call__(self) -> OutputValidationId:
+            return OutputValidationId(f"val-{next(self._n)}")
+
+    class _Rid:
+        def __init__(self) -> None:
+            self._n = itertools.count(1)
+
+        def __call__(self) -> CognitiveResultId:
+            return CognitiveResultId(f"res-{next(self._n)}")
+
+    return OutputValidationEngine(
+        contract_registry,
+        validator_registry,
+        validation_store,
+        result_store,
+        validation_id_factory=_Vid(),
+        result_id_factory=_Rid(),
+        now=lambda: fixed_now,
     )
