@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paperfactory"
+version = "0.0.0"
+description = "Research Agent Platform — architecture skeleton (STEP-001). No research/agent business logic yet."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "PaperFactory" }]
+dependencies = []
+
+# Dev-only tooling. No runtime research/agent/infra dependencies are installed in STEP-001.
+# Future runtime deps (FastAPI, SQLAlchemy, Pydantic AI, Temporal, pgvector, ...)
+# are recorded as ARCHITECTURE_DECISIONS in ADR-003 but are NOT installed yet.
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+include = ["packages*", "apps*"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra"
+
+# ---------------------------------------------------------------------------
+# ruff — minimal, explicit rule set.
+#   E/W : pycodestyle errors/warnings (syntax + basic style)
+#   F   : pyflakes (unused imports F401, undefined names F821)
+#   I   : isort (import hygiene)
+#   UP  : pyupgrade (modern syntax)
+# Intentionally NOT enabling hundreds of stylistic rules that would generate
+# large amounts of low-value formatting churn during the skeleton phase.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Package markers may legitimately re-export names.
+"__init__.py" = ["F401"]

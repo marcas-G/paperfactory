@@ -1,0 +1,42 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Test / coverage artifacts ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- IDE / editor local files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- IMPORTANT: must NOT be ignored ---
+# .claude/CLAUDE.md  (global constitution — version controlled)
+# docs/             (architecture + ADRs)
+# tests/            (architecture + future business tests)
