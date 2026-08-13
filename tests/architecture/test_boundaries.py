@@ -40,6 +40,29 @@ CONTROL_FORBIDDEN_MODULES = {
     "packages.persistence",
 }
 
+# Cognition (M2) must not depend on control/runtime/capabilities/persistence/
+# observability (STEP-006 §57). The context kernel is built on domain only.
+COGNITION_FORBIDDEN_MODULES = {
+    "packages.control",
+    "packages.runtime",
+    "packages.capabilities",
+    "packages.persistence",
+    "packages.observability",
+    "packages.evals",
+}
+
+COGNITION_FORBIDDEN_FRAMEWORKS = {
+    "fastapi",
+    "sqlalchemy",
+    "temporalio",
+    "pydantic_ai",
+    "openai",
+    "anthropic",
+    "langgraph",
+    "crewai",
+    "autogen",
+}
+
 # Framework implementations that must never leak into domain (RULE-01/RULE-10).
 DOMAIN_FORBIDDEN_FRAMEWORKS = {
     "fastapi",
@@ -178,6 +201,62 @@ def test_control_does_not_import_frameworks() -> None:
             violations.append(f"{path}: imports {name}")
     assert not violations, (
         "control imports forbidden framework(s):\n" + "\n".join(violations)
+    )
+
+
+# --- COGNITION boundaries (STEP-006 §57) --------------------------------
+
+def test_cognition_does_not_import_forbidden_layers() -> None:
+    cognition_root = REPO_ROOT / "packages" / "cognition"
+    violations: list[str] = []
+    for path in _py_files(cognition_root):
+        tree = _parse(path)
+        prefix = "packages.cognition"
+        resolved = _resolved_relative_modules(tree, prefix)
+        for mod in resolved:
+            for forbidden in COGNITION_FORBIDDEN_MODULES:
+                if mod == forbidden or mod.startswith(forbidden + "."):
+                    violations.append(f"{path}: imports {mod}")
+        for name in _imported_names(tree):
+            for forbidden in COGNITION_FORBIDDEN_MODULES:
+                if name == forbidden or name.startswith(forbidden + "."):
+                    violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "cognition imports forbidden layer(s):\n" + "\n".join(violations)
+    )
+
+
+def test_cognition_does_not_import_frameworks() -> None:
+    cognition_root = REPO_ROOT / "packages" / "cognition"
+    violations: list[str] = []
+    for path in _py_files(cognition_root):
+        tree = _parse(path)
+        names = _imported_names(tree)
+        hit = names & COGNITION_FORBIDDEN_FRAMEWORKS
+        for name in hit:
+            violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "cognition imports forbidden framework(s):\n" + "\n".join(violations)
+    )
+
+
+def test_cognition_only_domain_and_stdlib() -> None:
+    """cognition imports must resolve to domain, stdlib, or itself only."""
+    cognition_root = REPO_ROOT / "packages" / "cognition"
+    violations: list[str] = []
+    allowed_first_party = {"packages", "packages.domain", "packages.cognition"}
+    for path in _py_files(cognition_root):
+        tree = _parse(path)
+        for name in _imported_names(tree):
+            if name.startswith("packages."):
+                top = name.split(".")[1]
+                if top not in {"domain", "cognition"}:
+                    violations.append(f"{path}: imports {name}")
+            elif name == "packages":
+                if name not in allowed_first_party:
+                    violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "cognition imports non-domain first-party:\n" + "\n".join(violations)
     )
 
 

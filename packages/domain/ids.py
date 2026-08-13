@@ -45,6 +45,22 @@ MergeId = NewType("MergeId", str)
 PolicyEvaluationId = NewType("PolicyEvaluationId", str)
 """Identity of one Policy evaluation (a PolicyRecommendation record)."""
 
+# --- Cognition identities (STEP-006) -----------------------------------
+ContextItemId = NewType("ContextItemId", str)
+"""Identity of one ContextItem (a cognitive projection, not a state object)."""
+
+ContextRequestId = NewType("ContextRequestId", str)
+"""Identity of one ContextRequest."""
+
+ContextBundleId = NewType("ContextBundleId", str)
+"""Identity of one compiled ContextBundle."""
+
+ContextPolicyId = NewType("ContextPolicyId", str)
+"""Identity of a ContextPolicy version-family."""
+
+BlindingPolicyId = NewType("BlindingPolicyId", str)
+"""Identity of a BlindingPolicy version-family."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -56,7 +72,12 @@ EventId = NewType("EventId", str)
 __all__ = [
     "ActionId",
     "ApprovalId",
+    "BlindingPolicyId",
     "BranchId",
+    "ContextBundleId",
+    "ContextItemId",
+    "ContextPolicyId",
+    "ContextRequestId",
     "EventId",
     "MergeId",
     "ObjectId",
