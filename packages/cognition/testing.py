@@ -13,10 +13,13 @@ from ..domain.ids import (
     ContextBundleId,
     ContextItemId,
     ProjectId,
+    PromptPackageId,
+    PromptTemplateId,
     RetrievalResolutionId,
 )
 from .context import ContextBundle, ContextItem, ContextScope
 from .errors import CognitionError
+from .prompt import PromptPackage, PromptTemplate
 from .retrieval import RetrievalResolution
 
 
@@ -107,8 +110,58 @@ class InMemoryRetrievalResolutionStore:
         ]
 
 
+class InMemoryPromptTemplateRegistry:
+    """In-memory PromptTemplateRegistry adapter (test/dev only).
+
+    ``(template_id, version)`` is unique; duplicate registration is rejected.
+    """
+
+    def __init__(self) -> None:
+        self._templates: dict[tuple[PromptTemplateId, int], PromptTemplate] = {}
+
+    def register(self, template: PromptTemplate) -> None:
+        key = (template.template_id, template.version)
+        if key in self._templates:
+            raise CognitionError(
+                f"template already registered: {template.template_id}@v{template.version}"
+            )
+        self._templates[key] = template
+
+    def get(self, template_id: PromptTemplateId, version: int) -> PromptTemplate:
+        return self._templates[(template_id, version)]
+
+    def list_versions(self, template_id: PromptTemplateId) -> list[int]:
+        return sorted(v for (tid, v) in self._templates if tid == template_id)
+
+
+class InMemoryPromptPackageStore:
+    """In-memory PromptPackageStore adapter (test/dev only)."""
+
+    def __init__(self) -> None:
+        self._packages: dict[PromptPackageId, PromptPackage] = {}
+
+    def save(self, package: PromptPackage) -> None:
+        if package.package_id in self._packages:
+            raise CognitionError(f"package already saved: {package.package_id}")
+        self._packages[package.package_id] = package
+
+    def get(self, package_id: PromptPackageId) -> PromptPackage:
+        return self._packages[package_id]
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[PromptPackage]:
+        return [
+            p
+            for p in self._packages.values()
+            if p.project_id == project_id and p.branch_id == branch_id
+        ]
+
+
 __all__ = [
     "InMemoryContextBundleStore",
     "InMemoryContextCatalog",
+    "InMemoryPromptPackageStore",
+    "InMemoryPromptTemplateRegistry",
     "InMemoryRetrievalResolutionStore",
 ]

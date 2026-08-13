@@ -19,9 +19,12 @@ from ..domain.ids import (
     ContextBundleId,
     ContextItemId,
     ProjectId,
+    PromptPackageId,
+    PromptTemplateId,
     RetrievalResolutionId,
 )
 from .context import ContextBundle, ContextItem
+from .prompt import PromptPackage, PromptTemplate
 from .retrieval import RetrievalResolution
 
 
@@ -81,4 +84,45 @@ class RetrievalResolutionStore(Protocol):
         ...
 
 
-__all__ = ["ContextBundleStore", "ContextCatalog", "RetrievalResolutionStore"]
+@runtime_checkable
+class PromptTemplateRegistry(Protocol):
+    """Registry of versioned PromptTemplates (STEP-008 §15).
+
+    Not a persistence port — a registry abstraction. ``(template_id, version)``
+    is unique; duplicate registration is rejected.
+    """
+
+    def register(self, template: PromptTemplate) -> None:
+        ...
+
+    def get(self, template_id: PromptTemplateId, version: int) -> PromptTemplate:
+        ...
+
+    def list_versions(self, template_id: PromptTemplateId) -> list[int]:
+        ...
+
+
+@runtime_checkable
+class PromptPackageStore(Protocol):
+    """Abstract store of compiled PromptPackage records (STEP-008 §39)."""
+
+    def save(self, package: PromptPackage) -> None:
+        """Persist a package. MUST reject a duplicate package id."""
+        ...
+
+    def get(self, package_id: PromptPackageId) -> PromptPackage:
+        ...
+
+    def list_for_project(
+        self, project_id: ProjectId | None, branch_id: BranchId | None
+    ) -> list[PromptPackage]:
+        ...
+
+
+__all__ = [
+    "ContextBundleStore",
+    "ContextCatalog",
+    "PromptPackageStore",
+    "PromptTemplateRegistry",
+    "RetrievalResolutionStore",
+]

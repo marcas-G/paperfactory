@@ -127,8 +127,11 @@ never auto-refreshed — a higher layer re-compiles explicitly.
 ## What This Is NOT
 
 - **ContextBundle ≠ Prompt.** No prompt field; the bundle preserves items.
+  (Prompt assembly from a bundle is a separate stage — see
+  [prompt-policy.md](prompt-policy.md).)
 - **Context compilation ≠ Retrieval.** No search/embedding/top-k/vector
-  memory. Items are addressed by explicit id only.
+  memory. Items are addressed by explicit id only (see
+  [retrieval-policy.md](retrieval-policy.md)).
 - **Context compilation ≠ Research State mutation.** ContextItem is a
   *projection*, never written back to a Research Object.
 

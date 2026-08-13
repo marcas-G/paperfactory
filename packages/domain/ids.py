@@ -71,6 +71,22 @@ RetrievalPolicyId = NewType("RetrievalPolicyId", str)
 RetrievalResolutionId = NewType("RetrievalResolutionId", str)
 """Identity of one RetrievalResolution."""
 
+# --- Prompt identities (STEP-008) --------------------------------------
+PromptTemplateId = NewType("PromptTemplateId", str)
+"""Identity of a PromptTemplate version-family."""
+
+PromptPolicyId = NewType("PromptPolicyId", str)
+"""Identity of a PromptPolicy version-family."""
+
+PromptRequestId = NewType("PromptRequestId", str)
+"""Identity of one PromptRequest."""
+
+PromptPackageId = NewType("PromptPackageId", str)
+"""Identity of one compiled PromptPackage."""
+
+PromptSegmentId = NewType("PromptSegmentId", str)
+"""Identity of one PromptSegment within a package."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -93,6 +109,11 @@ __all__ = [
     "ObjectId",
     "PolicyEvaluationId",
     "ProjectId",
+    "PromptPackageId",
+    "PromptPolicyId",
+    "PromptRequestId",
+    "PromptSegmentId",
+    "PromptTemplateId",
     "ProposalId",
     "RetrievalPolicyId",
     "RetrievalRequirementId",

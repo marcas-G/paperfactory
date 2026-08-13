@@ -17,6 +17,7 @@ from packages.cognition import (
     ContextLayer,
     ContextPolicy,
     ContextScope,
+    InstructionAuthority,
     RetrievalExclusionReason,
     RetrievalPolicy,
     RetrievalResolver,
@@ -845,6 +846,7 @@ def test_m2_ret_001_retrieval_then_compile(
         "constitution", item_type=ContextItemType.INSTRUCTION,
         layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM,
         content="global rules", tokens=20, priority=80, labels=frozenset({"global"}),
+        instruction_authority=InstructionAuthority.SYSTEM,
     )
     current_state = make_item(
         "current-state", item_type=ContextItemType.STATE,

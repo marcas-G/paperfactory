@@ -32,11 +32,18 @@ Implemented:
 - ContextCatalog port (read-only, enumerable)
 - RetrievalResolver (deterministic metadata-based resolution)
 - RetrievalResolution → ContextRequest conversion
+- InstructionAuthority (frozen precedence) + ContextItem authority invariants
+- PromptTemplate / PromptTemplateRenderer (string.Template, no Jinja)
+- PromptPolicy (versioned; 10-mode coverage; frozen instruction precedence)
+- PromptRequest (references ContextBundle, no raw context)
+- PromptSegment / PromptPackage (structured, provider-neutral, auditable)
+- PromptAssembler (instruction/data separation; canonical JSON data boundary)
 
 Not implemented yet (later M2 steps):
+- Provider Adapter (OpenAI/Anthropic message mapping)
+- Prompt Execution / model invocation
+- Output Contract / OutputValidator
 - Semantic retrieval / vector retrieval
-- PromptPolicy / PromptAssembler
-- OutputValidator
 - LLM execution / agent execution
 
 ## Must Not Own

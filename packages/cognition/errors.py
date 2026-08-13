@@ -91,6 +91,35 @@ class RequiredRetrievalRequirementUnsatisfiedError(RetrievalError):
         )
 
 
+# --- Prompt errors (STEP-008 §14/§24/§25) ------------------------------
+class PromptError(CognitionError):
+    """Base class for prompt policy / assembly failures."""
+
+
+class PromptTemplateError(PromptError):
+    """A PromptTemplate is malformed or a render could not be completed."""
+
+
+class PromptTemplateVariableError(PromptTemplateError):
+    """Variables provided to a template do not exactly cover its declared set."""
+
+
+class InvalidPromptPolicyError(PromptError):
+    """A PromptPolicy is malformed (missing mode template, bad precedence)."""
+
+
+class InvalidPromptRequestError(PromptError):
+    """A PromptRequest is malformed (empty objective, dup constraints, naive dt)."""
+
+
+class PromptContextMismatchError(PromptError):
+    """A PromptRequest and its ContextBundle disagree on scope/revision/..."""
+
+
+class StalePromptRequestError(PromptError):
+    """A PromptRequest was built for a different state revision than current."""
+
+
 __all__ = [
     "CognitionError",
     "ContextBudgetExceededError",
@@ -99,12 +128,19 @@ __all__ = [
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidPromptPolicyError",
+    "InvalidPromptRequestError",
     "InvalidRetrievalPolicyError",
     "InvalidRetrievalRequirementError",
+    "PromptContextMismatchError",
+    "PromptError",
+    "PromptTemplateError",
+    "PromptTemplateVariableError",
     "RequiredContextBlindedError",
     "RequiredContextMissingError",
     "RequiredContextScopeError",
     "RequiredRetrievalRequirementUnsatisfiedError",
     "RetrievalError",
     "StaleContextRequestError",
+    "StalePromptRequestError",
 ]

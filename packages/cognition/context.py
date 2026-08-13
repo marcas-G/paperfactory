@@ -83,6 +83,41 @@ class ContextItemType(StrEnum):
     NOTE = "NOTE"
 
 
+# Frozen instruction-authority precedence (STEP-008 §6).
+INSTRUCTION_PRECEDENCE: tuple[str, ...] = (
+    "HARNESS",
+    "SYSTEM",
+    "PROJECT",
+    "BRANCH",
+    "MODE",
+    "TASK",
+)
+
+
+class InstructionAuthority(StrEnum):
+    """Who an instruction segment speaks for (STEP-008 §6).
+
+    Precedence (frozen, high -> low):
+        HARNESS > SYSTEM > PROJECT > BRANCH > MODE > TASK
+
+    Only SYSTEM / PROJECT / BRANCH may originate from a ContextItem.
+    HARNESS / MODE / TASK come from versioned PromptTemplates only.
+    """
+
+    HARNESS = "HARNESS"
+    SYSTEM = "SYSTEM"
+    PROJECT = "PROJECT"
+    BRANCH = "BRANCH"
+    MODE = "MODE"
+    TASK = "TASK"
+
+
+# Authorities a ContextItem may carry (STEP-008 §7).
+CONTEXT_ITEM_AUTHORITIES = frozenset(
+    {InstructionAuthority.SYSTEM, InstructionAuthority.PROJECT, InstructionAuthority.BRANCH}
+)
+
+
 class ExcludedContextReason(StrEnum):
     """Why a candidate item was excluded from the bundle (STEP-006 §18)."""
 
@@ -132,6 +167,7 @@ class ContextItem:
     branch_id: BranchId | None = None
     protection_tags: frozenset[ContextProtectionTag] = field(default_factory=frozenset)
     labels: frozenset[str] = field(default_factory=frozenset)
+    instruction_authority: InstructionAuthority | None = None
     metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -169,6 +205,35 @@ class ContextItem:
             if self.project_id is None or self.branch_id is None:
                 raise InvalidContextItemError(
                     "BRANCH scope requires both project_id and branch_id"
+                )
+        # instruction authority invariants (STEP-008 §7/§8)
+        if self.item_type is ContextItemType.INSTRUCTION:
+            if self.instruction_authority is None:
+                raise InvalidContextItemError(
+                    "INSTRUCTION item requires instruction_authority"
+                )
+            if self.instruction_authority not in CONTEXT_ITEM_AUTHORITIES:
+                raise InvalidContextItemError(
+                    f"INSTRUCTION item authority must be one of "
+                    f"{sorted(a.value for a in CONTEXT_ITEM_AUTHORITIES)}, "
+                    f"got {self.instruction_authority.value}"
+                )
+            # scope <-> authority mapping (frozen)
+            expected_scope = {
+                InstructionAuthority.SYSTEM: ContextScope.SYSTEM,
+                InstructionAuthority.PROJECT: ContextScope.PROJECT,
+                InstructionAuthority.BRANCH: ContextScope.BRANCH,
+            }[self.instruction_authority]
+            if self.scope is not expected_scope:
+                raise InvalidContextItemError(
+                    f"authority {self.instruction_authority.value} requires "
+                    f"scope {expected_scope.value}, got {self.scope.value}"
+                )
+        else:
+            if self.instruction_authority is not None:
+                raise InvalidContextItemError(
+                    f"non-INSTRUCTION item ({self.item_type.value}) must not "
+                    f"carry instruction_authority"
                 )
 
 
@@ -302,6 +367,7 @@ _EPOCH: datetime = datetime(1970, 1, 1, tzinfo=UTC)
 
 __all__ = [
     "ContextBudget",
+    "CONTEXT_ITEM_AUTHORITIES",
     "ContextBundle",
     "ContextItem",
     "ContextItemType",
@@ -312,6 +378,8 @@ __all__ = [
     "ContextSourceRef",
     "ExcludedContextItem",
     "ExcludedContextReason",
+    "INSTRUCTION_PRECEDENCE",
+    "InstructionAuthority",
     "is_bundle_current",
     "is_request_current",
 ]

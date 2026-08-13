@@ -31,6 +31,8 @@ from __future__ import annotations
 from .clock import TimeProvider  # re-exported for compiler/resolver callers
 from .compiler import ContextCompiler
 from .context import (
+    CONTEXT_ITEM_AUTHORITIES,
+    INSTRUCTION_PRECEDENCE,
     ContextBudget,
     ContextBundle,
     ContextItem,
@@ -42,6 +44,7 @@ from .context import (
     ContextSourceRef,
     ExcludedContextItem,
     ExcludedContextReason,
+    InstructionAuthority,
     is_bundle_current,
     is_request_current,
 )
@@ -53,17 +56,40 @@ from .errors import (
     InvalidContextItemError,
     InvalidContextPolicyError,
     InvalidContextRequestError,
+    InvalidPromptPolicyError,
+    InvalidPromptRequestError,
     InvalidRetrievalPolicyError,
     InvalidRetrievalRequirementError,
+    PromptContextMismatchError,
+    PromptError,
+    PromptTemplateError,
+    PromptTemplateVariableError,
     RequiredContextBlindedError,
     RequiredContextMissingError,
     RequiredContextScopeError,
     RequiredRetrievalRequirementUnsatisfiedError,
     RetrievalError,
     StaleContextRequestError,
+    StalePromptRequestError,
 )
 from .modes import CognitiveMode
 from .policies import COMPILER_VERSION, BlindingPolicy, ContextPolicy
+from .prompt import (
+    ASSEMBLER_VERSION,
+    PromptPackage,
+    PromptPolicy,
+    PromptRequest,
+    PromptSegment,
+    PromptSegmentKind,
+    PromptSegmentTrust,
+    PromptTemplate,
+    PromptTemplateKind,
+    PromptTemplateRenderer,
+    TemplateRef,
+    is_prompt_package_current,
+    render_context_data,
+)
+from .prompt_engine import PromptAssembler
 from .retrieval import (
     RESOLVER_VERSION,
     RequirementResolution,
@@ -75,12 +101,19 @@ from .retrieval import (
     RetrievalResolution,
 )
 from .retrieval_engine import RetrievalResolver
-from .store import ContextBundleStore, ContextCatalog, RetrievalResolutionStore
+from .store import (
+    ContextBundleStore,
+    ContextCatalog,
+    PromptPackageStore,
+    PromptTemplateRegistry,
+    RetrievalResolutionStore,
+)
 
 __all__ = [
     # modes
     "CognitiveMode",
     # context contracts
+    "CONTEXT_ITEM_AUTHORITIES",
     "ContextBudget",
     "ContextBundle",
     "ContextItem",
@@ -92,6 +125,8 @@ __all__ = [
     "ContextSourceRef",
     "ExcludedContextItem",
     "ExcludedContextReason",
+    "INSTRUCTION_PRECEDENCE",
+    "InstructionAuthority",
     "is_bundle_current",
     "is_request_current",
     # policies
@@ -102,6 +137,8 @@ __all__ = [
     "ContextBundleStore",
     "ContextCatalog",
     "ContextCompiler",
+    "PromptPackageStore",
+    "PromptTemplateRegistry",
     "RetrievalResolutionStore",
     "TimeProvider",
     # retrieval contracts
@@ -114,6 +151,21 @@ __all__ = [
     "RetrievalRequirement",
     "RetrievalResolution",
     "RetrievalResolver",
+    # prompt contracts
+    "ASSEMBLER_VERSION",
+    "PromptAssembler",
+    "PromptPackage",
+    "PromptPolicy",
+    "PromptRequest",
+    "PromptSegment",
+    "PromptSegmentKind",
+    "PromptSegmentTrust",
+    "PromptTemplate",
+    "PromptTemplateKind",
+    "PromptTemplateRenderer",
+    "TemplateRef",
+    "is_prompt_package_current",
+    "render_context_data",
     # errors
     "CognitionError",
     "ContextBudgetExceededError",
@@ -122,12 +174,19 @@ __all__ = [
     "InvalidContextItemError",
     "InvalidContextPolicyError",
     "InvalidContextRequestError",
+    "InvalidPromptPolicyError",
+    "InvalidPromptRequestError",
     "InvalidRetrievalPolicyError",
     "InvalidRetrievalRequirementError",
+    "PromptContextMismatchError",
+    "PromptError",
+    "PromptTemplateError",
+    "PromptTemplateVariableError",
     "RequiredContextBlindedError",
     "RequiredContextMissingError",
     "RequiredContextScopeError",
     "RequiredRetrievalRequirementUnsatisfiedError",
     "RetrievalError",
     "StaleContextRequestError",
+    "StalePromptRequestError",
 ]
