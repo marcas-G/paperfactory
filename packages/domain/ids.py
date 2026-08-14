@@ -103,6 +103,22 @@ OutputValidationId = NewType("OutputValidationId", str)
 CognitiveResultId = NewType("CognitiveResultId", str)
 """Identity of one validated CognitiveResultEnvelope."""
 
+# --- Runtime identities (STEP-011) -------------------------------------
+RuntimeSessionId = NewType("RuntimeSessionId", str)
+"""Identity of one RuntimeSession."""
+
+RuntimeRunId = NewType("RuntimeRunId", str)
+"""Identity of one RuntimeRun (distinct from M1 TaskId/RunId)."""
+
+ExecutionAttemptId = NewType("ExecutionAttemptId", str)
+"""Identity of one ExecutionAttempt within a Run."""
+
+RuntimeEventId = NewType("RuntimeEventId", str)
+"""Identity of one RuntimeEvent."""
+
+RuntimeArtifactId = NewType("RuntimeArtifactId", str)
+"""Identity of a Runtime artifact (reserved for future use)."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -122,6 +138,7 @@ __all__ = [
     "ContextPolicyId",
     "ContextRequestId",
     "EventId",
+    "ExecutionAttemptId",
     "MergeId",
     "ObjectId",
     "OutputCandidateId",
@@ -139,6 +156,10 @@ __all__ = [
     "RetrievalPolicyId",
     "RetrievalRequirementId",
     "RetrievalResolutionId",
+    "RuntimeArtifactId",
+    "RuntimeEventId",
+    "RuntimeRunId",
+    "RuntimeSessionId",
     "RunId",
     "TaskId",
 ]

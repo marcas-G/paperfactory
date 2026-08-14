@@ -29,6 +29,7 @@ from .ids import (
     ContextPolicyId,
     ContextRequestId,
     EventId,
+    ExecutionAttemptId,
     MergeId,
     ObjectId,
     OutputCandidateId,
@@ -47,6 +48,10 @@ from .ids import (
     RetrievalRequirementId,
     RetrievalResolutionId,
     RunId,
+    RuntimeArtifactId,
+    RuntimeEventId,
+    RuntimeRunId,
+    RuntimeSessionId,
     TaskId,
 )
 from .models import ResearchStateSnapshot
@@ -80,6 +85,10 @@ __all__ = [
     "RetrievalPolicyId",
     "RetrievalRequirementId",
     "RetrievalResolutionId",
+    "RuntimeArtifactId",
+    "RuntimeEventId",
+    "RuntimeRunId",
+    "RuntimeSessionId",
     "RunId",
     "TaskId",
     # enums

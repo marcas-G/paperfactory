@@ -314,3 +314,53 @@ def test_inmemory_adapters_live_in_testing_module() -> None:
     ]:
         assert hasattr(testing, adapter), f"missing in testing module: {adapter}"
 
+
+
+# --- RUNTIME boundaries (STEP-011 §77) ---------------------------------
+
+RUNTIME_FORBIDDEN_MODULES = {
+    "packages.control",
+    "packages.cognition",
+    "packages.capabilities",
+    "packages.persistence",
+    "packages.observability",
+}
+
+RUNTIME_FORBIDDEN_FRAMEWORKS = {
+    "openai", "anthropic", "pydantic_ai", "temporalio",
+    "fastapi", "sqlalchemy", "requests", "httpx",
+}
+
+
+def test_runtime_does_not_import_forbidden_layers() -> None:
+    runtime_root = REPO_ROOT / "packages" / "runtime"
+    violations: list[str] = []
+    for path in _py_files(runtime_root):
+        tree = _parse(path)
+        prefix = "packages.runtime"
+        resolved = _resolved_relative_modules(tree, prefix)
+        for mod in resolved:
+            for forbidden in RUNTIME_FORBIDDEN_MODULES:
+                if mod == forbidden or mod.startswith(forbidden + "."):
+                    violations.append(f"{path}: imports {mod}")
+        for name in _imported_names(tree):
+            for forbidden in RUNTIME_FORBIDDEN_MODULES:
+                if name == forbidden or name.startswith(forbidden + "."):
+                    violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "runtime imports forbidden layer(s):\n" + "\n".join(violations)
+    )
+
+
+def test_runtime_does_not_import_frameworks() -> None:
+    runtime_root = REPO_ROOT / "packages" / "runtime"
+    violations: list[str] = []
+    for path in _py_files(runtime_root):
+        tree = _parse(path)
+        names = _imported_names(tree)
+        hit = names & RUNTIME_FORBIDDEN_FRAMEWORKS
+        for name in hit:
+            violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "runtime imports forbidden framework(s):\n" + "\n".join(violations)
+    )
