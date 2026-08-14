@@ -86,7 +86,37 @@ class RuntimeEventSink(Protocol):
 
 __all__ = [
     "ExecutionAttemptStore",
+    "ProviderExecutionRequestStore",
+    "ProviderExecutionResponseStore",
     "RuntimeEventSink",
     "RuntimeRunStore",
     "RuntimeSessionStore",
 ]
+
+
+@runtime_checkable
+class ProviderExecutionRequestStore(Protocol):
+    """Store of ProviderExecutionRequest records (STEP-012 §23)."""
+
+    def save(self, request) -> None:  # type: ignore[no-untyped-def]
+        ...
+
+    def get(self, request_id):  # type: ignore[no-untyped-def]
+        ...
+
+    def list_for_run(self, run_id):  # type: ignore[no-untyped-def]
+        ...
+
+
+@runtime_checkable
+class ProviderExecutionResponseStore(Protocol):
+    """Store of ProviderExecutionResponse records (STEP-012 §24)."""
+
+    def save(self, response) -> None:  # type: ignore[no-untyped-def]
+        ...
+
+    def get(self, response_id):  # type: ignore[no-untyped-def]
+        ...
+
+    def list_for_run(self, run_id):  # type: ignore[no-untyped-def]
+        ...

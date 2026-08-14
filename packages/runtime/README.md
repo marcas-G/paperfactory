@@ -33,6 +33,9 @@ Implemented:
 - RuntimeEvent (distinct from DomainEvent; session/run/attempt audit facts)
 - RuntimeSessionManager / RuntimeRunManager (deterministic lifecycle)
 - Store ports (Session/Run/Attempt/EventSink)
+- Provider execution contracts (Request/Response/Outcome/Port)
+- RuntimeExecutionCoordinator
+- FakeProviderExecutor (test/dev)
 
 Not implemented yet (later M3 steps):
 - Provider Execution Adapter (OpenAI/Anthropic SDK)

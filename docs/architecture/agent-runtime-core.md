@@ -80,3 +80,5 @@ No half-state is observable.
 - Provider Execution Adapter (OpenAI/Anthropic SDK)
 - Agent Definition / Skill / Tool / Subagent
 - Retry Policy / Checkpoint / Temporal / Sandbox / Permission Runtime / Hooks
+
+Provider execution is connected via [RuntimeExecutionCoordinator](provider-execution.md).

@@ -119,6 +119,12 @@ RuntimeEventId = NewType("RuntimeEventId", str)
 RuntimeArtifactId = NewType("RuntimeArtifactId", str)
 """Identity of a Runtime artifact (reserved for future use)."""
 
+ProviderExecutionRequestId = NewType("ProviderExecutionRequestId", str)
+"""Identity of one ProviderExecutionRequest."""
+
+ProviderExecutionResponseId = NewType("ProviderExecutionResponseId", str)
+"""Identity of one ProviderExecutionResponse."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -156,6 +162,8 @@ __all__ = [
     "RetrievalPolicyId",
     "RetrievalRequirementId",
     "RetrievalResolutionId",
+    "ProviderExecutionRequestId",
+    "ProviderExecutionResponseId",
     "RuntimeArtifactId",
     "RuntimeEventId",
     "RuntimeRunId",

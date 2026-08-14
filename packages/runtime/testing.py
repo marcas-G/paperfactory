@@ -93,8 +93,129 @@ class InMemoryRuntimeEventSink:
 
 
 __all__ = [
+    "FakeProviderExecutor",
     "InMemoryExecutionAttemptStore",
     "InMemoryRuntimeEventSink",
     "InMemoryRuntimeRunStore",
     "InMemoryRuntimeSessionStore",
+    "InMemoryProviderExecutionRequestStore",
+    "InMemoryProviderExecutionResponseStore",
 ]
+
+
+# =========================================================================
+# Provider Execution Stores + Fake Executor
+# =========================================================================
+class InMemoryProviderExecutionRequestStore:
+    def __init__(self) -> None:
+        self._records = {}
+
+    def save(self, request) -> None:  # type: ignore[no-untyped-def]
+        rid = request.request_id
+        if rid in self._records:
+            raise DuplicateRuntimeObjectError(f"request already saved: {rid}")
+        self._records[rid] = request
+
+    def get(self, request_id):  # type: ignore[no-untyped-def]
+        return self._records[request_id]
+
+    def list_for_run(self, run_id):  # type: ignore[no-untyped-def]
+        return [r for r in self._records.values() if r.run_id == run_id]
+
+
+class InMemoryProviderExecutionResponseStore:
+    def __init__(self) -> None:
+        self._records = {}
+
+    def save(self, response) -> None:  # type: ignore[no-untyped-def]
+        rid = response.response_id
+        if rid in self._records:
+            raise DuplicateRuntimeObjectError(f"response already saved: {rid}")
+        self._records[rid] = response
+
+    def get(self, response_id):  # type: ignore[no-untyped-def]
+        return self._records[response_id]
+
+    def list_for_run(self, run_id):  # type: ignore[no-untyped-def]
+        return [r for r in self._records.values() if r.run_id == run_id]
+
+
+class _FakeSuccess:
+    """Internal marker for FakeProviderExecutor scripted success."""
+
+    def __init__(self, raw_output):  # type: ignore[no-untyped-def]
+        self.raw_output = raw_output
+
+
+class FakeProviderExecutor:
+    """Deterministic scripted provider executor (STEP-012 §21).
+
+    Consumes outcomes in order. Raises on exhaustion.
+    """
+
+    def __init__(self, outcomes):  # type: ignore[no-untyped-def]
+        self._outcomes = list(outcomes)
+        self._index = 0
+        self.calls: list = []
+
+    async def execute(self, request):  # type: ignore[no-untyped-def]
+        from ..domain.ids import (
+            ProviderExecutionResponseId,
+            RuntimeArtifactId,
+        )
+        from .provider import (
+            ProviderExecutionOutcome,
+            ProviderExecutionOutcomeStatus,
+            ProviderExecutionResponse,
+            ProviderUsage,
+        )
+
+        self.calls.append(request)
+        if self._index >= len(self._outcomes):
+            raise RuntimeError(
+                f"FakeProviderExecutor: outcomes exhausted "
+                f"(consumed {self._index})"
+            )
+        item = self._outcomes[self._index]
+        self._index += 1
+
+        if isinstance(item, _FakeSuccess):
+            resp = ProviderExecutionResponse(
+                response_id=ProviderExecutionResponseId(
+                    f"resp-{self._index}"
+                ),
+                artifact_id=RuntimeArtifactId(f"art-{self._index}"),
+                request_id=request.request_id,
+                session_id=request.session_id,
+                run_id=request.run_id,
+                attempt_id=request.attempt_id,
+                project_id=request.project_id,
+                branch_id=request.branch_id,
+                provider=request.provider,
+                model=request.model,
+                raw_output=item.raw_output,
+                usage=ProviderUsage(input_units=10, output_units=20),
+            )
+            return ProviderExecutionOutcome(
+                status=ProviderExecutionOutcomeStatus.SUCCEEDED,
+                response=resp,
+            )
+        # Already a proper ProviderExecutionOutcome (FAILED)
+        return item
+
+    @staticmethod
+    def success(raw_output):  # type: ignore[no-untyped-def]
+        """Helper to create a SUCCEEDED outcome marker."""
+        return _FakeSuccess(raw_output)
+
+    @staticmethod
+    def failure(failure):  # type: ignore[no-untyped-def]
+        """Helper to create a FAILED outcome."""
+        from .provider import (
+            ProviderExecutionOutcome,
+            ProviderExecutionOutcomeStatus,
+        )
+        return ProviderExecutionOutcome(
+            status=ProviderExecutionOutcomeStatus.FAILED,
+            failure=failure,
+        )

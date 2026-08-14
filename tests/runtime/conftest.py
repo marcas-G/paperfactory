@@ -101,3 +101,43 @@ def created_run(session_mgr, run_mgr, open_session):
         session_id=open_session.session_id,
         input_ref=INPUT_REF,
     )
+
+
+# --- provider execution fixtures ---------------------------------------
+@pytest.fixture
+def request_store():
+    from packages.runtime.testing import InMemoryProviderExecutionRequestStore
+    return InMemoryProviderExecutionRequestStore()
+
+
+@pytest.fixture
+def response_store():
+    from packages.runtime.testing import InMemoryProviderExecutionResponseStore
+    return InMemoryProviderExecutionResponseStore()
+
+
+@pytest.fixture
+def coordinator(run_mgr, request_store, response_store, event_sink, clock):
+    import itertools
+
+    from packages.runtime import RuntimeExecutionCoordinator
+    _resp = itertools.count(1)
+    _art = itertools.count(1)
+    _evt = itertools.count(100)
+    return RuntimeExecutionCoordinator(
+        run_mgr, request_store, response_store, event_sink,
+        response_id_factory=lambda: f"resp-{next(_resp)}",
+        artifact_id_factory=lambda: f"art-{next(_art)}",
+        event_id_factory=lambda: f"evt-{next(_evt)}",
+        now=clock,
+    )
+
+
+@pytest.fixture
+def running_run(session_mgr, run_mgr, open_session):
+    """Create a run, mark ready, start it, return (run, attempt)."""
+    from packages.runtime import RuntimeInputRef
+    inp = RuntimeInputRef(source_type="prompt_package", source_id="pkg-1", version="1")
+    run = run_mgr.create_run(session_id=open_session.session_id, input_ref=inp)
+    run_mgr.mark_ready(run.run_id)
+    return run_mgr.start_run(run.run_id)

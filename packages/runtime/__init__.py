@@ -39,6 +39,10 @@ from .errors import (
     IllegalAttemptTransitionError,
     IllegalRunTransitionError,
     IllegalSessionTransitionError,
+    ProviderExecutionError,
+    ProviderExecutionInputMismatchError,
+    ProviderExecutionScopeError,
+    ProviderExecutionStoreError,
     RuntimeAttemptNotFoundError,
     RuntimeInvariantViolationError,
     RuntimeObjectNotFoundError,
@@ -48,9 +52,22 @@ from .errors import (
     SessionBusyError,
 )
 from .events import RuntimeEvent, RuntimeEventType
+from .execution import RuntimeExecutionCoordinator
 from .lifecycle import RuntimeRunManager, RuntimeSessionManager
+from .provider import (
+    ModelIdentifier,
+    ProviderExecutionOutcome,
+    ProviderExecutionOutcomeStatus,
+    ProviderExecutionPort,
+    ProviderExecutionRequest,
+    ProviderExecutionResponse,
+    ProviderIdentifier,
+    ProviderUsage,
+)
 from .store import (
     ExecutionAttemptStore,
+    ProviderExecutionRequestStore,
+    ProviderExecutionResponseStore,
     RuntimeEventSink,
     RuntimeRunStore,
     RuntimeSessionStore,
@@ -73,6 +90,16 @@ __all__ = [
     "RuntimeSession",
     "RuntimeSessionStatus",
     "SESSION_TERMINAL",
+    # provider execution
+    "ModelIdentifier",
+    "ProviderExecutionOutcome",
+    "ProviderExecutionOutcomeStatus",
+    "ProviderExecutionPort",
+    "ProviderExecutionRequest",
+    "ProviderExecutionResponse",
+    "ProviderIdentifier",
+    "ProviderUsage",
+    "RuntimeExecutionCoordinator",
     # events
     "RuntimeEvent",
     "RuntimeEventType",
@@ -81,6 +108,8 @@ __all__ = [
     "RuntimeSessionManager",
     # stores
     "ExecutionAttemptStore",
+    "ProviderExecutionRequestStore",
+    "ProviderExecutionResponseStore",
     "RuntimeEventSink",
     "RuntimeRunStore",
     "RuntimeSessionStore",

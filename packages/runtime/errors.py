@@ -59,12 +59,33 @@ class RuntimeObjectNotFoundError(AgentRuntimeError):
     """An update was requested for an object that has not been saved yet."""
 
 
+class ProviderExecutionError(AgentRuntimeError):
+    """Base class for provider execution failures."""
+
+
+class ProviderExecutionScopeError(ProviderExecutionError):
+    """A ProviderExecutionRequest's scope does not match the Run/Attempt."""
+
+
+class ProviderExecutionInputMismatchError(ProviderExecutionError):
+    """The request's input_ref does not match the Run's input_ref."""
+
+
+class ProviderExecutionStoreError(ProviderExecutionError):
+    """A provider execution store operation failed."""
+
+
+
 __all__ = [
     "AgentRuntimeError",
     "DuplicateRuntimeObjectError",
     "IllegalAttemptTransitionError",
     "IllegalRunTransitionError",
     "IllegalSessionTransitionError",
+    "ProviderExecutionError",
+    "ProviderExecutionInputMismatchError",
+    "ProviderExecutionScopeError",
+    "ProviderExecutionStoreError",
     "RuntimeObjectNotFoundError",
     "RuntimeAttemptNotFoundError",
     "RuntimeInvariantViolationError",
