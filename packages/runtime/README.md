@@ -23,7 +23,7 @@ claim strength).
 - Sandbox runtime
 - Hooks
 
-## Current Implementation (STEP-011..STEP-013)
+## Current Implementation (STEP-011..STEP-014)
 
 Implemented:
 - RuntimeSession (branch-scoped; OPEN → CLOSED/CANCELLED)
@@ -36,22 +36,29 @@ Implemented:
 - Provider execution contracts (Request/Response/Outcome/Port)
 - RuntimeExecutionCoordinator
 - FakeProviderExecutor (test/dev)
-- ModelExecutionProfile (pins provider + model identity only; no generation params)
+- ModelExecutionProfile (provider+model identity + capability declaration + supported params)
 - AgentDefinition (versioned runtime definition; no cognitive policy, no tools)
-- AgentExecutionBinding (run-scoped, immutable, exactly-once, provider/model snapshot)
+- AgentExecutionBinding (run-scoped, immutable; pins Agent/Profile/Config versions + snapshots)
 - AgentBindingManager (strict CREATED-only binding; AGENT_BOUND event; atomic rollback)
-- AgentProviderExecutionRequestFactory (provider/model/input_ref sourced from Binding/Run)
+- AgentProviderExecutionRequestFactory (provider/model/input_ref/parameters from Binding/Run)
+- ModelCapability declaration (closed enum; declaration, not discovery)
+- ModelParameter / ModelParameterSetting (4 canonical params; strict validation, no coercion)
+- ModelExecutionConfig (versioned; exact Profile ref; explicit empty config legal)
+- Config/Profile compatibility validation (exact version + supported params)
+- Model Selection Requirements / Signals / Weights / Policy (explicit, deterministic)
+- ModelSelectionRecommendation (RECOMMENDED | NO_MATCH; recommendation != binding)
+- ModelSelectionEngine (deterministic scoring + stable tie-break; candidate universe = Agent allowed profiles)
 
 Not implemented yet (later M3 steps):
-- ModelExecutionConfig (temperature/top_p/max_tokens/seed/...)
-- Model Selection Policy / Router
+- Real Provider Adapter (OpenAI/Anthropic SDK) + Provider Parameter Mapping
+- Dynamic Metric Collection / Model Benchmark Service / Live Price Lookup
+- Config Selection Policy (caller must still pick an exact Config explicitly)
 - Agent Loop (max_steps / termination / ReAct)
 - Tool / Skill / Subagent
 - Retry Policy / Backoff
 - Checkpoint
 - Temporal integration
 - Sandbox / Permission Runtime / Hooks
-- Provider Execution Adapter (OpenAI/Anthropic SDK)
 
 ## Must Not Own
 

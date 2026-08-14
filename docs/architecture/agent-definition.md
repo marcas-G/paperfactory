@@ -108,12 +108,15 @@ AgentExecutionBinding
     agent_id, agent_version               # exact version
     execution_profile_id, version         # exact version
     provider, model                       # SNAPSHOT from the Profile
+    execution_config_id, execution_config_version   # STEP-014: exact Config
+    resolved_parameter_settings                     # STEP-014: param snapshot
     created_by, created_at
     metadata
 ```
 
-> AgentExecutionBinding pins an exact AgentDefinition version and an exact
-> ModelExecutionProfile version to a RuntimeRun.
+> AgentExecutionBinding pins an exact AgentDefinition version, an exact
+> ModelExecutionProfile version, AND an exact ModelExecutionConfig version
+> to a RuntimeRun. See [Model Execution Configuration](model-execution.md).
 
 ## 9. Binding Timing
 

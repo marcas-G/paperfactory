@@ -108,6 +108,44 @@ class AgentBindingStoreError(AgentDefinitionError):
     """An AgentExecutionBinding store operation failed."""
 
 
+# --- Model Execution Config errors (STEP-014 §55) -----------------------
+class ModelExecutionConfigError(AgentRuntimeError):
+    """Base class for model execution config failures."""
+
+
+class ModelExecutionConfigNotFoundError(ModelExecutionConfigError):
+    """A ModelExecutionConfig with the exact (config_id, version) was not found."""
+
+
+class ModelExecutionConfigIncompatibleError(ModelExecutionConfigError):
+    """A ModelExecutionConfig is not compatible with its referenced Profile
+    (exact-version mismatch or unsupported parameter)."""
+
+
+# --- Model Selection errors (STEP-014 §55) ------------------------------
+class ModelSelectionError(AgentRuntimeError):
+    """Base class for model selection failures."""
+
+
+class InvalidModelSelectionSignalsError(ModelSelectionError):
+    """A ModelSelectionSignals value is out of range, NaN/inf, or otherwise
+    malformed."""
+
+
+class InvalidModelSelectionPolicyError(ModelSelectionError):
+    """A ModelSelectionPolicy/Weights value is invalid (negative/all-zero)."""
+
+
+class ModelSelectionProfileResolutionError(ModelSelectionError):
+    """An AgentDefinition's allowed profile ref could not be exact-resolved
+    in the Profile registry (incomplete agent configuration)."""
+
+
+class ModelSelectionSignalSetError(ModelSelectionError):
+    """The provided signal set is incomplete, duplicated, or contains a
+    profile not in the Agent's allowed list."""
+
+
 __all__ = [
     "AgentAlreadyBoundError",
     "AgentBindingScopeError",
@@ -120,8 +158,16 @@ __all__ = [
     "IllegalAttemptTransitionError",
     "IllegalRunTransitionError",
     "IllegalSessionTransitionError",
+    "InvalidModelSelectionPolicyError",
+    "InvalidModelSelectionSignalsError",
+    "ModelExecutionConfigError",
+    "ModelExecutionConfigIncompatibleError",
+    "ModelExecutionConfigNotFoundError",
     "ModelExecutionProfileNotFoundError",
     "AgentExecutionProfileNotAllowedError",
+    "ModelSelectionError",
+    "ModelSelectionProfileResolutionError",
+    "ModelSelectionSignalSetError",
     "ProviderExecutionError",
     "ProviderExecutionInputMismatchError",
     "ProviderExecutionScopeError",

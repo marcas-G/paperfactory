@@ -81,5 +81,12 @@ A `ProviderExecutionRequest` may be constructed:
   `provider`/`model` from an [AgentExecutionBinding](agent-definition.md) and
   `input_ref` from the Run. The caller cannot override these.
 
+A request also carries an `execution_parameters` tuple of canonical
+`ModelParameterSetting` (STEP-014). The factory sources it from the binding's
+`resolved_parameter_settings`; a low-level direct request may use `()`. The
+`RuntimeExecutionCoordinator` forwards these parameters verbatim to
+`ProviderExecutionPort` and does NOT interpret, normalize, or translate them.
+See [Model Execution Configuration](model-execution.md).
+
 The low-level `ProviderExecutionPort` semantics are unchanged — it remains a
 generic I/O primitive that does not require an Agent Binding to exist.

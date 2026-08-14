@@ -37,6 +37,7 @@ from ..domain.ids import (
     AgentExecutionBindingId,
     AgentId,
     BranchId,
+    ModelExecutionConfigId,
     ModelExecutionProfileId,
     ProjectId,
     ProviderExecutionRequestId,
@@ -57,11 +58,20 @@ from .errors import (
     AgentBindingStoreError,
     AgentExecutionProfileNotAllowedError,
     IllegalAgentBindingStateError,
+    ModelExecutionConfigIncompatibleError,
+    ModelExecutionConfigNotFoundError,
     RuntimeInvariantViolationError,
     RuntimeRunNotFoundError,
     RuntimeSessionNotFoundError,
 )
 from .events import RuntimeEvent, RuntimeEventType
+from .model_execution import (
+    ModelCapability,
+    ModelExecutionConfigRegistry,
+    ModelExecutionConfigValidator,
+    ModelParameter,
+    ModelParameterSetting,
+)
 from .provider import (
     ModelIdentifier,
     ProviderExecutionRequest,
@@ -106,12 +116,18 @@ class ModelExecutionProfileRef:
 # =========================================================================
 @dataclass(frozen=True)
 class ModelExecutionProfile:
-    """An immutable, versioned model execution profile (STEP-013 §8/§9).
+    """An immutable, versioned model execution profile (STEP-013 §8/§9,
+    extended STEP-014 §10).
 
-    Pins ONLY provider identity + model identity. It deliberately does NOT
-    carry generation parameters (temperature/top_p/max_tokens/seed/...) —
-    those belong to a future ModelExecutionConfig. It also does NOT smuggle
-    them via a generic ``parameters: dict``.
+    Pins provider identity + model identity AND declares the capabilities +
+    supported canonical parameters. It deliberately does NOT carry generation
+    parameter VALUES — those live in ModelExecutionConfig. Capabilities are a
+    DECLARATION (STEP-014 §11): the runtime never auto-discovers them from a
+    provider API.
+
+    Hard constraints:
+        * capabilities non-empty and MUST include TEXT_GENERATION.
+        * supported_parameters may be empty (no canonical params supported).
     """
 
     profile_id: ModelExecutionProfileId
@@ -120,6 +136,10 @@ class ModelExecutionProfile:
     description: str
     provider: ProviderIdentifier
     model: ModelIdentifier
+    capabilities: frozenset[ModelCapability]
+    supported_parameters: frozenset[ModelParameter] = field(
+        default_factory=frozenset,
+    )
     metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -127,6 +147,16 @@ class ModelExecutionProfile:
         _check_non_empty(self.version, "version", "ModelExecutionProfile")
         _check_non_empty(self.name, "name", "ModelExecutionProfile")
         _check_non_empty(self.description, "description", "ModelExecutionProfile")
+        if not isinstance(self.capabilities, frozenset):
+            raise ValueError("capabilities must be a frozenset")
+        if not isinstance(self.supported_parameters, frozenset):
+            raise ValueError("supported_parameters must be a frozenset")
+        if not self.capabilities:
+            raise ValueError("ModelExecutionProfile capabilities must be non-empty")
+        if ModelCapability.TEXT_GENERATION not in self.capabilities:
+            raise ValueError(
+                "ModelExecutionProfile must declare TEXT_GENERATION capability"
+            )
 
     @property
     def ref(self) -> ModelExecutionProfileRef:
@@ -179,13 +209,18 @@ class AgentDefinition:
 # =========================================================================
 @dataclass(frozen=True)
 class AgentExecutionBinding:
-    """An immutable, run-scoped binding (STEP-013 §15/§16/§38).
+    """An immutable, run-scoped binding (STEP-013 §15/§16/§38, extended
+    STEP-014 §19/§20).
 
-    Pins an exact AgentDefinition version and an exact ModelExecutionProfile
-    version to a single RuntimeRun. The provider/model fields are a SNAPSHOT
-    resolved from the Profile at bind time — so an existing Run can always
-    answer "what provider/model was actually bound" even if the registry
-    changes later.
+    Pins THREE exact versions to a single RuntimeRun:
+        1. AgentDefinition (agent_id / agent_version)
+        2. ModelExecutionProfile (execution_profile_id / version)
+        3. ModelExecutionConfig (execution_config_id / version)
+
+    plus the provider/model snapshot from the Profile and the canonical
+    parameter snapshot from the Config (``resolved_parameter_settings``). So
+    an existing Run can always answer "what provider/model/parameters were
+    actually bound" even if registries change later.
 
     Run-scoped, NOT attempt-scoped: there is NO attempt_id here. Future
     retries (attempt #1, #2, ...) share the same Run binding.
@@ -201,9 +236,12 @@ class AgentExecutionBinding:
     agent_version: str
     execution_profile_id: ModelExecutionProfileId
     execution_profile_version: str
+    execution_config_id: ModelExecutionConfigId
+    execution_config_version: str
 
     provider: ProviderIdentifier
     model: ModelIdentifier
+    resolved_parameter_settings: tuple[ModelParameterSetting, ...]
 
     created_by: ActorType
     created_at: datetime
@@ -219,6 +257,14 @@ class AgentExecutionBinding:
         _check_non_empty(
             self.execution_profile_version, "execution_profile_version", "AgentExecutionBinding",
         )
+        _check_non_empty(
+            str(self.execution_config_id), "execution_config_id", "AgentExecutionBinding",
+        )
+        _check_non_empty(
+            self.execution_config_version, "execution_config_version", "AgentExecutionBinding",
+        )
+        if not isinstance(self.resolved_parameter_settings, tuple):
+            raise ValueError("resolved_parameter_settings must be a tuple")
         _check_tz(self.created_at, "created_at")
 
 
@@ -300,7 +346,7 @@ class AgentExecutionBindingStore(Protocol):
 # AgentBindingManager
 # =========================================================================
 class AgentBindingManager:
-    """Strict binding orchestrator (STEP-013 §29/§30).
+    """Strict binding orchestrator (STEP-013 §29/§30, extended STEP-014 §22).
 
     Responsibilities, in order:
 
@@ -311,14 +357,18 @@ class AgentBindingManager:
         5. ensure Run has no Binding
         6. resolve exact AgentDefinition
         7. resolve exact ModelExecutionProfile
-        8. validate selected Profile is allowed
-        9. construct immutable Binding (with provider/model snapshot)
-       10. save Binding
-       11. emit AGENT_BOUND  (on failure: discard the binding — no half state)
-       12. return Binding
+        8. validate selected Profile is allowed by the Agent
+        9. resolve exact ModelExecutionConfig
+       10. validate Config.profile_ref == selected Profile exact version AND
+          every Config parameter is supported by the Profile
+       11. construct immutable Binding (Agent/Profile/Config versions +
+          provider/model snapshot + canonical parameter snapshot)
+       12. save Binding
+       13. emit AGENT_BOUND  (on failure: discard the binding — no half state)
+       14. return Binding
 
-    It does NOT mark_ready, start_run, create an Attempt, execute a
-    provider, select a model, or modify the Run.
+    It does NOT mark_ready, start_run, create an Attempt, execute a provider,
+    select a model/config, or modify the Run.
     """
 
     def __init__(
@@ -327,6 +377,7 @@ class AgentBindingManager:
         run_store: object,
         agent_registry: AgentDefinitionRegistry,
         profile_registry: ModelExecutionProfileRegistry,
+        config_registry: ModelExecutionConfigRegistry,
         binding_store: AgentExecutionBindingStore,
         event_sink: object,
         *,
@@ -338,8 +389,10 @@ class AgentBindingManager:
         self._run_store = run_store
         self._agents = agent_registry
         self._profiles = profile_registry
+        self._configs = config_registry
         self._bindings = binding_store
         self._sink = event_sink
+        self._validator = ModelExecutionConfigValidator()
         self._binding_id_factory = binding_id_factory or (lambda: uuid.uuid4().hex)
         self._event_id_factory = event_id_factory or (lambda: uuid.uuid4().hex)
         self._now = now or _default_now
@@ -353,6 +406,8 @@ class AgentBindingManager:
         agent_version: str,
         execution_profile_id: ModelExecutionProfileId,
         execution_profile_version: str,
+        execution_config_id: ModelExecutionConfigId,
+        execution_config_version: str,
         actor: ActorType = ActorType.SYSTEM,
     ) -> AgentExecutionBinding:
         # 1. resolve Session + 2. resolve Run
@@ -381,8 +436,20 @@ class AgentBindingManager:
                 f"profile {execution_profile_id}/{execution_profile_version} "
                 f"is not allowed for agent {agent_id}/{agent_version}"
             )
+        # 9. resolve exact ModelExecutionConfig
+        try:
+            config = self._configs.get(execution_config_id, execution_config_version)
+        except KeyError:
+            raise ModelExecutionConfigNotFoundError(
+                f"config not found: {execution_config_id}/{execution_config_version}"
+            ) from None
+        # 10. validate Config/Profile compatibility (exact version + supported params)
+        try:
+            self._validator.validate(config, profile)
+        except ModelExecutionConfigIncompatibleError:
+            raise
 
-        # 9. construct immutable Binding with provider/model snapshot
+        # 11. construct immutable Binding with snapshots
         ts = self._now()
         binding = AgentExecutionBinding(
             binding_id=AgentExecutionBindingId(self._binding_id_factory()),
@@ -394,20 +461,23 @@ class AgentBindingManager:
             agent_version=definition.version,
             execution_profile_id=profile.profile_id,
             execution_profile_version=profile.version,
+            execution_config_id=config.config_id,
+            execution_config_version=config.version,
             provider=profile.provider,
             model=profile.model,
+            resolved_parameter_settings=config.parameter_settings,
             created_by=actor,
             created_at=ts,
         )
 
-        # 10. save Binding
+        # 12. save Binding
         try:
             self._bindings.save(binding)
         except Exception as exc:
             # Store failure: do NOT emit AGENT_BOUND (AGT-056).
             raise AgentBindingStoreError(f"failed to save binding: {exc}") from exc
 
-        # 11. emit AGENT_BOUND — on failure, discard the binding (AGT-057)
+        # 13. emit AGENT_BOUND — on failure, discard the binding (AGT-057)
         try:
             self._emit_agent_bound(binding, session, ts, actor)
         except Exception as exc:
@@ -422,7 +492,7 @@ class AgentBindingManager:
                 f"failed to emit AGENT_BOUND; binding rolled back: {exc}"
             ) from exc
 
-        # 12. return Binding
+        # 14. return Binding
         return binding
 
     # --- resolution ------------------------------------------------------
@@ -477,8 +547,13 @@ class AgentBindingManager:
                 "agent_version": binding.agent_version,
                 "execution_profile_id": str(binding.execution_profile_id),
                 "execution_profile_version": binding.execution_profile_version,
+                "execution_config_id": str(binding.execution_config_id),
+                "execution_config_version": binding.execution_config_version,
                 "provider": binding.provider.name,
                 "model": binding.model.name,
+                # Full canonical parameter VALUES are intentionally NOT copied
+                # into the event — they live on the immutable Binding snapshot
+                # (STEP-014 §24).
             },
         ))
 
@@ -555,7 +630,8 @@ class AgentProviderExecutionRequestFactory:
             )
 
         # Build request — provider/model/input_ref sourced exclusively from
-        # the Binding/Run. The caller cannot override.
+        # the Binding/Run. The caller cannot override. Canonical execution
+        # parameters come from the Binding snapshot (STEP-014 §26).
         return ProviderExecutionRequest(
             request_id=request_id,
             session_id=session.session_id,
@@ -568,6 +644,7 @@ class AgentProviderExecutionRequestFactory:
             input_ref=run.input_ref,
             projected_input=projected_input,
             created_at=created_at,
+            execution_parameters=binding.resolved_parameter_settings,
             metadata=metadata if metadata is not None else {},
         )
 

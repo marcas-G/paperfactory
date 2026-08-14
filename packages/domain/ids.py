@@ -135,6 +135,16 @@ ModelExecutionProfileId = NewType("ModelExecutionProfileId", str)
 AgentExecutionBindingId = NewType("AgentExecutionBindingId", str)
 """Identity of one AgentExecutionBinding (a run-scoped immutable binding)."""
 
+# --- Model execution / selection identities (STEP-014) -------------------
+ModelExecutionConfigId = NewType("ModelExecutionConfigId", str)
+"""Stable identity of a ModelExecutionConfig version-family."""
+
+ModelSelectionPolicyId = NewType("ModelSelectionPolicyId", str)
+"""Stable identity of a ModelSelectionPolicy version-family."""
+
+ModelSelectionEvaluationId = NewType("ModelSelectionEvaluationId", str)
+"""Identity of one ModelSelectionRecommendation (one evaluation)."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -158,7 +168,10 @@ __all__ = [
     "EventId",
     "ExecutionAttemptId",
     "MergeId",
+    "ModelExecutionConfigId",
     "ModelExecutionProfileId",
+    "ModelSelectionEvaluationId",
+    "ModelSelectionPolicyId",
     "ObjectId",
     "OutputCandidateId",
     "OutputContractId",

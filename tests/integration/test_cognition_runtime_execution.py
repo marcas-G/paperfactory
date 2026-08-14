@@ -30,7 +30,9 @@ from packages.domain.ids import (
     BranchId,
     CognitiveResultId,
     ContextBundleId,
+    ModelExecutionConfigId,
     ModelExecutionProfileId,
+    ModelSelectionPolicyId,
     OutputCandidateId,
     OutputContractId,
     OutputSchemaId,
@@ -270,17 +272,21 @@ def _build_agent_stack(runtime_stack):
         AgentBindingManager,
         AgentDefinition,
         AgentProviderExecutionRequestFactory,
+        ModelCapability,
+        ModelExecutionConfig,
         ModelExecutionProfile,
         ModelExecutionProfileRef,
     )
     from packages.runtime.testing import (
         InMemoryAgentDefinitionRegistry,
         InMemoryAgentExecutionBindingStore,
+        InMemoryModelExecutionConfigRegistry,
         InMemoryModelExecutionProfileRegistry,
     )
     sm, rm, sink = runtime_stack
     c = itertools.count(5000)
     profile_reg = InMemoryModelExecutionProfileRegistry()
+    config_reg = InMemoryModelExecutionConfigRegistry()
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
 
@@ -289,8 +295,14 @@ def _build_agent_stack(runtime_stack):
         name="openai fake profile", description="d",
         provider=ProviderIdentifier(name="openai"),
         model=ModelIdentifier(name="fake-openai-model"),
+        capabilities=frozenset({ModelCapability.TEXT_GENERATION,
+                                ModelCapability.STRUCTURED_OUTPUT}),
     )
     profile_reg.register(profile)
+    config_reg.register(ModelExecutionConfig(
+        config_id=ModelExecutionConfigId("openai-config"), version="v1",
+        name="c", description="d", profile_ref=profile.ref,
+        parameter_settings=()))
     agent = AgentDefinition(
         agent_id=AgentId("agent-A"), version="v1",
         name="agent-A v1", description="d",
@@ -299,7 +311,7 @@ def _build_agent_stack(runtime_stack):
     agent_reg.register(agent)
 
     mgr = AgentBindingManager(
-        sm._sessions, rm._runs, agent_reg, profile_reg, binding_store, sink,
+        sm._sessions, rm._runs, agent_reg, profile_reg, config_reg, binding_store, sink,
         binding_id_factory=lambda: f"bind-{next(c)}",
         event_id_factory=lambda: f"e-{next(c)}",
         now=lambda: TZ,
@@ -332,6 +344,8 @@ def test_int_m2_m3_agt_001_agent_binding_valid_composition(runtime_stack):
         agent_id=AgentId("agent-A"), agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("openai-profile"),
         execution_profile_version="v1",
+        execution_config_id=ModelExecutionConfigId("openai-config"),
+        execution_config_version="v1",
     )
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
@@ -424,6 +438,8 @@ def test_int_m2_m3_agt_002_invalid_output_but_run_succeeded(runtime_stack):
         agent_id=AgentId("agent-A"), agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("openai-profile"),
         execution_profile_version="v1",
+        execution_config_id=ModelExecutionConfigId("openai-config"),
+        execution_config_version="v1",
     )
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
@@ -468,3 +484,223 @@ def test_int_m2_m3_agt_002_invalid_output_but_run_succeeded(runtime_stack):
     # Binding unchanged; Run still SUCCEEDED (not retroactively FAILED)
     assert binding_store.get_for_run(run.run_id) == binding
     assert rm.get_run(run.run_id).status.value == "SUCCEEDED"
+
+
+# =========================================================================
+# INT-M2-M3-CFG-001 / INT-M2-M3-SEL-001 — config + selection composition
+# (STEP-014). Integration tests MAY import both cognition and runtime.
+# =========================================================================
+def test_int_m2_m3_cfg_001_config_composition(runtime_stack):
+    """M2 projection -> Agent/Profile/Config binding -> M3 execute ->
+    M2 output validation VALID; runtime carries canonical parameters."""
+    import itertools
+
+    from packages.runtime import (
+        AgentBindingManager,
+        AgentDefinition,
+        AgentProviderExecutionRequestFactory,
+        ModelCapability,
+        ModelExecutionConfig,
+        ModelExecutionProfile,
+        ModelParameter,
+        ModelParameterSetting,
+        RuntimeExecutionCoordinator,
+    )
+    from packages.runtime.testing import (
+        InMemoryAgentDefinitionRegistry,
+        InMemoryAgentExecutionBindingStore,
+        InMemoryModelExecutionConfigRegistry,
+        InMemoryModelExecutionProfileRegistry,
+    )
+
+    sm, rm, sink = runtime_stack
+    c = itertools.count(8000)
+    profile_reg = InMemoryModelExecutionProfileRegistry()
+    config_reg = InMemoryModelExecutionConfigRegistry()
+    agent_reg = InMemoryAgentDefinitionRegistry()
+    binding_store = InMemoryAgentExecutionBindingStore()
+
+    profile = ModelExecutionProfile(
+        profile_id=ModelExecutionProfileId("openai-profile"), version="v1",
+        name="p", description="d",
+        provider=ProviderIdentifier(name="openai"),
+        model=ModelIdentifier(name="fake-openai-model"),
+        capabilities=frozenset({ModelCapability.TEXT_GENERATION,
+                                ModelCapability.STRUCTURED_OUTPUT}),
+        supported_parameters=frozenset({ModelParameter.TEMPERATURE,
+                                        ModelParameter.MAX_OUTPUT_UNITS}),
+    )
+    profile_reg.register(profile)
+    settings = (ModelParameterSetting(ModelParameter.TEMPERATURE, 0.3),
+                ModelParameterSetting(ModelParameter.MAX_OUTPUT_UNITS, 1024))
+    config = ModelExecutionConfig(
+        config_id=ModelExecutionConfigId("cfg-1"), version="v1",
+        name="c", description="d", profile_ref=profile.ref,
+        parameter_settings=settings)
+    config_reg.register(config)
+    agent = AgentDefinition(
+        agent_id=AgentId("agent-A"), version="v1", name="a", description="d",
+        allowed_execution_profiles=(profile.ref,))
+    agent_reg.register(agent)
+
+    mgr = AgentBindingManager(
+        sm._sessions, rm._runs, agent_reg, profile_reg, config_reg, binding_store, sink,
+        binding_id_factory=lambda: f"bind-{next(c)}",
+        event_id_factory=lambda: f"e-{next(c)}",
+        now=lambda: TZ,
+    )
+    factory = AgentProviderExecutionRequestFactory(rm._attempts)
+
+    pkg = _build_prompt_package()
+    projection = OpenAIProjector().project(pkg)
+    session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
+    inp = RuntimeInputRef(source_type="prompt_package", source_id="pkg-1", version="1")
+    run = rm.create_run(session_id=session.session_id, input_ref=inp)
+    binding = mgr.bind_agent(
+        session_id=session.session_id, run_id=run.run_id,
+        agent_id=AgentId("agent-A"), agent_version="v1",
+        execution_profile_id=ModelExecutionProfileId("openai-profile"),
+        execution_profile_version="v1",
+        execution_config_id=ModelExecutionConfigId("cfg-1"),
+        execution_config_version="v1",
+    )
+    rm.mark_ready(run.run_id)
+    started_run, att = rm.start_run(run.run_id)
+    request = factory.build(
+        binding=binding, session=session, run=started_run, attempt=att,
+        request_id=ProviderExecutionRequestId("req-cfg-1"),
+        projected_input=projection, created_at=TZ,
+    )
+    assert request.execution_parameters == settings
+    fake = FakeProviderExecutor([FakeProviderExecutor.success(
+        {"judgement": "CONTRADICT", "confidence": 0.88,
+         "reason_codes": ["COUNTEREXAMPLE_FOUND"]})])
+    coord = RuntimeExecutionCoordinator(
+        rm,
+        InMemoryProviderExecutionRequestStore(),
+        InMemoryProviderExecutionResponseStore(),
+        sink,
+        event_id_factory=lambda: "e-cfg-1",
+        now=lambda: TZ,
+    )
+    final_run, outcome = asyncio.run(coord.execute(request, fake))
+    assert final_run.status.value == "SUCCEEDED"
+
+    # M2 validation = VALID
+    engine, vs, rs = _setup_output_validation()
+    candidate = StructuredOutputCandidate(
+        candidate_id=OutputCandidateId("c-cfg-1"),
+        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
+        action_id=ACTION, cognitive_mode="FALSIFY",
+        prompt_package_id=pkg.package_id,
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
+        payload=outcome.response.raw_output,
+        created_at=TZ,
+    )
+    result = engine.validate(candidate, pkg, REVISION)
+    assert result.status is OutputValidationStatus.VALID
+    # cross-module discipline
+    import packages.cognition  # noqa: F401
+    import packages.runtime  # noqa: F401
+
+
+def test_int_m2_m3_sel_001_selection_then_explicit_bind(runtime_stack):
+    """Selection Recommendation -> explicit caller Config + bind -> binding.
+    Selection does NOT auto-bind and does NOT auto-select Config."""
+    import itertools
+
+    from packages.runtime import (
+        AgentBindingManager,
+        AgentDefinition,
+        ModelCapability,
+        ModelExecutionConfig,
+        ModelExecutionProfile,
+        ModelExecutionProfileRef,
+        ModelParameter,
+        ModelParameterSetting,
+        ModelSelectionEngine,
+        ModelSelectionPolicy,
+        ModelSelectionRequirement,
+        ModelSelectionSignals,
+        ModelSelectionStatus,
+        ModelSelectionWeights,
+    )
+    from packages.runtime.testing import (
+        InMemoryAgentDefinitionRegistry,
+        InMemoryAgentExecutionBindingStore,
+        InMemoryModelExecutionConfigRegistry,
+        InMemoryModelExecutionProfileRegistry,
+        InMemoryModelSelectionRecommendationStore,
+    )
+
+    sm, rm, sink = runtime_stack
+    c = itertools.count(9000)
+    agent_reg = InMemoryAgentDefinitionRegistry()
+    profile_reg = InMemoryModelExecutionProfileRegistry()
+    config_reg = InMemoryModelExecutionConfigRegistry()
+    rec_store = InMemoryModelSelectionRecommendationStore()
+    binding_store = InMemoryAgentExecutionBindingStore()
+
+    ref = ModelExecutionProfileRef(ModelExecutionProfileId("openai-profile"), "v1")
+    profile = ModelExecutionProfile(
+        profile_id=ref.profile_id, version="v1", name="p", description="d",
+        provider=ProviderIdentifier(name="openai"),
+        model=ModelIdentifier(name="fake-openai-model"),
+        capabilities=frozenset({ModelCapability.TEXT_GENERATION,
+                                ModelCapability.STRUCTURED_OUTPUT}),
+        supported_parameters=frozenset({ModelParameter.TEMPERATURE}),
+    )
+    profile_reg.register(profile)
+    agent = AgentDefinition(
+        agent_id=AgentId("agent-A"), version="v1", name="a", description="d",
+        allowed_execution_profiles=(ref,))
+    agent_reg.register(agent)
+
+    eng = ModelSelectionEngine(agent_reg, profile_reg, rec_store,
+        evaluation_id_factory=lambda: f"ev-{next(c)}", now=lambda: TZ)
+    rec = eng.evaluate(
+        agent_id=AgentId("agent-A"),  # resolve the real agent definition
+        agent_version="v1",
+        policy=ModelSelectionPolicy(
+            policy_id=ModelSelectionPolicyId("pol"), version="v1",
+            weights=ModelSelectionWeights(0.5, 0.2, 0.2, 0.1)),
+        requirement=ModelSelectionRequirement(
+            required_capabilities=frozenset({ModelCapability.STRUCTURED_OUTPUT}),
+            required_parameters=frozenset(),
+            allowed_providers=frozenset(),
+            forbidden_profiles=frozenset()),
+        signals={ref: ModelSelectionSignals(0.9, 0.7, 0.6, 0.8, True)})
+    assert rec.status is ModelSelectionStatus.RECOMMENDED
+    selected = rec.selected_profile_ref
+    assert selected == ref
+
+    # No binding yet
+    session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
+    inp = RuntimeInputRef(source_type="prompt_package", source_id="pkg-1", version="1")
+    run = rm.create_run(session_id=session.session_id, input_ref=inp)
+    assert binding_store.get_for_run(run.run_id) is None
+
+    # caller explicitly selects Config + binds
+    config = ModelExecutionConfig(
+        config_id=ModelExecutionConfigId("cfg-sel"), version="v1",
+        name="c", description="d", profile_ref=selected,
+        parameter_settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.2),))
+    config_reg.register(config)
+    mgr = AgentBindingManager(
+        sm._sessions, rm._runs, agent_reg, profile_reg, config_reg, binding_store, sink,
+        binding_id_factory=lambda: f"bind-{next(c)}",
+        event_id_factory=lambda: f"e-{next(c)}",
+        now=lambda: TZ,
+    )
+    binding = mgr.bind_agent(
+        session_id=session.session_id, run_id=run.run_id,
+        agent_id=AgentId("agent-A"), agent_version="v1",
+        execution_profile_id=selected.profile_id,
+        execution_profile_version=selected.version,
+        execution_config_id=ModelExecutionConfigId("cfg-sel"),
+        execution_config_version="v1")
+    assert binding_store.get_for_run(run.run_id) is binding
+    # exact-version pinning proven
+    assert binding.execution_config_version == "v1"
+    assert binding.resolved_parameter_settings[0].value == 0.2

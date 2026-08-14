@@ -219,6 +219,63 @@ class InMemoryAgentExecutionBindingStore:
 
 
 # =========================================================================
+# Model Execution Config registry + Selection Recommendation store (STEP-014)
+# =========================================================================
+from .model_execution import ModelExecutionConfig  # noqa: E402
+from .model_selection import ModelSelectionRecommendation  # noqa: E402
+
+
+class InMemoryModelExecutionConfigRegistry:
+    """Exact-version config registry (STEP-014 §15). No latest/default."""
+
+    def __init__(self) -> None:
+        self._configs: dict[tuple[str, str], ModelExecutionConfig] = {}
+
+    def register(self, config: ModelExecutionConfig) -> None:
+        key = (str(config.config_id), config.version)
+        if key in self._configs:
+            raise DuplicateRuntimeObjectError(
+                f"config already registered: {config.config_id}/{config.version}"
+            )
+        self._configs[key] = config
+
+    def get(self, config_id, version):  # type: ignore[no-untyped-def]
+        key = (str(config_id), version)
+        if key not in self._configs:
+            from .errors import ModelExecutionConfigNotFoundError
+            raise ModelExecutionConfigNotFoundError(
+                f"config not found: {config_id}/{version}"
+            )
+        return self._configs[key]
+
+    def list_versions(self, config_id):  # type: ignore[no-untyped-def]
+        cid = str(config_id)
+        return sorted(v for (c, v) in self._configs if c == cid)
+
+
+class InMemoryModelSelectionRecommendationStore:
+    """Append-only recommendation store (STEP-014 §50). Audit artifact."""
+
+    def __init__(self) -> None:
+        self._by_id: dict[str, ModelSelectionRecommendation] = {}
+
+    def save(self, recommendation: ModelSelectionRecommendation) -> None:
+        eid = str(recommendation.evaluation_id)
+        if eid in self._by_id:
+            raise DuplicateRuntimeObjectError(
+                f"recommendation already saved: {recommendation.evaluation_id}"
+            )
+        self._by_id[eid] = recommendation
+
+    def get(self, evaluation_id):  # type: ignore[no-untyped-def]
+        return self._by_id[str(evaluation_id)]
+
+    def list_for_agent(self, agent_id):  # type: ignore[no-untyped-def]
+        aid = str(agent_id)
+        return [r for r in self._by_id.values() if str(r.agent_id) == aid]
+
+
+# =========================================================================
 # Provider Execution Stores + Fake Executor
 # =========================================================================
 class InMemoryProviderExecutionRequestStore:

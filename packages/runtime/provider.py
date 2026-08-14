@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from ..domain.ids import (
     BranchId,
@@ -26,6 +26,12 @@ from ..domain.ids import (
     RuntimeSessionId,
 )
 from .contracts import RuntimeFailure, RuntimeInputRef
+
+if TYPE_CHECKING:
+    # ModelParameterSetting is defined in model_execution.py, which itself
+    # imports ProviderIdentifier/ModelIdentifier from THIS module. To avoid a
+    # circular runtime import we only resolve the type for static analysis.
+    from .model_execution import ModelParameterSetting
 
 
 # =========================================================================
@@ -93,11 +99,14 @@ class ProviderExecutionRequest:
     projected_input: object
 
     created_at: datetime
+    execution_parameters: tuple[ModelParameterSetting, ...] = field(default_factory=tuple)
     metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
+        if not isinstance(self.execution_parameters, tuple):
+            raise ValueError("execution_parameters must be a tuple")
 
 
 # =========================================================================

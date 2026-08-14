@@ -82,5 +82,8 @@ No half-state is observable.
 - Retry Policy / Checkpoint / Temporal / Sandbox / Permission Runtime / Hooks
 
 A Run may be bound to a versioned AgentDefinition in the CREATED state; see
-[Agent Definition & Binding](agent-definition.md). Provider execution is
+[Agent Definition & Binding](agent-definition.md). The binding also pins an
+exact ModelExecutionConfig; see [Model Execution Configuration](model-execution.md).
+Which allowed profile to use may be recommended deterministically via
+[Model Selection Policy](model-selection.md). Provider execution is
 connected via [RuntimeExecutionCoordinator](provider-execution.md).
