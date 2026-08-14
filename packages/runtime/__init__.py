@@ -16,6 +16,17 @@ RuntimeEvent/RuntimeEventType, and error taxonomy.
 
 from __future__ import annotations
 
+from .agent import (
+    AgentBindingManager,
+    AgentDefinition,
+    AgentDefinitionRegistry,
+    AgentExecutionBinding,
+    AgentExecutionBindingStore,
+    AgentProviderExecutionRequestFactory,
+    ModelExecutionProfile,
+    ModelExecutionProfileRef,
+    ModelExecutionProfileRegistry,
+)
 from .contracts import (
     ATTEMPT_TERMINAL,
     RUN_NON_TERMINAL,
@@ -34,11 +45,19 @@ from .contracts import (
     RunWaitReason,
 )
 from .errors import (
+    AgentAlreadyBoundError,
+    AgentBindingScopeError,
+    AgentBindingStoreError,
+    AgentDefinitionError,
+    AgentDefinitionNotFoundError,
+    AgentExecutionProfileNotAllowedError,
     AgentRuntimeError,
     DuplicateRuntimeObjectError,
+    IllegalAgentBindingStateError,
     IllegalAttemptTransitionError,
     IllegalRunTransitionError,
     IllegalSessionTransitionError,
+    ModelExecutionProfileNotFoundError,
     ProviderExecutionError,
     ProviderExecutionInputMismatchError,
     ProviderExecutionScopeError,
@@ -90,6 +109,16 @@ __all__ = [
     "RuntimeSession",
     "RuntimeSessionStatus",
     "SESSION_TERMINAL",
+    # agent definition / binding (STEP-013)
+    "AgentBindingManager",
+    "AgentDefinition",
+    "AgentDefinitionRegistry",
+    "AgentExecutionBinding",
+    "AgentExecutionBindingStore",
+    "AgentProviderExecutionRequestFactory",
+    "ModelExecutionProfile",
+    "ModelExecutionProfileRef",
+    "ModelExecutionProfileRegistry",
     # provider execution
     "ModelIdentifier",
     "ProviderExecutionOutcome",
@@ -114,11 +143,19 @@ __all__ = [
     "RuntimeRunStore",
     "RuntimeSessionStore",
     # errors
+    "AgentAlreadyBoundError",
+    "AgentBindingScopeError",
+    "AgentBindingStoreError",
+    "AgentDefinitionError",
+    "AgentDefinitionNotFoundError",
+    "AgentExecutionProfileNotAllowedError",
     "AgentRuntimeError",
     "DuplicateRuntimeObjectError",
+    "IllegalAgentBindingStateError",
     "IllegalAttemptTransitionError",
     "IllegalRunTransitionError",
     "IllegalSessionTransitionError",
+    "ModelExecutionProfileNotFoundError",
     "RuntimeObjectNotFoundError",
     "RuntimeAttemptNotFoundError",
     "RuntimeInvariantViolationError",

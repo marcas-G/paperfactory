@@ -49,6 +49,10 @@ class RuntimeEventType(StrEnum):
     PROVIDER_EXECUTION_SUCCEEDED = "PROVIDER_EXECUTION_SUCCEEDED"
     PROVIDER_EXECUTION_FAILED = "PROVIDER_EXECUTION_FAILED"
 
+    # The ONLY agent-level event in this step (STEP-013 §27). There is no
+    # AGENT_STARTED/SUCCEEDED/FAILED yet — there is no Agent Loop lifecycle.
+    AGENT_BOUND = "AGENT_BOUND"
+
 
 @dataclass(frozen=True)
 class RuntimeEvent:

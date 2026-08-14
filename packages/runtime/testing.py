@@ -100,7 +100,122 @@ __all__ = [
     "InMemoryRuntimeSessionStore",
     "InMemoryProviderExecutionRequestStore",
     "InMemoryProviderExecutionResponseStore",
+    # STEP-013 agent registries/binding store are NOT exported here — they
+    # remain accessible as attributes of the module but are intentionally
+    # omitted from __all__ to keep them out of the public runtime API.
 ]
+
+
+# =========================================================================
+# Agent Definition / Profile / Binding stores (STEP-013) — test/dev only
+# =========================================================================
+from .agent import (  # noqa: E402
+    AgentDefinition,
+    AgentExecutionBinding,
+    ModelExecutionProfile,
+)
+from .errors import AgentAlreadyBoundError  # noqa: E402
+
+
+class InMemoryModelExecutionProfileRegistry:
+    """Exact-version profile registry (STEP-013 §10). No latest/default."""
+
+    def __init__(self) -> None:
+        self._profiles: dict[tuple[str, str], ModelExecutionProfile] = {}
+
+    def register(self, profile: ModelExecutionProfile) -> None:
+        key = (str(profile.profile_id), profile.version)
+        if key in self._profiles:
+            raise DuplicateRuntimeObjectError(
+                f"profile already registered: {profile.profile_id}/{profile.version}"
+            )
+        self._profiles[key] = profile
+
+    def get(self, profile_id, version):  # type: ignore[no-untyped-def]
+        key = (str(profile_id), version)
+        if key not in self._profiles:
+            from .errors import ModelExecutionProfileNotFoundError
+            raise ModelExecutionProfileNotFoundError(
+                f"profile not found: {profile_id}/{version}"
+            )
+        return self._profiles[key]
+
+    def list_versions(self, profile_id):  # type: ignore[no-untyped-def]
+        pid = str(profile_id)
+        return sorted(v for (p, v) in self._profiles if p == pid)
+
+
+class InMemoryAgentDefinitionRegistry:
+    """Exact-version agent registry (STEP-013 §13). No latest resolution."""
+
+    def __init__(self) -> None:
+        self._agents: dict[tuple[str, str], AgentDefinition] = {}
+
+    def register(self, definition: AgentDefinition) -> None:
+        key = (str(definition.agent_id), definition.version)
+        if key in self._agents:
+            raise DuplicateRuntimeObjectError(
+                f"agent already registered: {definition.agent_id}/{definition.version}"
+            )
+        self._agents[key] = definition
+
+    def get(self, agent_id, version):  # type: ignore[no-untyped-def]
+        key = (str(agent_id), version)
+        if key not in self._agents:
+            from .errors import AgentDefinitionNotFoundError
+            raise AgentDefinitionNotFoundError(
+                f"agent not found: {agent_id}/{version}"
+            )
+        return self._agents[key]
+
+    def list_versions(self, agent_id):  # type: ignore[no-untyped-def]
+        aid = str(agent_id)
+        return sorted(v for (a, v) in self._agents if a == aid)
+
+
+class InMemoryAgentExecutionBindingStore:
+    """Append-only binding store (STEP-013 §21/§26/§30).
+
+    No business update. ``discard`` exists solely for binding atomicity
+    rollback when AGENT_BOUND emission fails.
+    """
+
+    def __init__(self) -> None:
+        self._by_id: dict[str, AgentExecutionBinding] = {}
+        self._by_run: dict[str, AgentExecutionBinding] = {}
+
+    def save(self, binding: AgentExecutionBinding) -> None:
+        bid = str(binding.binding_id)
+        rid = str(binding.run_id)
+        if bid in self._by_id:
+            raise DuplicateRuntimeObjectError(
+                f"binding already saved: {binding.binding_id}"
+            )
+        if rid in self._by_run:
+            raise AgentAlreadyBoundError(
+                f"run {binding.run_id} already has a binding"
+            )
+        self._by_id[bid] = binding
+        self._by_run[rid] = binding
+
+    def get(self, binding_id):  # type: ignore[no-untyped-def]
+        return self._by_id[str(binding_id)]
+
+    def get_for_run(self, run_id):  # type: ignore[no-untyped-def]
+        return self._by_run.get(str(run_id))
+
+    def list_for_session(self, session_id):  # type: ignore[no-untyped-def]
+        sid = str(session_id)
+        return [b for b in self._by_id.values() if str(b.session_id) == sid]
+
+    def discard(self, binding_id) -> None:  # type: ignore[no-untyped-def]
+        bid = str(binding_id)
+        if bid not in self._by_id:
+            raise RuntimeObjectNotFoundError(
+                f"binding not found for discard: {binding_id}"
+            )
+        binding = self._by_id.pop(bid)
+        self._by_run.pop(str(binding.run_id), None)
 
 
 # =========================================================================

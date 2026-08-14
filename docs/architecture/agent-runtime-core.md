@@ -78,7 +78,9 @@ No half-state is observable.
 ## What Is Not Implemented Yet
 
 - Provider Execution Adapter (OpenAI/Anthropic SDK)
-- Agent Definition / Skill / Tool / Subagent
+- Agent Loop / Skill / Tool / Subagent
 - Retry Policy / Checkpoint / Temporal / Sandbox / Permission Runtime / Hooks
 
-Provider execution is connected via [RuntimeExecutionCoordinator](provider-execution.md).
+A Run may be bound to a versioned AgentDefinition in the CREATED state; see
+[Agent Definition & Binding](agent-definition.md). Provider execution is
+connected via [RuntimeExecutionCoordinator](provider-execution.md).

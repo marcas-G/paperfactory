@@ -68,6 +68,18 @@ executor exactly once per invocation. Retry belongs to future RetryPolicy.
 
 ## What Is Not Implemented Yet
 
-Real Provider Adapter (OpenAI/Anthropic SDK), Model Selection, Agent
-Definition, Tool, Skill, Subagent, Retry Policy, Checkpoint, Temporal,
-Sandbox, Permission Runtime, Hooks.
+Real Provider Adapter (OpenAI/Anthropic SDK), Model Selection, Agent Loop,
+Tool, Skill, Subagent, Retry Policy, Checkpoint, Temporal, Sandbox,
+Permission Runtime, Hooks.
+
+## Two Ways to Build a Request
+
+A `ProviderExecutionRequest` may be constructed:
+
+- **directly** (low-level, as in STEP-012), or
+- **via `AgentProviderExecutionRequestFactory`**, which sources
+  `provider`/`model` from an [AgentExecutionBinding](agent-definition.md) and
+  `input_ref` from the Run. The caller cannot override these.
+
+The low-level `ProviderExecutionPort` semantics are unchanged — it remains a
+generic I/O primitive that does not require an Agent Binding to exist.

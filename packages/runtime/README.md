@@ -23,7 +23,7 @@ claim strength).
 - Sandbox runtime
 - Hooks
 
-## Current Implementation (STEP-011)
+## Current Implementation (STEP-011..STEP-013)
 
 Implemented:
 - RuntimeSession (branch-scoped; OPEN → CLOSED/CANCELLED)
@@ -36,14 +36,22 @@ Implemented:
 - Provider execution contracts (Request/Response/Outcome/Port)
 - RuntimeExecutionCoordinator
 - FakeProviderExecutor (test/dev)
+- ModelExecutionProfile (pins provider + model identity only; no generation params)
+- AgentDefinition (versioned runtime definition; no cognitive policy, no tools)
+- AgentExecutionBinding (run-scoped, immutable, exactly-once, provider/model snapshot)
+- AgentBindingManager (strict CREATED-only binding; AGENT_BOUND event; atomic rollback)
+- AgentProviderExecutionRequestFactory (provider/model/input_ref sourced from Binding/Run)
 
 Not implemented yet (later M3 steps):
-- Provider Execution Adapter (OpenAI/Anthropic SDK)
-- Agent Definition / Skill / Tool / Subagent
-- Retry Policy
+- ModelExecutionConfig (temperature/top_p/max_tokens/seed/...)
+- Model Selection Policy / Router
+- Agent Loop (max_steps / termination / ReAct)
+- Tool / Skill / Subagent
+- Retry Policy / Backoff
 - Checkpoint
 - Temporal integration
 - Sandbox / Permission Runtime / Hooks
+- Provider Execution Adapter (OpenAI/Anthropic SDK)
 
 ## Must Not Own
 

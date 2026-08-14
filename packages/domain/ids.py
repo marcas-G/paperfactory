@@ -125,6 +125,16 @@ ProviderExecutionRequestId = NewType("ProviderExecutionRequestId", str)
 ProviderExecutionResponseId = NewType("ProviderExecutionResponseId", str)
 """Identity of one ProviderExecutionResponse."""
 
+# --- Agent definition identities (STEP-013) -----------------------------
+AgentId = NewType("AgentId", str)
+"""Stable identity of an AgentDefinition version-family."""
+
+ModelExecutionProfileId = NewType("ModelExecutionProfileId", str)
+"""Stable identity of a ModelExecutionProfile version-family."""
+
+AgentExecutionBindingId = NewType("AgentExecutionBindingId", str)
+"""Identity of one AgentExecutionBinding (a run-scoped immutable binding)."""
+
 RunId = NewType("RunId", str)
 """Identity of an Agent Run. Reserved for the runtime layer."""
 
@@ -135,6 +145,8 @@ EventId = NewType("EventId", str)
 
 __all__ = [
     "ActionId",
+    "AgentExecutionBindingId",
+    "AgentId",
     "ApprovalId",
     "BlindingPolicyId",
     "BranchId",
@@ -146,6 +158,7 @@ __all__ = [
     "EventId",
     "ExecutionAttemptId",
     "MergeId",
+    "ModelExecutionProfileId",
     "ObjectId",
     "OutputCandidateId",
     "OutputContractId",

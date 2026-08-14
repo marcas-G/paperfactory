@@ -75,13 +75,53 @@ class ProviderExecutionStoreError(ProviderExecutionError):
     """A provider execution store operation failed."""
 
 
+# --- Agent Definition / Binding errors (STEP-013 §46) -------------------
+class AgentDefinitionError(AgentRuntimeError):
+    """Base class for agent definition / binding failures."""
+
+
+class AgentDefinitionNotFoundError(AgentDefinitionError):
+    """An AgentDefinition with the exact (agent_id, version) was not found."""
+
+
+class ModelExecutionProfileNotFoundError(AgentDefinitionError):
+    """A ModelExecutionProfile with the exact (profile_id, version) was not found."""
+
+
+class AgentExecutionProfileNotAllowedError(AgentDefinitionError):
+    """The selected profile version is not in the AgentDefinition's allowed list."""
+
+
+class AgentAlreadyBoundError(AgentDefinitionError):
+    """A RuntimeRun already has an AgentExecutionBinding."""
+
+
+class AgentBindingScopeError(AgentDefinitionError):
+    """A binding's session/run/project/branch scope is inconsistent."""
+
+
+class IllegalAgentBindingStateError(AgentDefinitionError):
+    """A RuntimeRun is not in the CREATED state required for binding."""
+
+
+class AgentBindingStoreError(AgentDefinitionError):
+    """An AgentExecutionBinding store operation failed."""
+
 
 __all__ = [
+    "AgentAlreadyBoundError",
+    "AgentBindingScopeError",
+    "AgentBindingStoreError",
+    "AgentDefinitionError",
+    "AgentDefinitionNotFoundError",
     "AgentRuntimeError",
     "DuplicateRuntimeObjectError",
+    "IllegalAgentBindingStateError",
     "IllegalAttemptTransitionError",
     "IllegalRunTransitionError",
     "IllegalSessionTransitionError",
+    "ModelExecutionProfileNotFoundError",
+    "AgentExecutionProfileNotAllowedError",
     "ProviderExecutionError",
     "ProviderExecutionInputMismatchError",
     "ProviderExecutionScopeError",
