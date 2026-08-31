@@ -364,3 +364,45 @@ def test_runtime_does_not_import_frameworks() -> None:
     assert not violations, (
         "runtime imports forbidden framework(s):\n" + "\n".join(violations)
     )
+
+
+# --- Composition-root boundaries (STEP-015) ----------------------------
+#
+# apps/ is the ONLY production location allowed to see multiple planes at
+# once. Two invariants guard that privilege:
+#
+#   * no production package may depend on the application edge (reverse
+#     dependency prohibition);
+#   * the composition root must not depend on test/dev adapters
+#     (``packages.*.testing``) — production code runs on real ports.
+
+
+def test_packages_do_not_import_apps() -> None:
+    packages_root = REPO_ROOT / "packages"
+    violations: list[str] = []
+    for path in _py_files(packages_root):
+        tree = _parse(path)
+        names = _imported_names(tree)
+        hit = {n for n in names if n == "apps" or n.startswith("apps.")}
+        for name in hit:
+            violations.append(f"{path}: imports {name}")
+    assert not violations, (
+        "packages import the application edge (reverse dependency):\n"
+        + "\n".join(violations)
+    )
+
+
+def test_composition_root_does_not_import_testing_adapters() -> None:
+    apps_root = REPO_ROOT / "apps"
+    violations: list[str] = []
+    for path in _py_files(apps_root):
+        tree = _parse(path)
+        resolved = _resolved_relative_modules(tree, "apps")
+        absolute = _imported_names(tree)
+        for mod in resolved | absolute:
+            if ".testing" in f".{mod}":
+                violations.append(f"{path}: imports {mod}")
+    assert not violations, (
+        "apps imports test/dev adapters (packages.*.testing):\n"
+        + "\n".join(violations)
+    )
