@@ -34,7 +34,7 @@ from .errors import (
 )
 from .merges import BranchMergeProposal
 from .pending import PendingTransition
-from .policy import PolicyRecommendation
+from .policy import ActionPrioritySignals, PolicyRecommendation
 from .proposals import StateTransitionProposal
 from .tasks import ResearchTask, TaskStatus
 
@@ -366,3 +366,26 @@ class InMemoryPolicyRecommendationStore:
             for r in self._records.values()
             if r.project_id == project_id and r.branch_id == branch_id
         ]
+
+
+# =========================================================================
+# SignalProvider (STEP-016)
+# =========================================================================
+class StaticSignalProvider:
+    """SignalProvider returning one fixed signal set for every action.
+
+    Test/dev convenience: proves the port is injectable and gives loops a
+    deterministic default. NOT a priority heuristic — real signal producers
+    arrive with the research domain (information gain etc.).
+    """
+
+    def __init__(self, signals: ActionPrioritySignals) -> None:
+        self._signals = signals
+
+    def signals_for(
+        self,
+        action,  # ResearchAction
+        definition,  # ResearchActionDefinition
+        state,  # ResearchStateSnapshot
+    ) -> ActionPrioritySignals:
+        return self._signals

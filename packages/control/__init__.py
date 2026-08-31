@@ -31,6 +31,10 @@ from .approval_manager import ApprovalManager
 from .approvals import ApprovalRequest, ApprovalStatus
 from .branch_manager import BranchManager
 from .branches import BranchForkPoint, BranchStatus, ResearchBranch
+from .candidates import (
+    ActionCandidateEnumerator,
+    SignalProvider,
+)
 from .controller import ResearchController
 from .engine import (
     TransitionEngine,
@@ -59,6 +63,18 @@ from .errors import (
     TransitionRejectedError,
 )
 from .gates import GateResult, aggregate_gates
+from .loop import (
+    InvalidLoopBudgetError,
+    LoopBudget,
+    LoopError,
+    LoopIterationRecord,
+    LoopRunRecord,
+    LoopRunStatus,
+    LoopStopDecision,
+    LoopStopReason,
+    evaluate_stop,
+    status_for_stop_reason,
+)
 from .merges import BranchMergeProposal, MergeConflict, MergeStatus
 from .pending import PendingTransition, PendingTransitionStatus
 from .policy import (
@@ -96,6 +112,13 @@ __all__ = [
     "ResearchActionDefinition",
     # gates
     "GateResult",
+    "LoopBudget",
+    "LoopError",
+    "LoopIterationRecord",
+    "LoopRunRecord",
+    "LoopRunStatus",
+    "LoopStopDecision",
+    "LoopStopReason",
     "aggregate_gates",
     # proposals
     "StateTransitionProposal",
@@ -104,6 +127,8 @@ __all__ = [
     # tasks
     "ResearchTask",
     "TaskStatus",
+    "evaluate_stop",
+    "status_for_stop_reason",
     # pending
     "PendingTransition",
     "PendingTransitionStatus",
@@ -119,9 +144,11 @@ __all__ = [
     "MergeConflict",
     "MergeStatus",
     # policy
+    "ActionCandidateEnumerator",
     "ActionPrioritySignals",
     "ExcludedPolicyCandidate",
     "PolicyCandidate",
+    "SignalProvider",
     "PolicyRecommendation",
     "PolicyScoreComponents",
     "PolicyStatus",
@@ -163,6 +190,7 @@ __all__ = [
     "DuplicateBranchError",
     "DuplicatePolicyCandidateError",
     "IllegalActionError",
+    "InvalidLoopBudgetError",
     "IllegalBranchTransitionError",
     "InvariantViolationError",
     "InvalidPolicyConfigError",

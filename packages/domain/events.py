@@ -67,6 +67,11 @@ class ControlEventType(StrEnum):
     # Research Policy (STEP-005 §23)
     POLICY_EVALUATED = "POLICY_EVALUATED"
 
+    # Agent Loop (STEP-016, constitution §15.10 Explicit Stop)
+    LOOP_STARTED = "LOOP_STARTED"
+    LOOP_ITERATION_COMPLETED = "LOOP_ITERATION_COMPLETED"
+    LOOP_STOPPED = "LOOP_STOPPED"
+
 
 @dataclass(frozen=True)
 class DomainEvent:
