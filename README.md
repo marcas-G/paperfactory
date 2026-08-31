@@ -36,20 +36,24 @@ Governance axioms (frozen, see [ADR-002](docs/adr/ADR-002-research-state-ownersh
 ## Current Development Phase
 
 ```
-Architecture Skeleton / STEP-001
+Vertical Slice / STEP-015
 ```
 
-**No Research Agent capability is implemented yet.** This repository
-contains only the engineering baseline: module boundaries, dependency
-rules, ADRs, and architecture tests. Business logic (Research State,
-Actions, Gates, Capabilities, Agents, Persistence, UI) arrives in later
-steps.
+The first end-to-end chain is live: State → Action → Context → Prompt →
+Provider execution → Output validation → Gate → Transition → Domain Event,
+wired in the `apps/orchestration` composition root (see
+[docs/architecture/vertical-slice.md](docs/architecture/vertical-slice.md)).
+Verified against a real LLM (DeepSeek v4-flash, opt-in smoke test) and with
+deterministic integration tests. Research capabilities (literature /
+experiment / writing), PostgreSQL persistence, and the API/worker apps
+arrive in later steps.
 
 ## Module Map
 
 | Module                  | Path                         | Role                                              |
 | ----------------------- | ---------------------------- | ------------------------------------------------- |
 | Application shells      | `apps/api`, `apps/worker`    | API + worker entry points (shells)                |
+| Composition root        | `apps/orchestration`         | Vertical-slice wiring (STEP-015)                  |
 | Control Plane (M1)      | `packages/control`           | Research process governance                       |
 | Cognitive Plane (M2)    | `packages/cognition`         | Context / prompt / cognitive mode                 |
 | Agent Runtime (M3)      | `packages/runtime`           | Run / retry / checkpoint / sandbox                |
