@@ -31,3 +31,11 @@ package may import `apps.*` (reverse-dependency prohibition).
 
 Every engine, store, id factory and clock is constructor-injected, so the
 whole chain is reproducible in tests (fixed clock + sequential ids).
+
+## Agent Loop (STEP-016)
+
+`loop_runner.py` adds `ResearchLoopRunner` — drives N governed STEP-015
+executions: enumerate → rank → plan-lookup → execute → count → stop. Stop
+reasons come from the closed `LoopStopReason` set (control/loop.py); the
+runner only *drives*, it owns no rules. See
+[docs/architecture/agent-loop.md](../../docs/architecture/agent-loop.md).

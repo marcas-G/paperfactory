@@ -36,13 +36,17 @@ Governance axioms (frozen, see [ADR-002](docs/adr/ADR-002-research-state-ownersh
 ## Current Development Phase
 
 ```
-Vertical Slice / STEP-015
+Agent Loop / STEP-016
 ```
 
-The first end-to-end chain is live: State → Action → Context → Prompt →
-Provider execution → Output validation → Gate → Transition → Domain Event,
-wired in the `apps/orchestration` composition root (see
-[docs/architecture/vertical-slice.md](docs/architecture/vertical-slice.md)).
+The first end-to-end chain is live (State → Action → Context → Prompt →
+Provider execution → Output validation → Gate → Transition → Domain Event),
+now driven by a self-selecting loop (`apps/orchestration/loop_runner.py`):
+it enumerates legal candidates, ranks them, executes the governed chain, and
+stops on explicit conditions (budget / no work / branch / stop flag) per
+constitution §15.10. See
+[docs/architecture/vertical-slice.md](docs/architecture/vertical-slice.md)
+and [docs/architecture/agent-loop.md](docs/architecture/agent-loop.md).
 Verified against a real LLM (DeepSeek v4-flash, opt-in smoke test) and with
 deterministic integration tests. Research capabilities (literature /
 experiment / writing), PostgreSQL persistence, and the API/worker apps
