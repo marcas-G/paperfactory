@@ -64,6 +64,17 @@ class RetrievalResolver:
         )
         self._now: TimeProvider = now or default_now
 
+    @property
+    def catalog(self) -> ContextCatalog:
+        """Read access to the catalog this resolver resolves against.
+
+        Public since STEP-016: the composition root enumerates candidate
+        context items through the same catalog the resolver uses — one
+        source of truth, no private reach-through (closes the STEP-015
+        ``_catalog`` access gap).
+        """
+        return self._catalog
+
     def resolve(
         self,
         *,

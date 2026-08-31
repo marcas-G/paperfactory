@@ -161,7 +161,7 @@ class ResearchActionExecutor:
             target_object_id=request.target_object_id,
             created_by=request.actor_type,
         )
-        self._controller._tasks.mark_running(task.task_id)  # noqa: SLF001 — facade gap, documented
+        self._controller.mark_task_running(task.task_id)
         task = self._controller.get_task(task.task_id)
 
         state = self._controller.get_state(request.project_id, request.branch_id)
@@ -187,7 +187,7 @@ class ResearchActionExecutor:
             context_policy=self._context_policy,
             budget=self._budget,
         )
-        candidates = self._retrieval._catalog.list_items(  # noqa: SLF001 — catalog read via resolver's own catalog
+        candidates = self._retrieval.catalog.list_items(
             project_id=request.project_id,
             branch_id=request.branch_id,
         )

@@ -182,6 +182,11 @@ class ResearchController:
     def get_task(self, task_id: TaskId) -> ResearchTask:
         return self._tasks.get(task_id)
 
+    def mark_task_running(self, task_id: TaskId) -> ResearchTask:
+        """Move a READY task to RUNNING (public facade, STEP-016 — closes
+        the private-access gap the STEP-015 executor had to work around)."""
+        return self._tasks.mark_running(task_id)
+
     def refresh_readiness(self, task_id: TaskId) -> ResearchTask:
         return self._tasks.refresh_readiness(task_id)
 
