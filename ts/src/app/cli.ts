@@ -1,5 +1,123 @@
 import { serve } from "@hono/node-server";
-import { createApp, loadConfig } from "./index";
+import { createApp, loadConfig, AppDependencies } from "./index";
+import * as Effect from "effect/Effect";
+import { createHypothesisVerificationWorkflow, runWorkflow } from "@runtime/workflows/hypothesis-verification";
+import type { HypothesisVerificationContext } from "@runtime/workflows/hypothesis-verification";
+
+function generateUuid(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export async function initCommand(
+  questionText: string,
+  app: AppDependencies
+): Promise<void> {
+  const projectId = generateUuid();
+  const questionId = generateUuid();
+  const branchId = generateUuid();
+
+  const project = {
+    projectId,
+    name: questionText,
+    description: `Project created from: ${questionText}`,
+    status: "ACTIVE" as const,
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const question = {
+    questionId,
+    projectId,
+    branchId,
+    title: questionText,
+    statement: questionText,
+    domain: "General",
+    status: "DRAFT" as const,
+    relatedKnowledgeIds: [],
+    parentQuestionId: null,
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await Effect.runPromise(app.objectStore.save(project as Record<string, unknown> & { [key: string]: unknown }));
+  await Effect.runPromise(app.objectStore.save(question as Record<string, unknown> & { [key: string]: unknown }));
+
+  console.log("PaperFactory initialized");
+  console.log(`  Project: ${project.name}`);
+  console.log(`  ProjectId: ${projectId}`);
+  console.log(`  QuestionId: ${questionId}`);
+  console.log(`  Actions: ${app.actionRegistry.list().length} registered`);
+  console.log(`  Tools: ${app.toolRegistry.list().length} registered`);
+  console.log(`  Hooks: ${app.hookSystem.list().length} registered`);
+}
+
+export async function researchCommand(
+  questionText: string,
+  app: AppDependencies
+): Promise<{ status: string; questionId: string; projectId: string }> {
+  const projectId = generateUuid();
+  const questionId = generateUuid();
+  const branchId = generateUuid();
+
+  const project = {
+    projectId,
+    name: questionText,
+    description: `Research session: ${questionText}`,
+    status: "ACTIVE" as const,
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const question = {
+    questionId,
+    projectId,
+    branchId,
+    title: questionText,
+    statement: questionText,
+    domain: "General",
+    status: "DRAFT" as const,
+    relatedKnowledgeIds: [],
+    parentQuestionId: null,
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await Effect.runPromise(app.objectStore.save(project as Record<string, unknown> & { [key: string]: unknown }));
+  await Effect.runPromise(app.objectStore.save(question as Record<string, unknown> & { [key: string]: unknown }));
+
+  console.log(`Research session started: ${questionText}`);
+  console.log(`  ProjectId: ${projectId}`);
+  console.log(`  QuestionId: ${questionId}`);
+
+  const workflowCtx: HypothesisVerificationContext = {
+    hypothesisId: generateUuid(),
+    projectId,
+    branchId,
+    objectStore: app.objectStore,
+    eventStore: app.eventStore,
+    controller: app.controller,
+  };
+
+  const phases = createHypothesisVerificationWorkflow(workflowCtx);
+  const result = await runWorkflow(phases);
+
+  console.log(`  Workflow status: ${result.status}`);
+  console.log(`  Phases completed: ${result.phaseIndex}`);
+
+  return {
+    status: result.status,
+    questionId,
+    projectId,
+  };
+}
 
 export async function runCLI(
   args: ReadonlyArray<string> = process.argv.slice(2)
@@ -8,13 +126,31 @@ export async function runCLI(
 
   switch (command) {
     case "init": {
+      const questionText = args[1];
       const config = loadConfig();
       const app = createApp(config);
-      console.log("PaperFactory initialized");
-      console.log(`  Actions: ${app.actionRegistry.list().length} registered`);
-      console.log(`  Tools: ${app.toolRegistry.list().length} registered`);
-      console.log(`  Hooks: ${app.hookSystem.list().length} registered`);
-      console.log(`  LLM: ${config.llmBaseUrl ? "OpenAI-compatible" : "Mock"}`);
+
+      if (questionText) {
+        await initCommand(questionText, app);
+      } else {
+        console.log("PaperFactory initialized");
+        console.log(`  Actions: ${app.actionRegistry.list().length} registered`);
+        console.log(`  Tools: ${app.toolRegistry.list().length} registered`);
+        console.log(`  Hooks: ${app.hookSystem.list().length} registered`);
+        console.log(`  LLM: ${config.llmBaseUrl ? "OpenAI-compatible" : "Mock"}`);
+      }
+      break;
+    }
+
+    case "research": {
+      const questionText = args[1];
+      if (!questionText) {
+        console.error("Usage: paperfactory research \"<research question>\"");
+        break;
+      }
+      const config = loadConfig();
+      const app = createApp(config);
+      await researchCommand(questionText, app);
       break;
     }
 
@@ -96,11 +232,12 @@ export async function runCLI(
     }
 
     default:
-      console.log("Usage: paperfactory <init|run|status|test>");
-      console.log("  init   - Initialize and display configuration");
-      console.log("  run    - Start the HTTP server");
-      console.log("  status - Show current status");
-      console.log("  test   - Run smoke tests");
+      console.log("Usage: paperfactory <init|research|run|status|test>");
+      console.log('  init "<question>"   - Initialize project with research question');
+      console.log('  research "<q>"      - Start research session and run workflow');
+      console.log("  run                 - Start the HTTP server");
+      console.log("  status              - Show current status");
+      console.log("  test                - Run smoke tests");
   }
 }
 

@@ -1,3 +1,4 @@
+export * from "./project";
 export * from "./question";
 export * from "./knowledge";
 export * from "./gap";
