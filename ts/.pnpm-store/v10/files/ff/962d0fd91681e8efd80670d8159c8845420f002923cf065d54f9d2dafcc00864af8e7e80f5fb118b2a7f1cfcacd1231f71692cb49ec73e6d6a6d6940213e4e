@@ -1,0 +1,6 @@
+{
+  "main": "../dist/cjs/Client.js",
+  "module": "../dist/esm/Client.js",
+  "types": "../dist/dts/Client.d.ts",
+  "sideEffects": []
+}

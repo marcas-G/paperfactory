@@ -1,0 +1,66 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.asyncPauseResume = void 0;
+var Chunk = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Chunk"));
+var Deferred = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Deferred"));
+var Effect = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Effect"));
+var Option = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Option"));
+var Queue = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Queue"));
+var Runtime = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Runtime"));
+var Stream = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Stream"));
+function _getRequireWildcardCache(e) {
+  if ("function" != typeof WeakMap) return null;
+  var r = new WeakMap(),
+    t = new WeakMap();
+  return (_getRequireWildcardCache = function (e) {
+    return e ? t : r;
+  })(e);
+}
+function _interopRequireWildcard(e, r) {
+  if (!r && e && e.__esModule) return e;
+  if (null === e || "object" != typeof e && "function" != typeof e) return {
+    default: e
+  };
+  var t = _getRequireWildcardCache(r);
+  if (t && t.has(e)) return t.get(e);
+  var n = {
+      __proto__: null
+    },
+    a = Object.defineProperty && Object.getOwnPropertyDescriptor;
+  for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) {
+    var i = a ? Object.getOwnPropertyDescriptor(e, u) : null;
+    i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u];
+  }
+  return n.default = e, t && t.set(e, n), n;
+}
+/**
+ * @since 1.0.0
+ */
+
+/**
+ * @since 1.0.0
+ */
+const asyncPauseResume = (register, bufferSize = 2) => {
+  const EOF = Symbol();
+  return Effect.all([Queue.bounded(bufferSize), Deferred.make(), Effect.runtime()]).pipe(Effect.flatMap(([queue, deferred, runtime]) => {
+    return Effect.async(cb => {
+      const runFork = Runtime.runFork(runtime);
+      // eslint-disable-next-line prefer-const
+      let effects;
+      const offer = chunk => Queue.isFull(queue).pipe(Effect.tap(full => full ? effects.onPause : Effect.void), Effect.zipRight(Queue.offer(queue, chunk)), Effect.zipRight(effects.onResume));
+      effects = register({
+        single: item => runFork(offer(Chunk.of(item))),
+        chunk: chunk => runFork(offer(chunk)),
+        array: chunk => runFork(offer(Chunk.unsafeFromArray(chunk))),
+        fail: error => cb(Effect.fail(Option.some(error))),
+        end: () => cb(Effect.fail(Option.none()))
+      });
+      return effects.onInterrupt;
+    }).pipe(Effect.ensuring(Queue.offer(queue, EOF)), Effect.intoDeferred(deferred), Effect.forkScoped, Effect.as(Stream.repeatEffectChunkOption(Effect.flatMap(Queue.take(queue), chunk => chunk === EOF ? Deferred.await(deferred) : Effect.succeed(chunk)))));
+  }), Stream.unwrapScoped);
+};
+exports.asyncPauseResume = asyncPauseResume;
+//# sourceMappingURL=Stream.js.map

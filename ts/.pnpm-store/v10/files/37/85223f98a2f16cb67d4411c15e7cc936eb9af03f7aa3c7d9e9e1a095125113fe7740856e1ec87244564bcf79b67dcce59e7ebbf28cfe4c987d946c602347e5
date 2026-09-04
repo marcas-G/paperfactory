@@ -1,0 +1,111 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var _exportNames = {
+  run: true,
+  layer: true
+};
+exports.run = exports.layer = void 0;
+var Command = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@effect/platform/Command"));
+var _FileSystem = /*#__PURE__*/require("@effect/platform/FileSystem");
+var _Path = /*#__PURE__*/require("@effect/platform/Path");
+var Migrator = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@effect/sql/Migrator"));
+Object.keys(Migrator).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+  if (key in exports && exports[key] === Migrator[key]) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function () {
+      return Migrator[key];
+    }
+  });
+});
+var Effect = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Effect"));
+var Layer = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Layer"));
+var Secret = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Secret"));
+var _Client = /*#__PURE__*/require("./Client.js");
+function _getRequireWildcardCache(e) {
+  if ("function" != typeof WeakMap) return null;
+  var r = new WeakMap(),
+    t = new WeakMap();
+  return (_getRequireWildcardCache = function (e) {
+    return e ? t : r;
+  })(e);
+}
+function _interopRequireWildcard(e, r) {
+  if (!r && e && e.__esModule) return e;
+  if (null === e || "object" != typeof e && "function" != typeof e) return {
+    default: e
+  };
+  var t = _getRequireWildcardCache(r);
+  if (t && t.has(e)) return t.get(e);
+  var n = {
+      __proto__: null
+    },
+    a = Object.defineProperty && Object.getOwnPropertyDescriptor;
+  for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) {
+    var i = a ? Object.getOwnPropertyDescriptor(e, u) : null;
+    i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u];
+  }
+  return n.default = e, t && t.set(e, n), n;
+}
+/**
+ * @since 1.0.0
+ */
+
+/**
+ * @since 1.0.0
+ */
+
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+const run = exports.run = /*#__PURE__*/Migrator.make({
+  dumpSchema(path, table) {
+    const pgDump = args => Effect.gen(function* (_) {
+      const sql = yield* _Client.PgClient;
+      const dump = yield* _(Command.make("pg_dump", ...args, "--no-owner", "--no-privileges"), Command.env({
+        PATH: globalThis.process?.env.PATH,
+        PGHOST: sql.config.host,
+        PGPORT: sql.config.port?.toString(),
+        PGUSER: sql.config.username,
+        PGPASSWORD: sql.config.password ? Secret.value(sql.config.password) : undefined,
+        PGDATABASE: sql.config.database,
+        PGSSLMODE: sql.config.ssl ? "require" : "prefer"
+      }), Command.string);
+      return dump.replace(/^--.*$/gm, "").replace(/^SET .*$/gm, "").replace(/^SELECT pg_catalog\..*$/gm, "").replace(/\n{2,}/gm, "\n\n").trim();
+    }).pipe(Effect.mapError(error => new Migrator.MigrationError({
+      reason: "failed",
+      message: error.message
+    })));
+    const pgDumpSchema = pgDump(["--schema-only"]);
+    const pgDumpMigrations = pgDump(["--column-inserts", "--data-only", `--table=${table}`]);
+    const pgDumpAll = Effect.map(Effect.all([pgDumpSchema, pgDumpMigrations], {
+      concurrency: 2
+    }), ([schema, migrations]) => schema + "\n\n" + migrations);
+    const pgDumpFile = path => Effect.gen(function* (_) {
+      const fs = yield* _(_FileSystem.FileSystem);
+      const path_ = yield* _(_Path.Path);
+      const dump = yield* _(pgDumpAll);
+      yield* _(fs.makeDirectory(path_.dirname(path), {
+        recursive: true
+      }));
+      yield* _(fs.writeFileString(path, dump));
+    }).pipe(Effect.mapError(error => new Migrator.MigrationError({
+      reason: "failed",
+      message: error.message
+    })));
+    return pgDumpFile(path);
+  }
+});
+/**
+ * @category layers
+ * @since 1.0.0
+ */
+const layer = options => Layer.effectDiscard(run(options));
+exports.layer = layer;
+//# sourceMappingURL=Migrator.js.map

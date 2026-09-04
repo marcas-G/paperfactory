@@ -1,0 +1,76 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.void = exports.single = exports.findOne = exports.findAll = void 0;
+var Schema = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@effect/schema/Schema"));
+var Cause = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Cause"));
+var Effect = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Effect"));
+function _getRequireWildcardCache(e) {
+  if ("function" != typeof WeakMap) return null;
+  var r = new WeakMap(),
+    t = new WeakMap();
+  return (_getRequireWildcardCache = function (e) {
+    return e ? t : r;
+  })(e);
+}
+function _interopRequireWildcard(e, r) {
+  if (!r && e && e.__esModule) return e;
+  if (null === e || "object" != typeof e && "function" != typeof e) return {
+    default: e
+  };
+  var t = _getRequireWildcardCache(r);
+  if (t && t.has(e)) return t.get(e);
+  var n = {
+      __proto__: null
+    },
+    a = Object.defineProperty && Object.getOwnPropertyDescriptor;
+  for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) {
+    var i = a ? Object.getOwnPropertyDescriptor(e, u) : null;
+    i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u];
+  }
+  return n.default = e, t && t.set(e, n), n;
+}
+/**
+ * Run a sql query with a request schema and a result schema.
+ *
+ * @since 1.0.0
+ * @category constructor
+ */
+const findAll = options => {
+  const encodeRequest = Schema.encode(options.Request);
+  const decode = Schema.decodeUnknown(Schema.Array(options.Result));
+  return request => Effect.flatMap(Effect.flatMap(encodeRequest(request), options.execute), decode);
+};
+exports.findAll = findAll;
+const void_ = options => {
+  const encode = Schema.encode(options.Request);
+  return request => Effect.asVoid(Effect.flatMap(encode(request), options.execute));
+};
+exports.void = void_;
+/**
+ * Run a sql query with a request schema and a result schema and return the first result.
+ *
+ * @since 1.0.0
+ * @category constructor
+ */
+const findOne = options => {
+  const encodeRequest = Schema.encode(options.Request);
+  const decode = Schema.decodeUnknown(options.Result);
+  return request => Effect.flatMap(Effect.flatMap(encodeRequest(request), options.execute), arr => Array.isArray(arr) && arr.length > 0 ? Effect.asSome(decode(arr[0])) : Effect.succeedNone);
+};
+/**
+ * Run a sql query with a request schema and a result schema and return the first result.
+ *
+ * @since 1.0.0
+ * @category constructor
+ */
+exports.findOne = findOne;
+const single = options => {
+  const encodeRequest = Schema.encode(options.Request);
+  const decode = Schema.decodeUnknown(options.Result);
+  return request => Effect.flatMap(Effect.flatMap(encodeRequest(request), options.execute), arr => Array.isArray(arr) && arr.length > 0 ? decode(arr[0]) : Effect.fail(new Cause.NoSuchElementException()));
+};
+exports.single = single;
+//# sourceMappingURL=Schema.js.map

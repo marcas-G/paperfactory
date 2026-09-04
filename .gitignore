@@ -29,6 +29,13 @@ coverage.xml
 .env.*
 !.env.example
 
+# --- TypeScript ---
+ts/node_modules/
+ts/dist/
+ts/coverage/
+ts/.tsbuildinfo
+ts/pnpm-lock.yaml
+
 # --- IDE / editor local files ---
 .vscode/
 .idea/

@@ -1,0 +1,33 @@
+# ============================================================
+# All-in-One CI Container
+# 同时包含 Python 3.11 + Node 22 + pnpm
+# 用于本地模拟完整 CI Pipeline
+# ============================================================
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Python + Node + 工具
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gcc \
+    g++ \
+    libpq-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 22
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# uv (Python)
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_PYTHON=3.11 sh
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+CMD ["/bin/bash"]

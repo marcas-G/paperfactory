@@ -1,0 +1,6 @@
+{
+  "main": "../dist/cjs/Connection.js",
+  "module": "../dist/esm/Connection.js",
+  "types": "../dist/dts/Connection.d.ts",
+  "sideEffects": []
+}

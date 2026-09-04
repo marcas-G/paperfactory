@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@domain/*": ["src/domain/*"],
+      "@control/*": ["src/control/*"],
+      "@cognition/*": ["src/cognition/*"],
+      "@runtime/*": ["src/runtime/*"],
+      "@capabilities/*": ["src/capabilities/*"],
+      "@persistence/*": ["src/persistence/*"],
+      "@api/*": ["src/api/*"],
+      "@observability/*": ["src/observability/*"],
+      "@evals/*": ["src/evals/*"],
+      "@app/*": ["src/app/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

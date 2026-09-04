@@ -1,0 +1,6 @@
+{
+  "main": "../dist/cjs/Resolver.js",
+  "module": "../dist/esm/Resolver.js",
+  "types": "../dist/dts/Resolver.d.ts",
+  "sideEffects": []
+}

@@ -1,0 +1,109 @@
+/**
+ * @since 1.0.0
+ */
+import * as Client from "@effect/sql/Client";
+import type { Custom, Fragment, Primitive } from "@effect/sql/Statement";
+import * as Statement from "@effect/sql/Statement";
+import * as Config from "effect/Config";
+import type { ConfigError } from "effect/ConfigError";
+import * as Context from "effect/Context";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import type { Scope } from "effect/Scope";
+import * as Secret from "effect/Secret";
+import postgres from "postgres";
+/**
+ * @category type ids
+ * @since 1.0.0
+ */
+export declare const TypeId: unique symbol;
+/**
+ * @category type ids
+ * @since 1.0.0
+ */
+export type TypeId = typeof TypeId;
+/**
+ * @category models
+ * @since 1.0.0
+ */
+export interface PgClient extends Client.Client {
+    readonly [TypeId]: TypeId;
+    readonly config: PgClientConfig;
+    readonly json: (_: unknown) => Fragment;
+    readonly array: (_: ReadonlyArray<Primitive>) => Fragment;
+}
+/**
+ * @category tags
+ * @since 1.0.0
+ */
+export declare const PgClient: Context.Tag<PgClient, PgClient>;
+/**
+ * @category constructors
+ * @since 1.0.0
+ */
+export interface PgClientConfig {
+    readonly url?: Secret.Secret | undefined;
+    readonly host?: string | undefined;
+    readonly port?: number | undefined;
+    readonly path?: string | undefined;
+    readonly ssl?: boolean | undefined;
+    readonly database?: string | undefined;
+    readonly username?: string | undefined;
+    readonly password?: Secret.Secret | undefined;
+    readonly idleTimeout?: Duration.DurationInput | undefined;
+    readonly connectTimeout?: Duration.DurationInput | undefined;
+    readonly maxConnections?: number | undefined;
+    readonly connectionTTL?: Duration.DurationInput | undefined;
+    readonly transformResultNames?: ((str: string) => string) | undefined;
+    readonly transformQueryNames?: ((str: string) => string) | undefined;
+    readonly transformJson?: boolean | undefined;
+    readonly fetchTypes?: boolean | undefined;
+    readonly prepare?: boolean | undefined;
+    readonly types?: Record<string, postgres.PostgresType> | undefined;
+    readonly debug?: postgres.Options<{}>["debug"] | undefined;
+}
+/**
+ * @category constructors
+ * @since 1.0.0
+ */
+export declare const make: (options: PgClientConfig) => Effect.Effect<PgClient, never, Scope>;
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+export declare const layer: (config: Config.Config.Wrap<PgClientConfig>) => Layer.Layer<PgClient | Client.Client, ConfigError>;
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+export declare const makeCompiler: (transform?: (_: string) => string, transformJson?: boolean) => Statement.Compiler;
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+export type PgCustom = PgJson | PgArray;
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+interface PgJson extends Custom<"PgJson", unknown> {
+}
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+declare const PgJson: (i0: unknown, i1: void, i2: void) => Fragment;
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+interface PgArray extends Custom<"PgArray", ReadonlyArray<Primitive>> {
+}
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+declare const PgArray: (i0: readonly Primitive[], i1: void, i2: void) => Fragment;
+export {};
+//# sourceMappingURL=Client.d.ts.map

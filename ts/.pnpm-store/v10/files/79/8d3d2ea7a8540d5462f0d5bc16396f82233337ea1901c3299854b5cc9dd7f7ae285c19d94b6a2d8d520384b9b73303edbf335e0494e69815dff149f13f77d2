@@ -1,0 +1,102 @@
+{
+  "name": "@effect/sql",
+  "version": "0.2.17",
+  "description": "A SQL toolkit for Effect",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Effect-TS/effect.git",
+    "directory": "packages/sql"
+  },
+  "sideEffects": [],
+  "dependencies": {
+    "@opentelemetry/semantic-conventions": "^1.24.1"
+  },
+  "peerDependencies": {
+    "@effect/platform": "^0.54.0",
+    "@effect/schema": "^0.67.12",
+    "effect": "^3.2.4"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/dts/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/dts/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/cjs/index.js"
+    },
+    "./Client": {
+      "types": "./dist/dts/Client.d.ts",
+      "import": "./dist/esm/Client.js",
+      "default": "./dist/cjs/Client.js"
+    },
+    "./Connection": {
+      "types": "./dist/dts/Connection.d.ts",
+      "import": "./dist/esm/Connection.js",
+      "default": "./dist/cjs/Connection.js"
+    },
+    "./Error": {
+      "types": "./dist/dts/Error.d.ts",
+      "import": "./dist/esm/Error.js",
+      "default": "./dist/cjs/Error.js"
+    },
+    "./Migrator": {
+      "types": "./dist/dts/Migrator.d.ts",
+      "import": "./dist/esm/Migrator.js",
+      "default": "./dist/cjs/Migrator.js"
+    },
+    "./Resolver": {
+      "types": "./dist/dts/Resolver.d.ts",
+      "import": "./dist/esm/Resolver.js",
+      "default": "./dist/cjs/Resolver.js"
+    },
+    "./Schema": {
+      "types": "./dist/dts/Schema.d.ts",
+      "import": "./dist/esm/Schema.js",
+      "default": "./dist/cjs/Schema.js"
+    },
+    "./Statement": {
+      "types": "./dist/dts/Statement.d.ts",
+      "import": "./dist/esm/Statement.js",
+      "default": "./dist/cjs/Statement.js"
+    },
+    "./Stream": {
+      "types": "./dist/dts/Stream.d.ts",
+      "import": "./dist/esm/Stream.js",
+      "default": "./dist/cjs/Stream.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "Client": [
+        "./dist/dts/Client.d.ts"
+      ],
+      "Connection": [
+        "./dist/dts/Connection.d.ts"
+      ],
+      "Error": [
+        "./dist/dts/Error.d.ts"
+      ],
+      "Migrator": [
+        "./dist/dts/Migrator.d.ts"
+      ],
+      "Resolver": [
+        "./dist/dts/Resolver.d.ts"
+      ],
+      "Schema": [
+        "./dist/dts/Schema.d.ts"
+      ],
+      "Statement": [
+        "./dist/dts/Statement.d.ts"
+      ],
+      "Stream": [
+        "./dist/dts/Stream.d.ts"
+      ]
+    }
+  }
+}

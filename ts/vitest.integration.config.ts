@@ -1,0 +1,38 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    include: [
+      "test/integration/**/*.test.ts",
+      "test/persistence/pg-*.test.ts",
+    ],
+    testTimeout: 30000,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json"],
+      reportsDirectory: "./coverage-integration",
+      include: ["src/persistence/**/*.ts"],
+      thresholds: {
+        lines: 50,
+        branches: 50,
+        functions: 40,
+        statements: 50,
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@domain": "/src/domain",
+      "@control": "/src/control",
+      "@cognition": "/src/cognition",
+      "@runtime": "/src/runtime",
+      "@persistence": "/src/persistence",
+      "@api": "/src/api",
+      "@observability": "/src/observability",
+      "@evals": "/src/evals",
+      "@app": "/src/app",
+      "@capabilities": "/src/capabilities",
+    },
+  },
+});

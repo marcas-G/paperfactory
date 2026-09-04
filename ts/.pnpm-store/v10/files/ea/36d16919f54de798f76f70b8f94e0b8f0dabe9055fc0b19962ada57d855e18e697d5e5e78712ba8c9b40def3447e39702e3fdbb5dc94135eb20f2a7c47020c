@@ -1,0 +1,105 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.clientTag = exports.TypeId = exports.TransactionConnection = void 0;
+exports.make = make;
+var Clock = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Clock"));
+var Context = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Context"));
+var DefaultServices = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/DefaultServices"));
+var Effect = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Effect"));
+var Exit = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Exit"));
+var FiberRef = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/FiberRef"));
+var Option = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Option"));
+var Scope = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Scope"));
+var Tracer = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Tracer"));
+var Statement = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("../Statement.js"));
+function _getRequireWildcardCache(e) {
+  if ("function" != typeof WeakMap) return null;
+  var r = new WeakMap(),
+    t = new WeakMap();
+  return (_getRequireWildcardCache = function (e) {
+    return e ? t : r;
+  })(e);
+}
+function _interopRequireWildcard(e, r) {
+  if (!r && e && e.__esModule) return e;
+  if (null === e || "object" != typeof e && "function" != typeof e) return {
+    default: e
+  };
+  var t = _getRequireWildcardCache(r);
+  if (t && t.has(e)) return t.get(e);
+  var n = {
+      __proto__: null
+    },
+    a = Object.defineProperty && Object.getOwnPropertyDescriptor;
+  for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) {
+    var i = a ? Object.getOwnPropertyDescriptor(e, u) : null;
+    i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u];
+  }
+  return n.default = e, t && t.set(e, n), n;
+}
+/** @internal */
+const TypeId = exports.TypeId = /*#__PURE__*/Symbol.for("@effect/sql/Client");
+/** @internal */
+const clientTag = exports.clientTag = /*#__PURE__*/Context.GenericTag("@effect/sql/Client");
+/** @internal */
+const TransactionConnection = exports.TransactionConnection = /*#__PURE__*/Context.GenericTag("@effect/sql/Client/TransactionConnection");
+/** @internal */
+function make({
+  acquirer,
+  beginTransaction = "BEGIN",
+  commit = "COMMIT",
+  compiler,
+  rollback = "ROLLBACK",
+  rollbackSavepoint = id => `ROLLBACK TO SAVEPOINT ${id}`,
+  savepoint = id => `SAVEPOINT ${id}`,
+  spanAttributes,
+  transactionAcquirer
+}) {
+  const getConnection = Effect.flatMap(Effect.serviceOption(TransactionConnection), Option.match({
+    onNone: () => acquirer,
+    onSome: ([conn]) => Effect.succeed(conn)
+  }));
+  const getTxConn = Effect.flatMap(Scope.make(), scope => Effect.map(Scope.extend(transactionAcquirer, scope), conn => [scope, conn]));
+  const withTransaction = effect => Effect.uninterruptibleMask(restore => Effect.useSpan("sql.transaction", {
+    kind: "client",
+    captureStackTrace: false
+  }, span => Effect.withFiberRuntime(fiber => {
+    for (const [key, value] of spanAttributes) {
+      span.attribute(key, value);
+    }
+    const context = fiber.getFiberRef(FiberRef.currentContext);
+    const clock = Context.get(fiber.getFiberRef(DefaultServices.currentServices), Clock.Clock);
+    const connOption = Context.getOption(context, TransactionConnection);
+    const conn = connOption._tag === "Some" ? Effect.succeed([undefined, connOption.value[0]]) : getTxConn;
+    const id = connOption._tag === "Some" ? connOption.value[1] + 1 : 0;
+    return Effect.flatMap(conn, ([scope, conn]) => conn.executeRaw(id === 0 ? beginTransaction : savepoint(`effect_sql_${id}`)).pipe(Effect.zipRight(Effect.locally(restore(effect), FiberRef.currentContext, Context.add(context, TransactionConnection, [conn, id]).pipe(Context.add(Tracer.ParentSpan, span)))), Effect.exit, Effect.flatMap(exit => {
+      let effect;
+      if (Exit.isSuccess(exit)) {
+        if (id === 0) {
+          span.event("db.transaction.commit", clock.unsafeCurrentTimeNanos());
+          effect = Effect.orDie(conn.executeRaw(commit));
+        } else {
+          span.event("db.transaction.savepoint", clock.unsafeCurrentTimeNanos());
+          effect = Effect.void;
+        }
+      } else {
+        span.event("db.transaction.rollback", clock.unsafeCurrentTimeNanos());
+        effect = Effect.orDie(id > 0 ? conn.executeRaw(rollbackSavepoint(`effect_sql_${id}`)) : conn.executeRaw(rollback));
+      }
+      const withScope = scope !== undefined ? Effect.ensuring(effect, Scope.close(scope, exit)) : effect;
+      return Effect.zipRight(withScope, exit);
+    })));
+  })));
+  const client = Object.assign(Statement.make(getConnection, compiler, spanAttributes), {
+    [TypeId]: TypeId,
+    safe: undefined,
+    withTransaction,
+    reserve: transactionAcquirer
+  });
+  client.safe = client;
+  return client;
+}
+//# sourceMappingURL=client.js.map

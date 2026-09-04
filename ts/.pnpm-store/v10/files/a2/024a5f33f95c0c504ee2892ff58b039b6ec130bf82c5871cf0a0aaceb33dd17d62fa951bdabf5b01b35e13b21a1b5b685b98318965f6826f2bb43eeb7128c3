@@ -1,0 +1,220 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.makeCompiler = exports.make = exports.layer = exports.TypeId = exports.PgClient = void 0;
+var Client = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@effect/sql/Client"));
+var _Error = /*#__PURE__*/require("@effect/sql/Error");
+var Statement = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@effect/sql/Statement"));
+var Otel = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("@opentelemetry/semantic-conventions"));
+var Chunk = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Chunk"));
+var Config = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Config"));
+var Context = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Context"));
+var Duration = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Duration"));
+var Effect = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Effect"));
+var Layer = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Layer"));
+var Secret = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Secret"));
+var Stream = /*#__PURE__*/_interopRequireWildcard( /*#__PURE__*/require("effect/Stream"));
+var _postgres = /*#__PURE__*/_interopRequireDefault( /*#__PURE__*/require("postgres"));
+function _interopRequireDefault(obj) {
+  return obj && obj.__esModule ? obj : {
+    default: obj
+  };
+}
+function _getRequireWildcardCache(e) {
+  if ("function" != typeof WeakMap) return null;
+  var r = new WeakMap(),
+    t = new WeakMap();
+  return (_getRequireWildcardCache = function (e) {
+    return e ? t : r;
+  })(e);
+}
+function _interopRequireWildcard(e, r) {
+  if (!r && e && e.__esModule) return e;
+  if (null === e || "object" != typeof e && "function" != typeof e) return {
+    default: e
+  };
+  var t = _getRequireWildcardCache(r);
+  if (t && t.has(e)) return t.get(e);
+  var n = {
+      __proto__: null
+    },
+    a = Object.defineProperty && Object.getOwnPropertyDescriptor;
+  for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) {
+    var i = a ? Object.getOwnPropertyDescriptor(e, u) : null;
+    i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u];
+  }
+  return n.default = e, t && t.set(e, n), n;
+}
+/**
+ * @since 1.0.0
+ */
+
+/**
+ * @category type ids
+ * @since 1.0.0
+ */
+const TypeId = exports.TypeId = /*#__PURE__*/Symbol.for("@effect/sql-pg/Client");
+/**
+ * @category tags
+ * @since 1.0.0
+ */
+const PgClient = exports.PgClient = /*#__PURE__*/Context.GenericTag("@effect/sql-pg/Client");
+/**
+ * @category constructors
+ * @since 1.0.0
+ */
+const make = options => Effect.gen(function* (_) {
+  const compiler = makeCompiler(options.transformQueryNames, options.transformJson);
+  const transformRows = Statement.defaultTransforms(options.transformResultNames, options.transformJson).array;
+  const opts = {
+    max: options.maxConnections ?? 10,
+    max_lifetime: options.connectionTTL ? Math.round(Duration.toMillis(Duration.decode(options.connectionTTL)) / 1000) : undefined,
+    idle_timeout: options.idleTimeout ? Math.round(Duration.toMillis(Duration.decode(options.idleTimeout)) / 1000) : undefined,
+    connect_timeout: options.connectTimeout ? Math.round(Duration.toMillis(Duration.decode(options.connectTimeout)) / 1000) : undefined,
+    host: options.host,
+    port: options.port,
+    ssl: options.ssl,
+    path: options.path,
+    database: options.database,
+    username: options.username,
+    password: options.password ? Secret.value(options.password) : undefined,
+    fetch_types: options.fetchTypes ?? true,
+    prepare: options.prepare ?? true,
+    types: options.types,
+    debug: options.debug
+  };
+  const client = options.url ? (0, _postgres.default)(Secret.value(options.url), opts) : (0, _postgres.default)(opts);
+  yield* _(Effect.addFinalizer(() => Effect.promise(() => client.end())));
+  class ConnectionImpl {
+    pg;
+    constructor(pg) {
+      this.pg = pg;
+    }
+    run(query) {
+      return Effect.async(resume => {
+        query.then(_ => resume(Effect.succeed(_)), error => resume(new _Error.SqlError({
+          error
+        })));
+        return Effect.sync(() => query.cancel());
+      });
+    }
+    runTransform(query) {
+      return options.transformResultNames ? Effect.map(this.run(query), transformRows) : this.run(query);
+    }
+    execute(sql, params) {
+      return this.runTransform(this.pg.unsafe(sql, params));
+    }
+    executeWithoutTransform(sql, params) {
+      return this.run(this.pg.unsafe(sql, params));
+    }
+    executeValues(sql, params) {
+      return this.run(this.pg.unsafe(sql, params).values());
+    }
+    executeRaw(sql, params) {
+      return this.runTransform(this.pg.unsafe(sql, params));
+    }
+    executeStream(sql, params) {
+      return Stream.mapChunks(Stream.fromAsyncIterable(this.pg.unsafe(sql, params).cursor(16), error => new _Error.SqlError({
+        error
+      })), Chunk.flatMap(rows => Chunk.unsafeFromArray(options.transformResultNames ? transformRows(rows) : rows)));
+    }
+  }
+  return Object.assign(Client.make({
+    acquirer: Effect.succeed(new ConnectionImpl(client)),
+    transactionAcquirer: Effect.map(Effect.acquireRelease(Effect.tryPromise({
+      try: () => client.reserve(),
+      catch: error => new _Error.SqlError({
+        error
+      })
+    }), pg => Effect.sync(() => pg.release())), _ => new ConnectionImpl(_)),
+    compiler,
+    spanAttributes: [[Otel.SEMATTRS_DB_SYSTEM, Otel.DBSYSTEMVALUES_POSTGRESQL], [Otel.SEMATTRS_DB_NAME, opts.database ?? options.username ?? "postgres"], ["server.address", opts.host ?? "localhost"], ["server.port", opts.port ?? 5432]]
+  }), {
+    [TypeId]: TypeId,
+    config: {
+      ...options,
+      host: client.options.host[0] ?? undefined,
+      port: client.options.port[0] ?? undefined,
+      username: client.options.user,
+      password: client.options.pass ? Secret.fromString(client.options.pass) : undefined,
+      database: client.options.database
+    },
+    json: _ => PgJson(_),
+    array: _ => PgArray(_)
+  });
+});
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+exports.make = make;
+const layer = config => Layer.scopedContext(Config.unwrap(config).pipe(Effect.flatMap(make), Effect.map(client => Context.make(PgClient, client).pipe(Context.add(Client.Client, client)))));
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+exports.layer = layer;
+const makeCompiler = (transform, transformJson = true) => {
+  const pg = (0, _postgres.default)({
+    max: 0
+  });
+  const transformValue = transformJson && transform ? Statement.defaultTransforms(transform).value : undefined;
+  return Statement.makeCompiler({
+    dialect: "pg",
+    placeholder(_) {
+      return `$${_}`;
+    },
+    onIdentifier: transform ? function (value, withoutTransform) {
+      return withoutTransform ? escape(value) : escape(transform(value));
+    } : escape,
+    onRecordUpdate(placeholders, valueAlias, valueColumns, values, returning) {
+      return [`(values ${placeholders}) AS ${valueAlias}${valueColumns}${returning ? ` RETURNING ${returning[0]}` : ""}`, returning ? values.flat().concat(returning[1]) : values.flat()];
+    },
+    onCustom(type, placeholder, withoutTransform) {
+      switch (type.kind) {
+        case "PgJson":
+          {
+            return [placeholder(), [pg.json(withoutTransform || transformValue === undefined ? type.i0 : transformValue(type.i0))]];
+          }
+        case "PgArray":
+          {
+            const param = pg.array(type.i0);
+            const first = type.i0[0];
+            switch (typeof first) {
+              case "boolean":
+                {
+                  param.type = 1000;
+                  break;
+                }
+              case "number":
+                {
+                  param.type = 1022;
+                  break;
+                }
+              default:
+                {
+                  param.type = 1009;
+                  break;
+                }
+            }
+            return [placeholder(), [param]];
+          }
+      }
+    }
+  });
+};
+exports.makeCompiler = makeCompiler;
+const escape = /*#__PURE__*/Statement.defaultEscape("\"");
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+const PgJson = /*#__PURE__*/Statement.custom("PgJson");
+/**
+ * @category custom types
+ * @since 1.0.0
+ */
+const PgArray = /*#__PURE__*/Statement.custom("PgArray");
+//# sourceMappingURL=Client.js.map

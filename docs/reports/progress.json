@@ -1,0 +1,327 @@
+{
+  "version": "1.0",
+  "project": "paperfactory-ts",
+  "started_at": "2026-09-04T00:00:00Z",
+  "current_phase": 10,
+  "phases": [
+    {
+      "number": 0,
+      "name": "TS 脚手架 + 领域模型 + 测试基础",
+      "status": "completed",
+      "design_ref": "architecture-v3.md §4 (对象模型), §17 (测试策略)",
+      "entry_conditions": [
+        "CI/CD 流水线就绪",
+        "Docker 构建验证通过"
+      ],
+      "exit_criteria": [
+        "pnpm install 成功",
+        "所有 Domain Schema 定义完成 (13个对象)",
+        "不变量测试通过",
+        "覆盖率 ≥95%",
+        "CI 流水线 green"
+      ],
+      "tasks": [
+        {
+          "id": "T001",
+          "title": "pnpm + tsup + vitest 项目初始化",
+          "files_create": [
+            "ts/package.json",
+            "ts/tsconfig.json",
+            "ts/vitest.config.ts",
+            "ts/eslint.config.js",
+            "ts/tsup.config.ts"
+          ],
+          "acceptance": [
+            "pnpm install 成功",
+            "pnpm test 无报错"
+          ],
+          "depends_on": [],
+          "status": "completed"
+        },
+        {
+          "id": "T002",
+          "title": "Domain 基础设施: IDs + Enums + Events",
+          "files_create": [
+            "ts/src/domain/ids.ts",
+            "ts/src/domain/enums.ts",
+            "ts/src/domain/events.ts"
+          ],
+          "acceptance": [
+            "类型编译通过",
+            "枚举值与设计文档一致"
+          ],
+          "depends_on": [
+            "T001"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T003",
+          "title": "ResearchQuestion Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/question.ts",
+            "ts/test/domain/objects/question.test.ts"
+          ],
+          "acceptance": [
+            "statement 非空验证",
+            "status 枚举限定",
+            "覆盖率 100%"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T004",
+          "title": "KnowledgeItem Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/knowledge.ts",
+            "ts/test/domain/objects/knowledge.test.ts"
+          ],
+          "acceptance": [
+            "sourceType 字符串类型",
+            "certaintyLevel 0-1 范围验证"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T005",
+          "title": "ResearchGap Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/gap.ts",
+            "ts/test/domain/objects/gap.test.ts"
+          ],
+          "acceptance": [
+            "状态机: IDENTIFIED→VALIDATED→ADDRESSED→CLOSED"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T006",
+          "title": "Hypothesis Schema + 不变量测试",
+          "files_create": [
+            "ts/src/domain/objects/hypothesis.ts",
+            "ts/test/domain/objects/hypothesis.test.ts"
+          ],
+          "acceptance": [
+            "falsificationCondition 非空不变量",
+            "状态机转换测试"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T007",
+          "title": "Protocol Schema + FROZEN 不变量测试",
+          "files_create": [
+            "ts/src/domain/objects/protocol.ts",
+            "ts/test/domain/objects/protocol.test.ts"
+          ],
+          "acceptance": [
+            "FROZEN 后不可变的语义验证"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T008",
+          "title": "Experiment + Result Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/experiment.ts",
+            "ts/src/domain/objects/result.ts",
+            "ts/test/domain/objects/experiment.test.ts",
+            "ts/test/domain/objects/result.test.ts"
+          ],
+          "acceptance": [
+            "Experiment 状态机",
+            "Result 不可变"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T009",
+          "title": "Evidence + Claim Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/evidence.ts",
+            "ts/src/domain/objects/claim.ts",
+            "ts/test/domain/objects/evidence.test.ts",
+            "ts/test/domain/objects/claim.test.ts"
+          ],
+          "acceptance": [
+            "Claim 范围 ≤ Evidence 范围的不变量"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T010",
+          "title": "ResearchFailure + Report + Submission Schema + 测试",
+          "files_create": [
+            "ts/src/domain/objects/failure.ts",
+            "ts/src/domain/objects/report.ts",
+            "ts/src/domain/objects/submission.ts",
+            "ts/test/domain/objects/failure.test.ts",
+            "ts/test/domain/objects/report.test.ts",
+            "ts/test/domain/objects/submission.test.ts"
+          ],
+          "acceptance": [
+            "所有 Schema 编译通过",
+            "测试覆盖率 ≥95%"
+          ],
+          "depends_on": [
+            "T002"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T011",
+          "title": "测试数据工厂 + index.ts 聚合",
+          "files_create": [
+            "ts/src/domain/objects/index.ts",
+            "ts/test/fixtures/factories.ts"
+          ],
+          "acceptance": [
+            "Arbitrary 生成器可用",
+            "index 导出所有对象"
+          ],
+          "depends_on": [
+            "T003",
+            "T004",
+            "T005",
+            "T006",
+            "T007",
+            "T008",
+            "T009",
+            "T010"
+          ],
+          "status": "completed"
+        },
+        {
+          "id": "T012",
+          "title": "CI 门禁集成 + 覆盖率阈值",
+          "files_modify": [
+            "ts/vitest.config.ts"
+          ],
+          "acceptance": [
+            "vitest thresholds 设置",
+            "CI 流水线 gate 生效"
+          ],
+          "depends_on": [
+            "T011"
+          ],
+          "status": "completed"
+        }
+      ],
+      "estimated_hours": 12,
+      "risks": [],
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 1,
+      "name": "持久化层",
+      "status": "completed",
+      "blocked_by": null,
+      "design_ref": "architecture-v3.md §12 (状态管理与持久化)",
+      "tasks": [],
+      "estimated_hours": 16,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 2,
+      "name": "核心控制面",
+      "status": "completed",
+      "blocked_by": "Phase 1",
+      "design_ref": "architecture-v3.md §5 (动作定义)",
+      "tasks": [],
+      "estimated_hours": 24,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 3,
+      "name": "Provider + Tool + Agent Loop",
+      "status": "completed",
+      "blocked_by": "Phase 2",
+      "design_ref": "architecture-v3.md §6 (工具), §15 (Agent 循环)",
+      "tasks": [],
+      "estimated_hours": 32,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 4,
+      "name": "科研能力层 (第一批)",
+      "status": "completed",
+      "blocked_by": "Phase 3",
+      "design_ref": "architecture-v3.md §7 (能力单元)",
+      "tasks": [],
+      "estimated_hours": 20,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 5,
+      "name": "Subagent + ExecutionBlock + Hook",
+      "status": "completed",
+      "blocked_by": "Phase 4",
+      "design_ref": "architecture-v3.md §8 (执行编排), §9 (子 Agent), §11 (钩子)",
+      "tasks": [],
+      "estimated_hours": 20,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 6,
+      "name": "科研能力层 (第二批)",
+      "status": "completed",
+      "blocked_by": "Phase 5",
+      "design_ref": "architecture-v3.md §7 (能力单元)",
+      "tasks": [],
+      "estimated_hours": 24,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 7,
+      "name": "Workflow + API",
+      "status": "completed",
+      "blocked_by": "Phase 6",
+      "design_ref": "architecture-v3.md §10 (工作流)",
+      "tasks": [],
+      "estimated_hours": 20,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 8,
+      "name": "可观测性 + 评估",
+      "status": "completed",
+      "blocked_by": "Phase 7",
+      "design_ref": "architecture-v3.md 可观测性章节",
+      "tasks": [],
+      "estimated_hours": 16,
+      "completed_at": "2026-09-04T00:46:00Z"
+    },
+    {
+      "number": 9,
+      "name": "前端",
+      "status": "completed",
+      "blocked_by": "Phase 8",
+      "design_ref": "architecture-v3.md 前端章节",
+      "tasks": [],
+      "estimated_hours": 40,
+      "completed_at": "2026-09-04T00:46:00Z"
+    }
+  ],
+  "completed_at": "2026-09-04T00:46:00Z"
+}

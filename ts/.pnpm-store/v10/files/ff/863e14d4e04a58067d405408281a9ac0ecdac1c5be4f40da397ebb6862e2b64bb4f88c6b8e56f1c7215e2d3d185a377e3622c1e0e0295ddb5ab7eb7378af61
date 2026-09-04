@@ -1,0 +1,24 @@
+import type { CommandExecutor } from "@effect/platform/CommandExecutor";
+import { FileSystem } from "@effect/platform/FileSystem";
+import { Path } from "@effect/platform/Path";
+import type * as Client from "@effect/sql/Client";
+import type { SqlError } from "@effect/sql/Error";
+import * as Migrator from "@effect/sql/Migrator";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { PgClient } from "./Client.js";
+/**
+ * @since 1.0.0
+ */
+export * from "@effect/sql/Migrator";
+/**
+ * @category constructor
+ * @since 1.0.0
+ */
+export declare const run: <R2 = never>(options: Migrator.MigratorOptions<R2>) => Effect.Effect<ReadonlyArray<readonly [id: number, name: string]>, Migrator.MigrationError | SqlError, FileSystem | Path | PgClient | Client.Client | CommandExecutor | R2>;
+/**
+ * @category layers
+ * @since 1.0.0
+ */
+export declare const layer: <R>(options: Migrator.MigratorOptions<R>) => Layer.Layer<never, Migrator.MigrationError | SqlError, PgClient | Client.Client | CommandExecutor | FileSystem | Path | R>;
+//# sourceMappingURL=Migrator.d.ts.map

@@ -1,0 +1,55 @@
+{
+  "name": "@effect/sql-pg",
+  "version": "0.2.17",
+  "description": "A PostgreSQL toolkit for Effect",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Effect-TS/effect.git",
+    "directory": "packages/sql-pg"
+  },
+  "sideEffects": [],
+  "dependencies": {
+    "@opentelemetry/semantic-conventions": "^1.24.1",
+    "postgres": "^3.4.4"
+  },
+  "peerDependencies": {
+    "@effect/platform": "^0.54.0",
+    "@effect/sql": "^0.2.17",
+    "effect": "^3.2.4"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/dts/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/dts/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/cjs/index.js"
+    },
+    "./Client": {
+      "types": "./dist/dts/Client.d.ts",
+      "import": "./dist/esm/Client.js",
+      "default": "./dist/cjs/Client.js"
+    },
+    "./Migrator": {
+      "types": "./dist/dts/Migrator.d.ts",
+      "import": "./dist/esm/Migrator.js",
+      "default": "./dist/cjs/Migrator.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "Client": [
+        "./dist/dts/Client.d.ts"
+      ],
+      "Migrator": [
+        "./dist/dts/Migrator.d.ts"
+      ]
+    }
+  }
+}
