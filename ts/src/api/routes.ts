@@ -1,5 +1,10 @@
+import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { Provider } from "@runtime/provider";
+import { ObjectStore } from "@persistence/object-store";
+import { ResearchController } from "@control/controller";
+import { runAgentLoop } from "@runtime/agent/loop";
+import { ToolRegistry } from "@runtime/tools/registry";
 
 export interface APIRoute {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -56,11 +61,19 @@ export class APIRouter {
   }
 }
 
+function generateUuid(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function createHonoApp(
   _router: APIRouter,
-  _objectStore: unknown,
-  _controller: unknown,
-  _provider: Provider
+  objectStore: ObjectStore,
+  controller: ResearchController,
+  provider: Provider
 ): Hono {
   const app = new Hono();
 
@@ -74,12 +87,20 @@ export function createHonoApp(
 
   app.post("/api/projects", async (c) => {
     const body = await c.req.json();
+    const id = generateUuid();
+    const project = {
+      projectId: id,
+      name: body.name ?? "Untitled",
+      status: "created",
+      createdAt: new Date().toISOString(),
+    };
+    await Effect.runPromise(objectStore.save(project));
     return c.json(
       {
-        id: "00000000-0000-4000-a000-000000000000",
-        name: body.name ?? "Untitled",
-        status: "created",
-        createdAt: new Date().toISOString(),
+        id,
+        name: project.name,
+        status: project.status,
+        createdAt: project.createdAt,
       },
       201
     );
@@ -87,14 +108,24 @@ export function createHonoApp(
 
   app.post("/api/research/questions", async (c) => {
     const body = await c.req.json();
+    const questionId = generateUuid();
+    const question = {
+      questionId,
+      title: body.title ?? "Untitled Question",
+      statement: body.statement ?? "",
+      domain: body.domain ?? "general",
+      status: "DRAFT",
+      createdAt: new Date().toISOString(),
+    };
+    await Effect.runPromise(objectStore.save(question));
     return c.json(
       {
-        questionId: "00000000-0000-4000-a000-000000000000",
-        title: body.title ?? "Untitled Question",
-        statement: body.statement ?? "",
-        domain: body.domain ?? "general",
-        status: "DRAFT",
-        createdAt: new Date().toISOString(),
+        questionId,
+        title: question.title,
+        statement: question.statement,
+        domain: question.domain,
+        status: question.status,
+        createdAt: question.createdAt,
       },
       201
     );
@@ -102,11 +133,20 @@ export function createHonoApp(
 
   app.post("/api/agent/run", async (c) => {
     const body = await c.req.json();
+    const runId = generateUuid();
+    const toolRegistry = new ToolRegistry();
+    const loopResult = await runAgentLoop(
+      provider,
+      toolRegistry,
+      [{ role: "user", content: body.prompt ?? "" }],
+      20
+    );
     return c.json({
-      runId: "00000000-0000-4000-a000-000000000000",
+      runId,
       status: "started",
       prompt: body.prompt ?? "",
       startedAt: new Date().toISOString(),
+      result: loopResult.finalContent,
     });
   });
 

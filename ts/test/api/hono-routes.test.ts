@@ -1,11 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { createHonoApp, APIRouter } from "@api/routes";
 import { MockProvider } from "@runtime/provider";
+import { InMemoryObjectStore } from "@persistence/object-store";
+import { InMemoryEventStore } from "@persistence/event-store";
+import { ResearchController } from "@control/controller";
+import { TransitionEngine } from "@control/engine";
+import { ActionRegistry } from "@control/registry";
 
 describe("Hono API Routes", () => {
   const router = new APIRouter();
   const mockProvider = new MockProvider();
-  const app = createHonoApp(router, {}, {}, mockProvider);
+  const objectStore = new InMemoryObjectStore();
+  const eventStore = new InMemoryEventStore();
+  const transitionEngine = new TransitionEngine();
+  const actionRegistry = new ActionRegistry();
+  const controller = new ResearchController(
+    objectStore,
+    eventStore,
+    transitionEngine,
+    actionRegistry
+  );
+  const app = createHonoApp(router, objectStore, controller, mockProvider);
 
   it("health endpoint returns ok", async () => {
     const res = await app.request("/health");
