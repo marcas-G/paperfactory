@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Protocol, createProtocol } from "../../../src/domain/objects/protocol";
+import {
+  Protocol,
+  createProtocol,
+  isProtocolFrozen,
+  canModifyProtocol,
+} from "../../../src/domain/objects/protocol";
 
 
 describe("Protocol Schema", () => {
@@ -38,5 +43,32 @@ describe("Protocol Schema", () => {
     const p = createProtocol({ status: "FROZEN", steps: ["A", "B"] });
     expect(p.status).toBe("FROZEN");
     expect(p.steps).toEqual(["A", "B"]);
+  });
+});
+
+describe("Protocol FROZEN immutability invariant", () => {
+  // Design §4.3 Protocol: "FROZEN 后不可修改（科研纪律：防止 p-hacking）"
+  it("FROZEN protocol cannot be modified", () => {
+    const frozen = createProtocol({ status: "FROZEN" });
+    expect(isProtocolFrozen(frozen)).toBe(true);
+    expect(canModifyProtocol(frozen)).toBe(false);
+  });
+
+  it("DRAFT protocol can be modified", () => {
+    const draft = createProtocol({ status: "DRAFT" });
+    expect(isProtocolFrozen(draft)).toBe(false);
+    expect(canModifyProtocol(draft)).toBe(true);
+  });
+
+  it("REVIEWED protocol can be modified", () => {
+    const reviewed = createProtocol({ status: "REVIEWED" });
+    expect(isProtocolFrozen(reviewed)).toBe(false);
+    expect(canModifyProtocol(reviewed)).toBe(true);
+  });
+
+  it("SUPERSEDED protocol cannot be modified", () => {
+    const superseded = createProtocol({ status: "SUPERSEDED" });
+    expect(isProtocolFrozen(superseded)).toBe(false);
+    expect(canModifyProtocol(superseded)).toBe(false);
   });
 });

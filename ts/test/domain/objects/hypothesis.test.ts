@@ -21,7 +21,12 @@ describe("Hypothesis Schema", () => {
   });
 
   it("requires non-empty falsification condition", () => {
+    // Design §4.3: "必须包含可证伪条件（falsificationCondition），否则不能作为正式假设"
     expect(() => decode({ ...base, falsificationCondition: "" })).toThrow();
+  });
+
+  it("requires non-whitespace falsification condition", () => {
+    expect(() => decode({ ...base, falsificationCondition: "   " })).toThrow();
   });
 
   it("accepts gap reference", () => {

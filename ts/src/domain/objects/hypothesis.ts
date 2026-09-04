@@ -6,7 +6,16 @@ export const Hypothesis = Schema.Struct({
   branchId: Schema.UUID,
   gapId: Schema.NullOr(Schema.UUID),
   statement: Schema.NonEmptyString,
-  falsificationCondition: Schema.NonEmptyString,
+  falsificationCondition: Schema.String.pipe(
+    Schema.filter(
+      s => s.length > 0,
+      { message: () => "falsificationCondition must be a non-empty string" },
+    ),
+    Schema.filter(
+      s => s.trim().length > 0,
+      { message: () => "falsificationCondition must not be whitespace-only" },
+    ),
+  ),
   status: Schema.Enums({
     PROPOSED: "PROPOSED",
     ASSESSED: "ASSESSED",

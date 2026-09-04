@@ -35,3 +35,13 @@ export const createProtocol = (override: Partial<Protocol> = {}): Protocol => ({
   updatedAt: new Date(),
   ...override,
 });
+
+/** Returns true if the protocol is in FROZEN status (immutable, prevents p-hacking). */
+export function isProtocolFrozen(protocol: Protocol): boolean {
+  return protocol.status === "FROZEN";
+}
+
+/** Returns true if the protocol can be modified (not FROZEN, not SUPERSEDED). */
+export function canModifyProtocol(protocol: Protocol): boolean {
+  return protocol.status === "DRAFT" || protocol.status === "REVIEWED";
+}

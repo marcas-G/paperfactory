@@ -4,6 +4,7 @@ import {
   ResearchQuestion,
   QuestionStatus,
   createQuestion,
+  validateQuestionInvariant,
 } from "../../../src/domain/objects/question";
 
 const validUUID = "00000000-0000-4000-a000-000000000000";
@@ -126,5 +127,50 @@ describe("ResearchQuestion Schema", () => {
     expect(() =>
       Schema.decodeSync(QuestionStatus)("INVALID" as never)
     ).toThrow();
+  });
+});
+
+describe("ResearchQuestion ACTIVE/SCOPED invariant", () => {
+  // Design §4.3 ResearchQuestion: "不变量: ACTIVE/SCOPED 必须至少关联一个 KnowledgeItem"
+  it("DRAFT question with no relatedKnowledgeIds is valid", () => {
+    const q = createQuestion({ status: "DRAFT", relatedKnowledgeIds: [] });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(true);
+  });
+
+  it("ACTIVE question with no relatedKnowledgeIds is invalid", () => {
+    const q = createQuestion({ status: "ACTIVE", relatedKnowledgeIds: [] });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(false);
+  });
+
+  it("SCOPED question with no relatedKnowledgeIds is invalid", () => {
+    const q = createQuestion({ status: "SCOPED", relatedKnowledgeIds: [] });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(false);
+  });
+
+  it("ACTIVE question with at least one relatedKnowledgeId is valid", () => {
+    const q = createQuestion({
+      status: "ACTIVE",
+      relatedKnowledgeIds: [anotherUUID],
+    });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(true);
+  });
+
+  it("SCOPED question with at least one relatedKnowledgeId is valid", () => {
+    const q = createQuestion({
+      status: "SCOPED",
+      relatedKnowledgeIds: [anotherUUID],
+    });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(true);
+  });
+
+  it("ARCHIVED question with no relatedKnowledgeIds is valid", () => {
+    const q = createQuestion({ status: "ARCHIVED", relatedKnowledgeIds: [] });
+    const result = validateQuestionInvariant(q);
+    expect(result.isOk).toBe(true);
   });
 });

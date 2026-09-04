@@ -17,6 +17,7 @@ export const Evidence = Schema.Struct({
     INVALIDATED: "INVALIDATED",
   }),
   strength: Schema.Number.pipe(Schema.between(0, 1)),
+  scope: Schema.String,
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
   createdAt: Schema.DateFromSelf,
 });
@@ -32,6 +33,7 @@ export const createEvidence = (override: Partial<Evidence> = {}): Evidence => ({
   direction: "SUPPORTING",
   status: "PROPOSED",
   strength: 0.5,
+  scope: "",
   metadata: {},
   createdAt: new Date(),
   ...override,

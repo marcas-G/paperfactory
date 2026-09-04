@@ -40,3 +40,22 @@ export const createQuestion = (override: Partial<ResearchQuestion> = {}): Resear
   updatedAt: new Date(),
   ...override,
 });
+
+/**
+ * Validates the invariant: ACTIVE/SCOPED must have at least one relatedKnowledgeId.
+ * Design §4.3 ResearchQuestion: "不变量: ACTIVE/SCOPED 必须至少关联一个 KnowledgeItem"
+ *
+ * Returns { isOk: true } if valid, { isOk: false, message } if invalid.
+ */
+export function validateQuestionInvariant(
+  question: ResearchQuestion,
+): { isOk: true } | { isOk: false; message: string } {
+  if ((question.status === "ACTIVE" || question.status === "SCOPED") &&
+      question.relatedKnowledgeIds.length === 0) {
+    return {
+      isOk: false,
+      message: `${question.status} question must have at least one relatedKnowledgeId`,
+    };
+  }
+  return { isOk: true };
+}

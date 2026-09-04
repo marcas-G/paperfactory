@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Claim, createClaim } from "../../../src/domain/objects/claim";
+import { Claim, createClaim, validateClaimScope } from "../../../src/domain/objects/claim";
+import { Evidence, createEvidence } from "../../../src/domain/objects/evidence";
 
 const anotherUUID = "11111111-1111-4111-a111-111111111111";
 
@@ -48,5 +49,64 @@ describe("Claim Schema", () => {
   it("factory with override", () => {
     const c = createClaim({ status: "VALIDATED", hypothesisId: anotherUUID });
     expect(c.status).toBe("VALIDATED");
+  });
+});
+
+describe("Claim scope ⊆ evidence invariant", () => {
+  // Design §4.3 Claim: "不变量: Claim 的范围 ⊆ 支持它的 Evidence 的范围"
+  // "不能用局部证据支持过宽结论"
+  it("claim with non-empty scope requires at least one supporting evidence", () => {
+    const claim = createClaim({
+      scope: "Applies to population X",
+      supportingEvidenceIds: [],
+    });
+    const result = validateClaimScope(claim, []);
+    expect(result.isOk).toBe(false);
+  });
+
+  it("claim scope within evidence scope passes", () => {
+    const evidence: Evidence[] = [
+      createEvidence({ evidenceId: anotherUUID, scope: "population X and Y" }),
+    ];
+    const claim = createClaim({
+      scope: "population X",
+      supportingEvidenceIds: [anotherUUID],
+    });
+    const result = validateClaimScope(claim, evidence);
+    expect(result.isOk).toBe(true);
+  });
+
+  it("claim scope wider than all evidence scopes fails", () => {
+    const evidence: Evidence[] = [
+      createEvidence({ evidenceId: anotherUUID, scope: "mice" }),
+    ];
+    const claim = createClaim({
+      scope: "all mammals",
+      supportingEvidenceIds: [anotherUUID],
+    });
+    const result = validateClaimScope(claim, evidence);
+    expect(result.isOk).toBe(false);
+  });
+
+  it("claim with empty scope and no evidence is allowed (DRAFT)", () => {
+    const claim = createClaim({
+      scope: "",
+      supportingEvidenceIds: [],
+    });
+    const result = validateClaimScope(claim, []);
+    expect(result.isOk).toBe(true);
+  });
+
+  it("claim scope contained in union of evidence scopes passes", () => {
+    const evidence: Evidence[] = [
+      createEvidence({ evidenceId: anotherUUID, scope: "mice" }),
+      createEvidence({ evidenceId: "22222222-2222-4222-a222-222222222222", scope: "rats" }),
+    ];
+    const claim = createClaim({
+      scope: "mice and rats",
+      supportingEvidenceIds: [anotherUUID, "22222222-2222-4222-a222-222222222222"],
+    });
+    const result = validateClaimScope(claim, evidence);
+    expect(result.isOk).toBe(true);
   });
 });
