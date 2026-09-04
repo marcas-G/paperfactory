@@ -1,6 +1,5 @@
 import { BaseTool, ToolInput, ToolOutput } from "../contracts";
 import * as Effect from "effect/Effect";
-import { request } from "undici";
 
 export interface SearchResult {
   title: string;
@@ -14,10 +13,13 @@ export interface SearchToolConfig {
   maxResults?: number;
 }
 
+const DEFAULT_ENDPOINT =
+  "https://api.semanticscholar.org/graph/v1/paper/search";
+
 export function createSearchTool(
   config: SearchToolConfig = {}
 ): BaseTool {
-  const endpoint = config.endpoint ?? "";
+  const endpoint = config.endpoint ?? DEFAULT_ENDPOINT;
   const headers = config.headers ?? {};
   const maxResults = config.maxResults ?? 10;
 
@@ -29,8 +31,8 @@ export function createSearchTool(
     }
 
     try {
-      const url = `${endpoint}${encodeURIComponent(query)}`;
-      const response = await request(url, {
+      const url = `${endpoint}?query=${encodeURIComponent(query)}`;
+      const response = await globalThis.fetch(url, {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -38,24 +40,16 @@ export function createSearchTool(
         },
       });
 
-      if (response.statusCode >= 400) {
+      if (!response.ok) {
         return [];
       }
 
-      const body = await response.body.text();
-      const parsed = JSON.parse(body);
+      const parsed = await response.json();
 
       const results: SearchResult[] = [];
-      if (Array.isArray(parsed)) {
-        for (const item of parsed.slice(0, maxResults)) {
-          results.push({
-            title: String(item.title ?? ""),
-            url: String(item.url ?? ""),
-            snippet: String(item.snippet ?? item.abstract ?? ""),
-          });
-        }
-      } else if (parsed.results && Array.isArray(parsed.results)) {
-        for (const item of parsed.results.slice(0, maxResults)) {
+      const items = parsed.data ?? parsed.results ?? parsed;
+      if (Array.isArray(items)) {
+        for (const item of items.slice(0, maxResults)) {
           results.push({
             title: String(item.title ?? ""),
             url: String(item.url ?? ""),
