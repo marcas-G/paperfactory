@@ -94,6 +94,25 @@ body{font-family:'JetBrains Mono','SF Mono',Consolas,monospace;background:var(--
 #phase-detail .btn:hover{background:var(--s2)}
 #phase-detail .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .hidden{display:none !important}
+/* Paper cards */
+.paper-list{margin-top:8px}
+.paper-card{background:var(--s3);padding:8px;border-radius:6px;margin-bottom:4px;font-size:.72rem}
+.paper-title{font-weight:600;color:var(--t1);margin-bottom:2px}
+.paper-meta{color:var(--t2);font-size:.65rem}
+.paper-abstract{color:var(--t2);margin-top:4px;line-height:1.4}
+.paper-link{color:var(--blue);font-size:.65rem;text-decoration:none}
+.paper-link:hover{text-decoration:underline}
+/* Evidence chain */
+.chain-section{margin:8px 0}
+.section-title{font-size:.7rem;color:var(--t2);text-transform:uppercase;margin-bottom:4px}
+.chain-link{font-size:.7rem;padding:2px 0;color:var(--t2);cursor:pointer}
+.chain-link:hover{color:var(--accent)}
+/* Decision buttons */
+.decision-buttons{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.decision-input{margin-top:6px}
+.decision-input textarea{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:4px;padding:6px;color:var(--t1);font-size:.72rem;font-family:inherit;resize:vertical;min-height:40px;outline:none}
+.decision-input textarea:focus{border-color:var(--accent)}
+.decision-input button{margin-top:4px}
 </style>
 </head>
 <body>
@@ -202,6 +221,51 @@ async function selectProject(id) {
       addMsg('system', '知识', data.knowledge.map(k => `  • ${k.summary}`).join('\n'));
     }
   } catch(e) {}
+
+  // Load phase versions from backend
+  loadPhaseVersions(id);
+
+  // Load phase runs for decision buttons and evidence chain
+  loadPhaseRuns(id);
+}
+
+async function loadPhaseRuns(projectId) {
+  try {
+    const resp = await fetch(`/api/projects/${projectId}/phases`);
+    const runs = await resp.json();
+    runs.forEach(run => {
+      phaseResults[run.phase] = {
+        status: run.status,
+        runId: run.id,
+        objectType: run.objectType,
+        objectId: run.objectId,
+        rawOutput: run.rawOutput,
+        toolCalls: run.toolCalls
+      };
+      const phaseEl = document.querySelector(`.phase[data-phase="${run.phase}"]`);
+      if (phaseEl) {
+        const statusClass = run.status === 'COMPLETED' ? 'done' : run.status === 'ERROR' ? 'error' : run.status === 'WAITING_APPROVAL' ? 'review' : 'active';
+        phaseEl.className = `phase ${statusClass}`;
+      }
+    });
+  } catch(e) {}
+}
+
+async function loadPhaseVersions(projectId) {
+  try {
+    const resp = await fetch(`/api/projects/${projectId}/phases/grouped`);
+    const grouped = await resp.json();
+    document.querySelectorAll('.phase').forEach(el => {
+      const phaseName = el.dataset.phase;
+      const versions = grouped[phaseName] || [];
+      const activeVer = versions.find(v => v.active)?.phaseVersion;
+      const verText = versions.length > 0 ? ` (v${activeVer || '?'}/${versions.length})` : '';
+      const nameEl = el.querySelector('div:last-child');
+      if (verText && !nameEl.textContent.includes(verText)) {
+        nameEl.textContent += verText;
+      }
+    });
+  } catch(e) {}
 }
 
 async function newProject() {
@@ -238,16 +302,39 @@ function addToolCall(toolName, input, output) {
   div.className = 'tool-call';
   const inputStr = JSON.stringify(input, null, 2).substring(0, 500);
   const outputStr = output?.toString?.()?.substring(0, 2000) ?? output?.substring(0, 2000) ?? '';
+
+  // Parse papers from search output
+  let paperCards = '';
+  if (['search', 'literatureSearch', 'web_search'].includes(toolName)) {
+    try {
+      const data = JSON.parse(outputStr);
+      const papers = data.results || data.data || [];
+      if (papers.length > 0) {
+        paperCards = '<div class="paper-list">' +
+          papers.map(p =>
+            `<div class="paper-card">
+              <div class="paper-title">${esc(p.title)}</div>
+              <div class="paper-meta">${esc(p.authors?.join(', ') || '')} (${p.year || '?'}) · ${p.citationCount || 0} citations</div>
+              <div class="paper-abstract">${esc((p.abstract || '').substring(0, 200))}</div>
+              ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="paper-link">查看原文</a>` : ''}
+            </div>`
+          ).join('') + '</div>';
+      }
+    } catch(e) {}
+  }
+
   div.innerHTML = `
     <div class="tool-header" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
       <span class="arrow">▶</span>
       <span>⚡ ${esc(toolName)}</span>
+      <span style="color:var(--t2);font-size:.65rem;margin-left:4px">${esc(JSON.stringify(input)?.substring(0, 80))}</span>
     </div>
     <div class="tool-body">
       <div class="label">输入:</div>
       <code>${esc(inputStr)}</code>
       <div class="label">输出:</div>
       <code>${esc(outputStr)}</code>
+      ${paperCards}
     </div>`;
   logEl.appendChild(div);
   logEl.scrollTop = logEl.scrollHeight;
@@ -274,7 +361,7 @@ function selectPhase(el) {
 
 function showPhaseDetail(phaseName) {
   phaseDetailEl.classList.remove('hidden');
-  document.getElementById('detail-title').textContent = el?.textContent?.trim() ?? phaseName;
+  document.getElementById('detail-title').textContent = phaseName;
   const result = phaseResults[phaseName];
   let html = '';
   if (result) {
@@ -289,11 +376,99 @@ function showPhaseDetail(phaseName) {
       }
       html += `</div>`;
     }
+    // Evidence chain
+    if (result.objectType && result.objectId) {
+      html += `<div class="section"><div class="section-title">证据链</div><div id="chain-container"></div></div>`;
+    }
+    // Decision buttons
+    if (result.runId) {
+      html += addDecisionButtons(result.runId, phaseName);
+    }
     html += `<button class="btn primary" onclick="rerunPhase('${phaseName}')">重跑此阶段</button>`;
   } else {
     html = '<div style="color:var(--t2);font-size:.75rem">此阶段尚未执行</div>';
   }
   detailContentEl.innerHTML = html;
+
+  // Load evidence chain if applicable
+  if (result?.objectType && result.objectId && currentProjectId) {
+    loadEvidenceChain(currentProjectId, result.objectType, result.objectId);
+  }
+}
+
+async function loadEvidenceChain(projectId, objectType, objectId) {
+  try {
+    const resp = await fetch(`/api/projects/${projectId}/chain/${objectType}/${objectId}`);
+    const { upstream, downstream } = await resp.json();
+    let html = '<div class="chain-section"><div class="section-title">上游来源</div>';
+    if (upstream?.length) {
+      upstream.forEach(u => {
+        html += `<div class="chain-link">${esc(u.relation)} → ${esc(u.targetType)} [${esc(u.targetId?.substring(0,8) || '?')}]</div>`;
+      });
+    } else {
+      html += '<div class="chain-link" style="opacity:.5">无上游来源</div>';
+    }
+    html += '</div><div class="chain-section"><div class="section-title">下游引用</div>';
+    if (downstream?.length) {
+      downstream.forEach(d => {
+        html += `<div class="chain-link">${esc(d.sourceType)} [${esc(d.sourceId?.substring(0,8) || '?')}] → ${esc(d.relation)}</div>`;
+      });
+    } else {
+      html += '<div class="chain-link" style="opacity:.5">无下游引用</div>';
+    }
+    html += '</div>';
+    const container = document.getElementById('chain-container');
+    if (container) container.innerHTML = html;
+  } catch(e) {
+    const container = document.getElementById('chain-container');
+    if (container) container.innerHTML = '<div class="chain-link" style="color:var(--red)">加载证据链失败</div>';
+  }
+}
+
+function addDecisionButtons(runId, phaseName) {
+  return `<div class="section"><div class="section-title">人工决策</div>
+    <div class="decision-buttons">
+      <button class="btn primary" onclick="decidePhase('${runId}', 'approve', '')">批准</button>
+      <button class="btn" onclick="showModifyInput('${runId}')">修改</button>
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="showRejectInput('${runId}')">拒绝</button>
+    </div>
+    <div id="decision-input-container"></div>
+  </div>`;
+}
+
+async function decidePhase(runId, decision, feedback) {
+  if (!currentProjectId) return;
+  try {
+    await fetch(`/api/projects/${currentProjectId}/phases/${runId}/decision`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ decision, feedback })
+    });
+    const statusMap = { approve: '已批准', modify: '请求修改', reject: '已拒绝' };
+    addMsg('system', '决策', `${statusMap[decision] || decision}此阶段`);
+    const container = document.getElementById('decision-input-container');
+    if (container) container.innerHTML = '';
+  } catch(e) {
+    addMsg('error', '错误', e.message);
+  }
+}
+
+function showModifyInput(runId) {
+  const container = document.getElementById('decision-input-container');
+  if (!container) return;
+  container.innerHTML = `<div class="decision-input">
+    <textarea id="modify-text" placeholder="描述需要的修改..."></textarea>
+    <button class="btn" onclick="decidePhase('${runId}', 'modify', document.getElementById('modify-text').value)">提交修改</button>
+  </div>`;
+}
+
+function showRejectInput(runId) {
+  const container = document.getElementById('decision-input-container');
+  if (!container) return;
+  container.innerHTML = `<div class="decision-input">
+    <textarea id="reject-text" placeholder="说明拒绝原因..."></textarea>
+    <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="decidePhase('${runId}', 'reject', document.getElementById('reject-text').value)">确认拒绝</button>
+  </div>`;
 }
 
 async function rerunPhase(phaseName) {
@@ -384,11 +559,31 @@ async function startResearch() {
           addMsg('phase', '阶段', `▶ ${data.content}`);
         }
         else if (eventType === 'phase:complete') {
-          updatePhase(data.phase, 'done');
-          addMsg('phase', '阶段', `✓ ${data.content}`);
+          const statusClass = data.needsApproval ? 'review' : 'done';
+          updatePhase(data.phase, statusClass);
+          addMsg('phase', '阶段', `${data.needsApproval ? '⏳' : '✓'} ${data.content}`);
+          if (data.runId) {
+            phaseResults[data.phase] = {
+              ...phaseResults[data.phase],
+              status: data.needsApproval ? 'WAITING_APPROVAL' : 'COMPLETED',
+              runId: data.runId,
+              objectType: data.objectType,
+              objectId: data.objectId,
+              rawOutput: data.rawOutput,
+              toolCalls: data.toolCalls
+            };
+          }
         }
         else if (eventType === 'phase:progress') {
           addMsg('system', '进展', data.content);
+          if (data.phase && data.runId) {
+            phaseResults[data.phase] = {
+              ...phaseResults[data.phase],
+              runId: data.runId,
+              objectType: data.objectType,
+              objectId: data.objectId
+            };
+          }
         }
         else if (eventType === 'thinking') {
           addMsg('agent', '思考', data.content);
