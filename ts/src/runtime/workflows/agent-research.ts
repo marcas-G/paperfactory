@@ -6,6 +6,7 @@ import type { Provider, ToolDefinition } from "@runtime/provider";
 import type { ToolRegistry } from "@runtime/tools/registry";
 import type { AgentEvent } from "@runtime/agent/loop";
 import { PHASE_CONTRACTS, runPhase } from "./phase-contracts";
+import { createPhaseRun } from "@domain/objects/phase-run";
 
 export interface ResearchRunContext {
   projectId: string;
@@ -21,6 +22,35 @@ export interface ResearchRunContext {
   shouldStop: () => boolean;
   requiresReview?: boolean;
   startFromPhase?: string;
+  mode?: "manual" | "auto";
+  onApprovalNeeded?: (runId: string, phaseName: string, summary: string) => Promise<"approve" | "modify" | "reject">;
+}
+
+function generateUuid(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function buildPhaseSummary(phaseName: string, result: { output?: Record<string, unknown> | null }): string {
+  if (!result?.output) return "阶段完成";
+  const o = result.output as any;
+  if (phaseName === "literature_search") {
+    const findings = o.keyFindings ?? [];
+    const gaps = o.researchGaps ?? [];
+    return `找到 ${findings.length} 个关键发现，${gaps.length} 个研究空白`;
+  }
+  if (phaseName === "hypothesis_generation") {
+    const hyps = o.hypotheses ?? [];
+    return `提出 ${hyps.length} 个假设`;
+  }
+  if (phaseName === "evidence_assessment" || phaseName === "confirmation") {
+    const conclusion = o.conclusion ?? o;
+    return `结论: ${conclusion.status ?? "未完成"} — ${conclusion.reasoning?.substring(0, 200) ?? ""}`;
+  }
+  return `阶段完成`;
 }
 
 export async function runAgentDrivenResearch(
@@ -57,6 +87,9 @@ export async function runAgentDrivenResearch(
   let researchGaps = "";
   const hypothesisStatements: string[] = [];
 
+  const phaseVersions: Record<string, number> = {};
+  const phaseRunIds: Record<string, string> = {};
+
   const contractsToRun = ctx.startFromPhase
     ? PHASE_CONTRACTS.filter((c) => {
         const idx = PHASE_CONTRACTS.findIndex((p) => p.name === ctx.startFromPhase);
@@ -81,6 +114,62 @@ export async function runAgentDrivenResearch(
       onEvent,
       shouldStop
     );
+
+    // Save PhaseRun to PG
+    const phaseRunId = generateUuid();
+    const version = (phaseVersions[contract.name] ?? 0) + 1;
+    phaseVersions[contract.name] = version;
+
+    const phaseRun = createPhaseRun({
+      phaseRunId,
+      projectId: ctx.projectId,
+      phaseName: contract.name,
+      phaseVersion: version,
+      status: result.status,
+      artifacts: result.savedIds,
+      agentOutput: result.rawOutput,
+      toolCalls: result.toolCalls,
+      selfReview: result.selfReview,
+      active: true,
+    });
+    await Effect.runPromise(objectStore.save(phaseRun as any));
+    phaseRunIds[contract.name] = phaseRunId;
+
+    onEvent({
+      type: "phase:progress",
+      content: `阶段 ${contract.label} 已保存 (v${version})`,
+      phase: contract.name,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Approval gate (manual mode)
+    if (ctx.mode === "manual" && ctx.onApprovalNeeded) {
+      const summary = buildPhaseSummary(contract.name, result);
+      onEvent({
+        type: "phase:progress",
+        content: `等待审核: ${contract.label} v${version}`,
+        phase: contract.name,
+        timestamp: new Date().toISOString(),
+      });
+
+      const decision = await ctx.onApprovalNeeded(phaseRunId, contract.name, summary);
+
+      if (decision === "approve") {
+        onEvent({
+          type: "phase:progress",
+          content: `用户已批准: ${contract.label}`,
+          phase: contract.name,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (decision === "reject" || decision === "modify") {
+        onEvent({
+          type: "phase:progress",
+          content: `用户请求修改: ${contract.label}`,
+          phase: contract.name,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
 
     phaseResults.push({
       phaseName: result.phaseName,
