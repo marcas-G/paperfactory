@@ -11,3 +11,5 @@ export * from "./claim";
 export * from "./failure";
 export * from "./report";
 export * from "./submission";
+export * from "./phase-run";
+export * from "./evidence-chain";
