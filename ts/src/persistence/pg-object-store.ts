@@ -22,6 +22,8 @@ const TABLE_MAP: Record<string, any> = {
   ResearchFailure: Schema.researchFailures,
   Report: Schema.reports,
   Submission: Schema.submissions,
+  PhaseRun: Schema.phaseRuns,
+  EvidenceChain: Schema.evidenceChain,
 };
 
 const ID_KEY_MAP: Record<string, string> = {
@@ -38,9 +40,13 @@ const ID_KEY_MAP: Record<string, string> = {
   ResearchFailure: "failureId",
   Report: "reportId",
   Submission: "submissionId",
+  PhaseRun: "phaseRunId",
+  EvidenceChain: "evidenceChainId",
 };
 
 function detectType(obj: ResearchObject): string {
+  if ("phaseRunId" in obj) return "PhaseRun";
+  if ("evidenceChainId" in obj) return "EvidenceChain";
   if ("projectId" in obj && "name" in obj && !("questionId" in obj)) return "Project";
   if ("submissionId" in obj) return "Submission";
   if ("reportId" in obj && "sectionIds" in obj) return "Report";

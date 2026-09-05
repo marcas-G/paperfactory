@@ -222,3 +222,39 @@ export const citations = pgTable("citations", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const phaseRuns = pgTable("phase_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull(),
+  phaseName: varchar("phase_name", { length: 64 }).notNull(),
+  phaseVersion: integer("phase_version").notNull(),
+  parentRunId: uuid("parent_run_id"),
+  status: varchar("status", { length: 32 }).notNull().default("PENDING"),
+  artifacts: jsonb("artifacts").$type<Record<string, string[]>>().default({}),
+  agentOutput: text("agent_output"),
+  toolCalls: jsonb("tool_calls").$type<Array<Record<string, unknown>>>().default([]),
+  selfReview: jsonb("self_review").$type<{
+    passed: boolean;
+    rounds: number;
+    issues: Array<{
+      severity: "blocking" | "warning";
+      category: string;
+      message: string;
+    }>;
+  } | null>(),
+  humanFeedback: text("human_feedback"),
+  active: boolean("active").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const evidenceChain = pgTable("evidence_chain", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull(),
+  sourceType: varchar("source_type", { length: 32 }).notNull(),
+  sourceId: uuid("source_id").notNull(),
+  targetType: varchar("target_type", { length: 32 }).notNull(),
+  targetId: uuid("target_id").notNull(),
+  relation: varchar("relation", { length: 32 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
