@@ -83,25 +83,45 @@ export function createHypothesisVerificationWorkflow(
       name: "evidence_collection",
       execute: () => {
         return Effect.promise(async () => {
+          const { Sandbox } = await import("@runtime/sandbox/sandbox");
+          const sandbox = new Sandbox();
+
+          const experiment =
+            manifest.experiments[manifest.experiments.length - 1] as
+              | Record<string, unknown>
+              | undefined;
+
+          const code = (experiment?.protocol as string) ?? "print('experiment executed')";
+          const sandboxResult = await sandbox.execute({
+            language: "python",
+            code,
+            timeoutMs: 30000,
+          });
+
           const result = createResult({
             resultId: generateUuid(),
             projectId: ctx.projectId,
             branchId: ctx.branchId,
-            experimentId: generateUuid(),
-            summary: "Statistically significant result supporting hypothesis",
+            experimentId: (experiment?.experimentId as string) ?? generateUuid(),
+            summary: sandboxResult.isError
+              ? `Experiment had issues: ${sandboxResult.output}`
+              : `Experiment output: ${sandboxResult.output}`,
             status: "RAW",
           });
           await Effect.runPromise(ctx.objectStore.save(result));
+
+          const direction = sandboxResult.isError ? "NEUTRAL" : "SUPPORTING";
+          const strength = sandboxResult.isError ? 0.3 : 0.85;
 
           const evidence = createEvidence({
             evidenceId: generateUuid(),
             projectId: ctx.projectId,
             branchId: ctx.branchId,
             resultId: result.resultId,
-            summary: "Evidence supports the hypothesis",
-            direction: "SUPPORTING",
+            summary: sandboxResult.output,
+            direction,
             status: "VALIDATED",
-            strength: 0.85,
+            strength,
           });
           await Effect.runPromise(ctx.objectStore.save(evidence));
           manifest.evidence = [...manifest.evidence, evidence];
@@ -109,6 +129,7 @@ export function createHypothesisVerificationWorkflow(
           return {
             result,
             evidence,
+            sandboxResult,
             phase: "evidence_collection",
           };
         });

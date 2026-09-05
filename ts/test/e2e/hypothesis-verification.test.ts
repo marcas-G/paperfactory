@@ -19,6 +19,19 @@ function generateUuid(): string {
 
 describe("E2E: Hypothesis Verification", () => {
   it("hypothesis -> verify -> confirm", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(JSON.stringify({ output: "Experiment executed", isError: false }), { status: 200 }))
+    ) as any;
+
+    try {
+      await runHypothesisTest();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  async function runHypothesisTest() {
     const projectId = "00000000-0000-4000-a000-000000000000";
     const branchId = "00000000-0000-4000-a000-000000000000";
     const gapId = generateUuid();
@@ -86,9 +99,22 @@ describe("E2E: Hypothesis Verification", () => {
 
     const knowledgeList = await Effect.runPromise(ctx.objectStore.list("KnowledgeItem"));
     expect(knowledgeList.length).toBeGreaterThanOrEqual(2);
-  });
+  }
 
   it("workflow completes without literature results", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(JSON.stringify({ output: "Experiment executed", isError: false }), { status: 200 }))
+    ) as any;
+
+    try {
+      await runNoLitTest();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  async function runNoLitTest() {
     const projectId = "00000000-0000-4000-a000-000000000000";
     const branchId = "00000000-0000-4000-a000-000000000000";
     const hypothesisId = generateUuid();
@@ -122,9 +148,22 @@ describe("E2E: Hypothesis Verification", () => {
     expect(opt.isSome()).toBe(true);
     const stored = opt.value as Record<string, unknown>;
     expect(stored.status).toBe("CONFIRMED");
-  });
+  }
 
   it("domain events are recorded during workflow", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(JSON.stringify({ output: "Experiment executed", isError: false }), { status: 200 }))
+    ) as any;
+
+    try {
+      await runDomainEventsTest();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  async function runDomainEventsTest() {
     const projectId = "00000000-0000-4000-a000-000000000000";
     const branchId = "00000000-0000-4000-a000-000000000000";
     const hypothesisId = generateUuid();
@@ -156,5 +195,5 @@ describe("E2E: Hypothesis Verification", () => {
     const events = await Effect.runPromise(ctx.eventStore.getByObjectId(hypothesisId));
     expect(events.length).toBeGreaterThanOrEqual(3);
     expect(events[0].type).toBe("STATE_TRANSITION");
-  });
+  }
 });

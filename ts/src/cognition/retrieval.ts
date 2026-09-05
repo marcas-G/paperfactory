@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect";
 import { ObjectStore } from "@persistence/object-store";
+import { VectorStore } from "@persistence/vector/store";
 
 export interface RetrievalOptions {
   maxResults?: number;
@@ -12,7 +13,54 @@ export interface RetrievalResult {
 }
 
 export class ContextRetriever {
-  constructor(private store: ObjectStore) {}
+  private vectorStore: VectorStore;
+
+  constructor(private store: ObjectStore) {
+    this.vectorStore = new VectorStore();
+  }
+
+  async indexKnowledge(knowledge: Array<Record<string, unknown>>): Promise<void> {
+    for (const item of knowledge) {
+      const text = (item.summary as string) || (item.content as string) || "";
+      const vector = this.simpleEmbed(text);
+      await this.vectorStore.add(item.knowledgeId as string, vector, {
+        summary: item.summary,
+        sourceType: item.sourceType,
+      });
+    }
+  }
+
+  async semanticSearch(query: string, topK: number = 5): Promise<Array<Record<string, unknown>>> {
+    const queryVector = this.simpleEmbed(query);
+    const hits = await this.vectorStore.search(queryVector, topK);
+
+    const results: Array<Record<string, unknown>> = [];
+    for (const hit of hits) {
+      const opt = await Effect.runPromise(this.store.get(hit.id, "KnowledgeItem"));
+      if (!opt.isNone()) {
+        results.push(opt.value as Record<string, unknown>);
+      }
+    }
+    return results;
+  }
+
+  private simpleEmbed(text: string): number[] {
+    const hash = this.fnv1a(text);
+    const vector: number[] = [];
+    for (let i = 0; i < 16; i++) {
+      vector.push(((hash >> (i * 2)) & 0xff) / 255);
+    }
+    return vector;
+  }
+
+  private fnv1a(str: string): number {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return hash >>> 0;
+  }
 
   async retrieve(
     hypothesisId: string,
