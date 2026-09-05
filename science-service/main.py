@@ -48,6 +48,18 @@ class LatexRequest(BaseModel):
     timeout: int = 60
 
 
+class SandboxRequest(BaseModel):
+    language: str = "python"
+    code: str
+    timeout: int = 30
+    env: dict[str, str] = {}
+
+
+class SandboxResponse(BaseModel):
+    output: str = ""
+    isError: bool = False
+
+
 class CodeRequest(BaseModel):
     code: str
     timeout: int = 30
@@ -119,6 +131,15 @@ async def api_latex_compile(req: LatexRequest) -> dict[str, Any]:
     if result.pdf_bytes:
         response["pdf_base64"] = base64.b64encode(result.pdf_bytes).decode("utf-8")
     return response
+
+
+@app.post("/api/sandbox/execute", response_model=SandboxResponse)
+async def api_sandbox_execute(req: SandboxRequest) -> SandboxResponse:
+    result = execute_code(req.code, req.timeout)
+    return SandboxResponse(
+        output=result.stdout or result.stderr or "",
+        isError=not result.success,
+    )
 
 
 @app.post("/api/code/execute")
