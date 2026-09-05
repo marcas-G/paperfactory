@@ -66,9 +66,13 @@ export async function selfReview(
 
     if (!reviewData) {
       return {
-        passed: true,
+        passed: false,
         rounds: round,
-        issues: [],
+        issues: [{
+          severity: "warning",
+          category: "unsupported-claim",
+          message: "Review LLM returned non-JSON response, could not validate output",
+        }],
         finalOutput: currentOutput,
       };
     }
