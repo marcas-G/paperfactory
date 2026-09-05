@@ -100,14 +100,76 @@ export function createHonoApp(
     };
     await Effect.runPromise(objectStore.save(project));
     return c.json(
-      {
-        id,
-        name: project.name,
-        status: project.status,
-        createdAt: now.toISOString(),
-      },
+      { id, name: project.name, status: project.status, createdAt: now.toISOString() },
       201
     );
+  });
+
+  app.get("/api/projects", async (c) => {
+    const projects = await Effect.runPromise(objectStore.list("Project"));
+    return c.json(
+      projects.map((p: Record<string, unknown>) => ({
+        id: p.projectId,
+        name: p.name,
+        status: p.status,
+        createdAt: p.createdAt,
+      }))
+    );
+  });
+
+  app.get("/api/projects/:id", async (c) => {
+    const id = c.req.param("id");
+    const opt = await Effect.runPromise(objectStore.get(id, "Project"));
+    if (opt.isNone()) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+    const project = opt.value as Record<string, unknown>;
+    return c.json({
+      id: project.projectId,
+      name: project.name,
+      status: project.status,
+      description: project.description,
+      metadata: project.metadata,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    });
+  });
+
+  app.put("/api/projects/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const opt = await Effect.runPromise(objectStore.get(id, "Project"));
+    if (opt.isNone()) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+    const existing = opt.value as Record<string, unknown>;
+    const updated = {
+      ...existing,
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.status !== undefined && { status: body.status }),
+      ...(body.description !== undefined && { description: body.description }),
+      ...(body.metadata !== undefined && { metadata: body.metadata }),
+      updatedAt: new Date(),
+    };
+    await Effect.runPromise(objectStore.save(updated));
+    return c.json({
+      id,
+      name: updated.name,
+      status: updated.status,
+      description: updated.description,
+      metadata: updated.metadata,
+      updatedAt: updated.updatedAt,
+    });
+  });
+
+  app.delete("/api/projects/:id", async (c) => {
+    const id = c.req.param("id");
+    const opt = await Effect.runPromise(objectStore.get(id, "Project"));
+    if (opt.isNone()) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+    await Effect.runPromise(objectStore.delete(id, "Project"));
+    return c.json({ deleted: id });
   });
 
   app.post("/api/research/questions", async (c) => {
@@ -133,6 +195,72 @@ export function createHonoApp(
       },
       201
     );
+  });
+
+  app.get("/api/research/:objectId", async (c) => {
+    const objectId = c.req.param("objectId");
+    const types = [
+      "ResearchQuestion",
+      "Hypothesis",
+      "Evidence",
+      "Experiment",
+      "Result",
+      "ResearchGap",
+      "KnowledgeItem",
+      "Claim",
+      "ResearchFailure",
+      "Report",
+      "Submission",
+      "Protocol",
+    ];
+    for (const type of types) {
+      const opt = await Effect.runPromise(objectStore.get(objectId, type));
+      if (!opt.isNone()) {
+        return c.json(opt.value);
+      }
+    }
+    return c.json({ error: "Research object not found" }, 404);
+  });
+
+  app.put("/api/research/:objectId", async (c) => {
+    const objectId = c.req.param("objectId");
+    const body = await c.req.json();
+    const types = [
+      "ResearchQuestion",
+      "Hypothesis",
+      "Evidence",
+      "Experiment",
+      "Result",
+      "ResearchGap",
+      "KnowledgeItem",
+      "Claim",
+      "ResearchFailure",
+      "Report",
+      "Submission",
+      "Protocol",
+    ];
+    for (const type of types) {
+      const opt = await Effect.runPromise(objectStore.get(objectId, type));
+      if (!opt.isNone()) {
+        const existing = opt.value as Record<string, unknown>;
+        const updated = {
+          ...existing,
+          ...(body.status !== undefined && { status: body.status }),
+          ...(body.statement !== undefined && { statement: body.statement }),
+          ...(body.title !== undefined && { title: body.title }),
+          ...(body.description !== undefined && { description: body.description }),
+        };
+        await Effect.runPromise(objectStore.save(updated));
+        return c.json(updated);
+      }
+    }
+    return c.json({ error: "Research object not found" }, 404);
+  });
+
+  app.delete("/api/research/:objectId", async (c) => {
+    const objectId = c.req.param("objectId");
+    await Effect.runPromise(objectStore.delete(objectId, "ResearchQuestion"));
+    return c.json({ deleted: objectId });
   });
 
   app.post("/api/agent/run", async (c) => {
