@@ -317,26 +317,63 @@ export function createHonoApp(
       provider,
       toolRegistry,
       [{ role: "user", content: body.prompt ?? "" }],
-      20
+      { maxIterations: 20 }
     );
     return c.json({
       runId,
-      status: "started",
+      status: "completed",
       prompt: body.prompt ?? "",
       startedAt: new Date().toISOString(),
       result: loopResult.finalContent,
+      events: loopResult.events,
     });
   });
 
+  // SSE streaming endpoint
+  app.post("/api/agent/stream", async (c) => {
+    const body = await c.req.json();
+    const runId = generateUuid();
+    const toolRegistry = new ToolRegistry();
+
+    c.header("Content-Type", "text/event-stream");
+    c.header("Cache-Control", "no-cache");
+    c.header("Connection", "keep-alive");
+
+    const events: Array<Record<string, unknown>> = [];
+
+    await runAgentLoop(
+      provider,
+      toolRegistry,
+      [{ role: "user", content: body.prompt ?? "" }],
+      {
+        maxIterations: 20,
+        onEvent: (event) => {
+          const data = JSON.stringify(event);
+          c.respondWith(new Response(
+            `event: ${event.type}\ndata: ${data}\n\n`,
+            { headers: { "Content-Type": "text/event-stream" } }
+          ));
+          events.push(event);
+        },
+      }
+    );
+
+    // Send final event
+    const finalEvent = { type: "done", content: "完成", timestamp: new Date().toISOString() };
+    return new Response(
+      `event: done\ndata: ${JSON.stringify(finalEvent)}\n\n`,
+      { headers: { "Content-Type": "text/event-stream" } }
+    );
+  });
+
+  // Blocking research run (legacy)
   app.post("/api/research/run", async (c) => {
     const body = await c.req.json();
     const projectId = generateUuid();
     const questionId = generateUuid();
     const branchId = generateUuid();
     const hypothesisId = generateUuid();
-    const gapId = generateUuid();
 
-    // Create project
     const now = new Date();
     const project = {
       projectId,
@@ -349,98 +386,51 @@ export function createHonoApp(
     };
     await Effect.runPromise(objectStore.save(project));
 
-    // Use in-memory store for research workflow (avoids PG schema constraints)
     const { InMemoryObjectStore } = await import("@persistence/object-store");
     const { InMemoryEventStore } = await import("@persistence/event-store");
     const memStore = new InMemoryObjectStore();
     const memEventStore = new InMemoryEventStore();
 
-    // Save to memory store
-    await Effect.runPromise(memStore.save({
-      gapId,
-      projectId,
-      branchId,
-      description: body.question ?? "",
-      status: "IDENTIFIED",
-      createdAt: now,
-    }));
     await Effect.runPromise(memStore.save({
       hypothesisId,
       projectId,
       branchId,
-      gapId,
       statement: body.question ?? "",
       falsificationCondition: "Evidence contradicts hypothesis",
       status: "PROPOSED",
       createdAt: now,
     }));
 
-    // Create in-memory controller for isolated research workflow
     const { TransitionEngine } = await import("@control/engine");
     const { ActionRegistry } = await import("@control/registry");
-    const memTransitionEngine = new TransitionEngine();
-    const memActionRegistry = new ActionRegistry();
     const memController = new (await import("@control/controller")).ResearchController(
       memStore,
       memEventStore,
-      memTransitionEngine,
-      memActionRegistry
+      new TransitionEngine(),
+      new ActionRegistry()
     );
 
-    const { createHypothesisVerificationWorkflow, runWorkflow } = await import(
-      "@runtime/workflows/hypothesis-verification"
-    );
+    const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
+    const toolRegistry = new ToolRegistry();
+    const events: Array<Record<string, unknown>> = [];
+    let stopped = false;
 
-    const phases = createHypothesisVerificationWorkflow({
+    const researchResult = await runAgentDrivenResearch({
       hypothesisId,
       projectId,
       branchId,
+      question: body.question ?? "",
       provider,
       objectStore: memStore,
       eventStore: memEventStore,
       controller: memController,
-      literatureResults: [
-        { summary: `Research on: ${body.question ?? "unknown topic"}`, certaintyLevel: 0.8 },
-      ],
+      toolRegistry,
+      onEvent: (event) => events.push(event),
+      shouldStop: () => stopped,
     });
 
-    // Run phase by phase, emitting events via SSE-like response
-    const phaseResults: Array<{ name: string; status: string; data?: unknown }> = [];
-    let status = "running";
-
-    try {
-    let prevResult: Record<string, unknown> = {};
-    for (let i = 0; i < phases.length; i++) {
-      const phase = phases[i];
-      const phaseResult = await Effect.runPromise(phase.execute(prevResult));
-      prevResult = phaseResult as Record<string, unknown>;
-
-        phaseResults.push({
-          name: phase.name,
-          status: "completed",
-          data: phaseResult,
-        });
-      }
-      status = "completed";
-    } catch (err: any) {
-      status = "error";
-      phaseResults.push({
-        name: "error",
-        status: "error",
-        data: { error: String(err) },
-      });
-    }
-
-    // Final state
-    const evidenceList = await Effect.runPromise(memStore.list("Evidence"));
-    const knowledgeList = await Effect.runPromise(memStore.list("KnowledgeItem"));
-    const reports = await Effect.runPromise(memStore.list("Report"));
-    const hypothesisList = await Effect.runPromise(memStore.list("Hypothesis"));
-    const experimentList = await Effect.runPromise(memStore.list("Experiment"));
-    const resultList = await Effect.runPromise(memStore.list("Result"));
-
-    // Persist research results to PG (project already saved above)
-    for (const item of [...evidenceList, ...knowledgeList, ...reports, ...hypothesisList, ...experimentList, ...resultList]) {
+    // Persist to PG
+    for (const item of [...researchResult.knowledgeItems, ...researchResult.evidence, ...researchResult.experiments, ...researchResult.results, ...researchResult.reports]) {
       await Effect.runPromise(objectStore.save(item));
     }
 
@@ -449,14 +439,164 @@ export function createHonoApp(
       projectId,
       questionId,
       hypothesisId,
-      status,
-      phases: phaseResults,
-      hypothesis: hypothesisList.map((h: any) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
-      evidenceCount: evidenceList.length,
-      knowledgeCount: knowledgeList.length,
-      reportCount: reports.length,
+      status: "completed",
+      hypothesis: [{ id: hypothesisId, statement: body.question, status: researchResult.hypothesisStatus }],
+      evidenceCount: researchResult.evidence.length,
+      knowledgeCount: researchResult.knowledgeItems.length,
+      reportCount: researchResult.reports.length,
+      events,
       completedAt: new Date().toISOString(),
     });
+  });
+
+  // SSE streaming research run - Agent 实时工作流
+  app.post("/api/research/stream", async (c) => {
+    const body = await c.req.json();
+    const runId = generateUuid();
+    const projectId = generateUuid();
+    const branchId = generateUuid();
+    const hypothesisId = generateUuid();
+
+    const now = new Date();
+    const project = {
+      projectId,
+      name: body.question ?? "Untitled Research",
+      status: "ACTIVE",
+      description: body.question ?? "",
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    await Effect.runPromise(objectStore.save(project));
+
+    const { InMemoryObjectStore } = await import("@persistence/object-store");
+    const { InMemoryEventStore } = await import("@persistence/event-store");
+    const memStore = new InMemoryObjectStore();
+    const memEventStore = new InMemoryEventStore();
+
+    await Effect.runPromise(memStore.save({
+      hypothesisId,
+      projectId,
+      branchId,
+      statement: body.question ?? "",
+      falsificationCondition: "Evidence contradicts hypothesis",
+      status: "PROPOSED",
+      createdAt: now,
+    }));
+
+    const { TransitionEngine } = await import("@control/engine");
+    const { ActionRegistry } = await import("@control/registry");
+    const memController = new (await import("@control/controller")).ResearchController(
+      memStore,
+      memEventStore,
+      new TransitionEngine(),
+      new ActionRegistry()
+    );
+
+    const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
+    const toolRegistry = new ToolRegistry();
+    let stopped = false;
+
+    // Store run state for interrupt
+    (globalThis as any).__researchRuns = (globalThis as any).__researchRuns ?? new Map();
+    (globalThis as any).__researchRuns.set(runId, { stopped: () => stopped, setStopped: (v: boolean) => { stopped = v; } });
+
+    const encoder = new TextEncoder();
+    let controllerRef: ReadableStreamDefaultController | null = null;
+    let closed = false;
+
+    const stream = new ReadableStream({
+      start(controller) {
+        controllerRef = controller;
+        const sendEvent = (eventType: string, data: Record<string, unknown>) => {
+          if (closed) return;
+          try {
+            const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(line));
+          } catch {
+            closed = true;
+          }
+        };
+
+        (async () => {
+          try {
+            sendEvent("run:start", { runId, projectId, question: body.question });
+
+            const researchResult = await runAgentDrivenResearch({
+              hypothesisId,
+              projectId,
+              branchId,
+              question: body.question ?? "",
+              provider,
+              objectStore: memStore,
+              eventStore: memEventStore,
+              controller: memController,
+              toolRegistry,
+              onEvent: (event) => {
+                sendEvent(event.type, event);
+              },
+              shouldStop: () => stopped,
+            });
+
+            // Persist to PG
+            for (const item of [...researchResult.knowledgeItems, ...researchResult.evidence, ...researchResult.experiments, ...researchResult.results, ...researchResult.reports]) {
+              await Effect.runPromise(objectStore.save(item));
+            }
+
+            sendEvent("run:complete", {
+              runId,
+              projectId,
+              hypothesisId,
+              hypothesisStatus: researchResult.hypothesisStatus,
+              evidenceCount: researchResult.evidence.length,
+              knowledgeCount: researchResult.knowledgeItems.length,
+              reportCount: researchResult.reports.length,
+              completedAt: new Date().toISOString(),
+            });
+          } catch (err: any) {
+            sendEvent("run:error", { runId, error: String(err) });
+          } finally {
+            if (!closed) {
+              closed = true;
+              try { controllerRef?.close(); } catch { /* already closed */ }
+            }
+            (globalThis as any).__researchRuns.delete(runId);
+          }
+        })();
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Run-Id": runId,
+      },
+    });
+  });
+
+  // Interrupt a running research
+  app.post("/api/research/:runId/stop", async (c) => {
+    const runId = c.req.param("runId");
+    const runs = (globalThis as any).__researchRuns as Map<string, { stopped: () => boolean; setStopped: (v: boolean) => void }>;
+    const run = runs?.get(runId);
+    if (run) {
+      run.setStopped(true);
+      return c.json({ runId, stopped: true });
+    }
+    return c.json({ runId, stopped: false, error: "Run not found" }, 404);
+  });
+
+  // Get current run status
+  app.get("/api/research/:runId/status", async (c) => {
+    const runId = c.req.param("runId");
+    const runs = (globalThis as any).__researchRuns as Map<string, { stopped: () => boolean }>;
+    const run = runs?.get(runId);
+    if (run) {
+      return c.json({ runId, status: run.stopped() ? "stopped" : "running" });
+    }
+    return c.json({ runId, status: "not_found" }, 404);
   });
 
   return app;
