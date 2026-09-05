@@ -7,6 +7,7 @@ import {
   timestamp,
   doublePrecision,
   integer,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const projects = pgTable("projects", {
