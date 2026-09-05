@@ -42,11 +42,11 @@ export async function buildEvidenceChain(
             sourceType: "Evidence",
             sourceId: evidenceId,
             targetType: "Hypothesis",
-            targetId: h.hypothesisId,
+            targetId: (h as any).hypothesisId,
             relation:
-              evidence.direction === "SUPPORTING"
+              (evidence.direction as string) === "SUPPORTING"
                 ? "supports"
-                : evidence.direction === "CONFLICTING"
+                : (evidence.direction as string) === "CONFLICTING"
                   ? "contradicts"
                   : "neutral",
           }) as any),

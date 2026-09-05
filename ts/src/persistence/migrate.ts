@@ -301,6 +301,28 @@ const MIGRATIONS = [
           created_at TIMESTAMP NOT NULL DEFAULT NOW()
         )
       `));
+
+      // Indexes (from spec)
+      await db.execute(sql.raw(`
+        CREATE INDEX IF NOT EXISTS idx_phase_runs_project_phase
+          ON phase_runs(project_id, phase_name)
+      `));
+      await db.execute(sql.raw(`
+        CREATE INDEX IF NOT EXISTS idx_phase_runs_project_version
+          ON phase_runs(project_id, phase_name, phase_version)
+      `));
+      await db.execute(sql.raw(`
+        CREATE INDEX IF NOT EXISTS idx_ec_source
+          ON evidence_chain(source_type, source_id)
+      `));
+      await db.execute(sql.raw(`
+        CREATE INDEX IF NOT EXISTS idx_ec_target
+          ON evidence_chain(target_type, target_id)
+      `));
+      await db.execute(sql.raw(`
+        CREATE INDEX IF NOT EXISTS idx_ec_project
+          ON evidence_chain(project_id)
+      `));
     },
   },
 ];

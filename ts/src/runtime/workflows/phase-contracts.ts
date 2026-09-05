@@ -286,7 +286,7 @@ export interface PhaseRunResult {
   selfReview?: {
     passed: boolean;
     rounds: number;
-    issues: Array<{ severity: string; category: string; message: string }>;
+    issues: Array<{ severity: "blocking" | "warning"; category: string; message: string }>;
   } | null;
 }
 
@@ -559,12 +559,37 @@ export async function runPhase(
     savedIds.reportIds = [reportId];
   }
 
+  // Determine needsApproval and objectType/objectId from saved objects
+  const needsApproval = selfReviewResult ? !selfReviewResult.passed : false;
+  let objectType = "";
+  let objectId = "";
+  if (Object.keys(savedIds).length > 0) {
+    const firstKey = Object.keys(savedIds)[0];
+    // e.g. "knowledgeIds" -> "KnowledgeItem", "hypothesisIds" -> "Hypothesis"
+    const typeMap: Record<string, string> = {
+      knowledgeIds: "KnowledgeItem",
+      hypothesisIds: "Hypothesis",
+      gapIds: "ResearchGap",
+      experimentIds: "Experiment",
+      resultIds: "Result",
+      evidenceIds: "Evidence",
+      reportIds: "Report",
+      citationIds: "Citation",
+    };
+    objectType = typeMap[firstKey] ?? firstKey.replace("Ids", "").replace(/^./, c => c.toUpperCase());
+    objectId = savedIds[firstKey]?.[0] ?? "";
+  }
+
   onEvent({
     type: "phase:complete",
     content: `完成: ${contract.label}`,
     phase: contract.name,
     timestamp: new Date().toISOString(),
-  });
+    needsApproval,
+    runId: "",
+    objectType,
+    objectId,
+  } as any);
 
   return {
     phaseName: contract.name,

@@ -707,7 +707,7 @@ export function createHonoApp(
 
     const updated = {
       ...run,
-      status: body.decision === "approve" ? "COMPLETED" : "REJECTED",
+      status: body.decision === "approve" ? "COMPLETED" : body.decision === "modify" ? "MODIFY_REQUESTED" : "REJECTED",
       humanFeedback: body.feedback ?? run.humanFeedback,
       active: body.decision === "approve" ? true : run.active,
       updatedAt: new Date(),

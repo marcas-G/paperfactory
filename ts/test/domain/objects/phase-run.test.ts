@@ -61,7 +61,7 @@ describe("PhaseRun Schema", () => {
     const selfReview = {
       passed: false,
       rounds: 1,
-      issues: [{ severity: "blocking", category: "logic", message: "Contradiction found" }],
+      issues: [{ severity: "blocking" as const, category: "logic", message: "Contradiction found" }],
     };
     const r = decode({ ...base, selfReview });
     expect(r.selfReview?.passed).toBe(false);
@@ -72,7 +72,7 @@ describe("PhaseRun Schema", () => {
     const selfReview = {
       passed: true,
       rounds: 1,
-      issues: [{ severity: "warning", category: "style", message: "Minor issue" }],
+      issues: [{ severity: "warning" as const, category: "style", message: "Minor issue" }],
     };
     const r = decode({ ...base, selfReview });
     expect(r.selfReview?.issues[0].severity).toBe("warning");
@@ -82,7 +82,7 @@ describe("PhaseRun Schema", () => {
     const selfReview = {
       passed: true,
       rounds: 1,
-      issues: [{ severity: "invalid", category: "test", message: "test" }],
+      issues: [{ severity: "invalid" as any, category: "test", message: "test" }],
     };
     expect(() => decode({ ...base, selfReview })).toThrow();
   });

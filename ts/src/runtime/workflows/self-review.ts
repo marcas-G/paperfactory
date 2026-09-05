@@ -77,9 +77,9 @@ export async function selfReview(
       };
     }
 
-    const issues: SelfReviewIssue[] = (reviewData.issues ?? []).map((i: any) => ({
+    const issues: SelfReviewIssue[] = ((reviewData.issues as Array<{ severity?: string; category?: string; message?: string }>) ?? []).map((i) => ({
       severity: i.severity === "blocking" ? "blocking" : "warning",
-      category: i.category || "unsupported-claim",
+      category: (i.category || "unsupported-claim") as SelfReviewIssue["category"],
       message: i.message || "Unknown issue",
     }));
 
@@ -87,7 +87,7 @@ export async function selfReview(
 
     if (blockingIssues.length === 0) {
       return {
-        passed: reviewData.passed ?? issues.length === 0,
+        passed: (reviewData.passed as boolean) ?? issues.length === 0,
         rounds: round,
         issues,
         finalOutput: currentOutput,
@@ -117,9 +117,9 @@ export async function selfReview(
   return {
     passed: false,
     rounds: round,
-    issues: finalData?.issues?.map((i: any) => ({
+    issues: (finalData?.issues as Array<{ severity?: string; category?: string; message?: string }> | undefined)?.map((i) => ({
       severity: i.severity === "blocking" ? "blocking" : "warning",
-      category: i.category || "unsupported-claim",
+      category: (i.category || "unsupported-claim") as SelfReviewIssue["category"],
       message: i.message || "Unknown issue",
     })) ?? [],
     finalOutput: currentOutput,

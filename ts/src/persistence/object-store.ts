@@ -85,6 +85,7 @@ export class InMemoryObjectStore implements ObjectStore {
 
   private getType(obj: ResearchObject): string {
     if ("evidenceChainId" in obj) return "EvidenceChain";
+    if ("phaseRunId" in obj) return "PhaseRun";
     if ("submissionId" in obj) return "Submission";
     if ("reportId" in obj && "sectionIds" in obj) return "Report";
     if ("failureId" in obj) return "ResearchFailure";
@@ -97,6 +98,7 @@ export class InMemoryObjectStore implements ObjectStore {
     if ("knowledgeId" in obj) return "KnowledgeItem";
     if ("questionId" in obj) return "ResearchQuestion";
     if ("resultId" in obj) return "Result";
+    if ("citationId" in obj) return "Citation";
     if ("approvalId" in obj) return "ApprovalRequest";
     if ("taskId" in obj) return "Task";
     if ("branchId" in obj && !("hypothesisId" in obj) && !("questionId" in obj) && !("gapId" in obj)) return "Branch";
