@@ -15,7 +15,7 @@ export class Sandbox {
 
   constructor() {
     this.scienceServiceUrl =
-      process.env.SCIENCE_SERVICE_URL || "http://localhost:8001";
+      process.env.SCIENCE_SERVICE_URL || "http://science-service:8001" || "http://localhost:8001";
   }
 
   async execute(input: SandboxInput): Promise<SandboxResult> {

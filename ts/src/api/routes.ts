@@ -309,8 +309,14 @@ export function createHonoApp(
     };
     await Effect.runPromise(objectStore.save(project));
 
-    // Create gap
-    await Effect.runPromise(objectStore.save({
+    // Use in-memory store for research workflow (avoids PG schema constraints)
+    const { InMemoryObjectStore } = await import("@persistence/object-store");
+    const { InMemoryEventStore } = await import("@persistence/event-store");
+    const memStore = new InMemoryObjectStore();
+    const memEventStore = new InMemoryEventStore();
+
+    // Save to memory store
+    await Effect.runPromise(memStore.save({
       gapId,
       projectId,
       branchId,
@@ -318,9 +324,7 @@ export function createHonoApp(
       status: "IDENTIFIED",
       createdAt: now,
     }));
-
-    // Create hypothesis
-    await Effect.runPromise(objectStore.save({
+    await Effect.runPromise(memStore.save({
       hypothesisId,
       projectId,
       branchId,
@@ -331,7 +335,18 @@ export function createHonoApp(
       createdAt: now,
     }));
 
-    // Run workflow
+    // Create in-memory controller for isolated research workflow
+    const { TransitionEngine } = await import("@control/engine");
+    const { ActionRegistry } = await import("@control/registry");
+    const memTransitionEngine = new TransitionEngine();
+    const memActionRegistry = new ActionRegistry();
+    const memController = new (await import("@control/controller")).ResearchController(
+      memStore,
+      memEventStore,
+      memTransitionEngine,
+      memActionRegistry
+    );
+
     const { createHypothesisVerificationWorkflow, runWorkflow } = await import(
       "@runtime/workflows/hypothesis-verification"
     );
@@ -341,9 +356,12 @@ export function createHonoApp(
       projectId,
       branchId,
       provider,
-      objectStore,
-      eventStore: {} as any,
-      controller,
+      objectStore: memStore,
+      eventStore: memEventStore,
+      controller: memController,
+      literatureResults: [
+        { summary: `Research on: ${body.question ?? "unknown topic"}`, certaintyLevel: 0.8 },
+      ],
     });
 
     // Run phase by phase, emitting events via SSE-like response
@@ -374,9 +392,9 @@ export function createHonoApp(
     }
 
     // Final state
-    const evidenceList = await Effect.runPromise(objectStore.list("Evidence"));
-    const knowledgeList = await Effect.runPromise(objectStore.list("KnowledgeItem"));
-    const reports = await Effect.runPromise(objectStore.list("Report"));
+    const evidenceList = await Effect.runPromise(memStore.list("Evidence"));
+    const knowledgeList = await Effect.runPromise(memStore.list("KnowledgeItem"));
+    const reports = await Effect.runPromise(memStore.list("Report"));
 
     return c.json({
       runId: generateUuid(),

@@ -354,6 +354,18 @@ function formatPhaseData(data) {
     const sr = obj.sandboxResult;
     s += `沙箱执行: ${sr.isError ? '失败' : '成功'}\n输出: ${sr.output || '无'}\n`;
   }
+  if (obj.assessResult) {
+    s += `评估: ${obj.assessResult.success ? '通过' : '未通过'}\n`;
+  }
+  if (obj.activateResult) {
+    s += `激活: ${obj.activateResult.success ? '通过' : '未通过'}\n`;
+  }
+  if (obj.hypothesisConfirmed !== undefined) {
+    s += `假设确认: ${obj.hypothesisConfirmed ? '✅ 已确认' : '❌ 未确认'}\n`;
+  }
+  if (obj.report) {
+    s += `报告: ${obj.report.title || '已生成'}\n`;
+  }
   return s || JSON.stringify(obj).substring(0, 500);
 }
 
