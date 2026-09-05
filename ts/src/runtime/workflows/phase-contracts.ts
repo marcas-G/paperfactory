@@ -12,6 +12,7 @@ import { createExperiment } from "@domain/objects/experiment";
 import { createResult } from "@domain/objects/result";
 import { createEvidence } from "@domain/objects/evidence";
 import { createReport } from "@domain/objects/report";
+import { selfReview, SelfReviewResult } from "./self-review";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -282,6 +283,11 @@ export interface PhaseRunResult {
   rawOutput: string;
   savedIds: Record<string, string[]>;
   toolCalls: Array<{ toolName: string; input: Record<string, unknown>; output: string }>;
+  selfReview?: {
+    passed: boolean;
+    rounds: number;
+    issues: Array<{ severity: string; category: string; message: string }>;
+  } | null;
 }
 
 export async function runPhase(
@@ -297,7 +303,7 @@ export async function runPhase(
   extraContext?: string,
 ): Promise<PhaseRunResult> {
   if (shouldStop()) {
-    return { phaseName: contract.name, status: "SKIPPED", output: null, rawOutput: "", savedIds: {}, toolCalls: [] };
+    return { phaseName: contract.name, status: "SKIPPED", output: null, rawOutput: "", savedIds: {}, toolCalls: [], selfReview: null };
   }
 
   onEvent({
@@ -371,6 +377,7 @@ export async function runPhase(
 
   let rawOutput = "";
   const toolCalls: Array<{ toolName: string; input: Record<string, unknown>; output: string }> = [];
+  let selfReviewResult: SelfReviewResult | null = null;
 
   try {
     const result = await runAgentLoop(provider, toolRegistry, messages, {
@@ -388,11 +395,27 @@ export async function runPhase(
       input: tc.input,
       output: tc.output.content?.substring(0, 3000) ?? "",
     })));
+
+    // Step 3b: Self-review
+    if (rawOutput && rawOutput.trim().length > 0) {
+      selfReviewResult = await selfReview(rawOutput, contract.name, provider);
+
+      onEvent({
+        type: "phase:progress",
+        content: `自我审查: ${selfReviewResult.passed ? "通过" : "发现问题"} (${selfReviewResult.rounds} 轮)`,
+        phase: contract.name,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (selfReviewResult.finalOutput !== rawOutput) {
+        rawOutput = selfReviewResult.finalOutput;
+      }
+    }
   } catch (err: any) {
     onEvent({ type: "error", content: String(err), phase: contract.name, timestamp: new Date().toISOString() });
     return {
       phaseName: contract.name, status: "ERROR", output: null, rawOutput: "",
-      savedIds: {}, toolCalls,
+      savedIds: {}, toolCalls, selfReview: null,
     };
   }
 
@@ -550,5 +573,8 @@ export async function runPhase(
     rawOutput,
     savedIds,
     toolCalls,
+    selfReview: selfReviewResult
+      ? { passed: selfReviewResult.passed, rounds: selfReviewResult.rounds, issues: selfReviewResult.issues }
+      : null,
   };
 }
