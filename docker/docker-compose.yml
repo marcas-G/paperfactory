@@ -55,9 +55,12 @@ services:
     environment:
       DATABASE_URL: postgresql://paperfactory:paperfactory_dev@postgres:5432/paperfactory
       LLM_BASE_URL: http://host.docker.internal:8011/v1
+      SCIENCE_SERVICE_URL: http://127.0.0.1:8001
       PORT: "3001"
     ports:
       - "3001:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       migrate:
         condition: service_started
