@@ -547,8 +547,13 @@ export function createHonoApp(
               controller: memController,
               toolRegistry: researchToolRegistry,
               toolDefinitions,
+              mode: body.mode ?? "manual",
               onEvent: (event) => {
                 sendEvent(event.type, event);
+              },
+              onApprovalNeeded: async (runId: string, phaseName: string, summary: string) => {
+                sendEvent("awaiting_approval", { runId, phaseName, summary });
+                return "approve";
               },
               shouldStop: () => stopped,
             });
@@ -631,6 +636,93 @@ export function createHonoApp(
       experiments: experiments.filter((e: any) => e.projectId === id),
       citations: citations.filter((ci: any) => ci.projectId === id),
     });
+  });
+
+  // List phase runs for a project
+  app.get("/api/projects/:id/phases", async (c) => {
+    const id = c.req.param("id");
+    const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
+    const projectRuns = runs
+      .filter((r: any) => r.projectId === id)
+      .sort((a: any, b: any) => a.phaseVersion - b.phaseVersion);
+    return c.json(projectRuns);
+  });
+
+  // Get phases grouped by phase name
+  app.get("/api/projects/:id/phases/grouped", async (c) => {
+    const id = c.req.param("id");
+    const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
+    const projectRuns = runs.filter((r: any) => r.projectId === id);
+
+    const grouped: Record<string, any[]> = {};
+    for (const run of projectRuns) {
+      const name = (run as any).phaseName;
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push(run);
+    }
+    return c.json(grouped);
+  });
+
+  // Get evidence chain for an object (bidirectional)
+  app.get("/api/projects/:id/chain/:objectType/:objectId", async (c) => {
+    const id = c.req.param("id");
+    const objectType = c.req.param("objectType");
+    const objectId = c.req.param("objectId");
+
+    const chains = await Effect.runPromise(objectStore.list("EvidenceChain"));
+    const projectChains = chains.filter((ch: any) => ch.projectId === id);
+
+    // Upstream: things this object depends on
+    const upstream = projectChains.filter((ch: any) =>
+      ch.sourceType === objectType && ch.sourceId === objectId
+    ).map((ch: any) => ({
+      targetType: ch.targetType,
+      targetId: ch.targetId,
+      relation: ch.relation,
+    }));
+
+    // Downstream: things that depend on this object
+    const downstream = projectChains.filter((ch: any) =>
+      ch.targetType === objectType && ch.targetId === objectId
+    ).map((ch: any) => ({
+      sourceType: ch.sourceType,
+      sourceId: ch.sourceId,
+      relation: ch.relation,
+    }));
+
+    return c.json({ upstream, downstream });
+  });
+
+  // Approve/modify/reject a phase run
+  app.post("/api/projects/:id/phases/:runId/decision", async (c) => {
+    const id = c.req.param("id");
+    const runId = c.req.param("runId");
+    const body = await c.req.json();
+
+    const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
+    const run = runs.find((r: any) => r.phaseRunId === runId && r.projectId === id);
+    if (!run) {
+      return c.json({ error: "Phase run not found" }, 404);
+    }
+
+    const updated = {
+      ...run,
+      status: body.decision === "approve" ? "COMPLETED" : "REJECTED",
+      humanFeedback: body.feedback ?? run.humanFeedback,
+      active: body.decision === "approve" ? true : run.active,
+      updatedAt: new Date(),
+    };
+
+    // Deactivate other versions of same phase
+    const samePhase = runs.filter((r: any) =>
+      r.projectId === id && r.phaseName === run.phaseName && r.phaseRunId !== runId
+    );
+    for (const other of samePhase) {
+      await Effect.runPromise(objectStore.save({ ...other, active: false, updatedAt: new Date() }));
+    }
+
+    await Effect.runPromise(objectStore.save(updated));
+    return c.json(updated);
   });
 
   // Re-run a specific phase for a project
