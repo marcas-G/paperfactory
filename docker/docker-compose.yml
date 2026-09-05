@@ -1,20 +1,11 @@
-# PaperFactory 本地开发环境
-#
-# 使用方式:
-#   docker compose up -d              # 启动所有服务
-#   docker compose up -d dev-py       # 仅启动 Python 开发环境
-#   docker compose up -d dev-ts       # 仅启动 TS 开发环境
-#   docker compose run test-py        # 跑 Python 测试
-#   docker compose run test-ts        # 跑 TS 测试
-#   docker compose run lint-py        # Python lint + type check
-#   docker compose run lint-ts        # TS lint + type check
-#   docker compose up -d science-service  # 启动科学计算服务
-#   docker compose run test-science   # 跑科学计算服务测试
-#
+# PaperFactory - Core services
+# Start: docker-compose up -d
+
+version: "3.8"
 
 services:
   # ============================================================
-  # PostgreSQL (开发数据库)
+  # PostgreSQL
   # ============================================================
   postgres:
     image: postgres:16-alpine
@@ -23,7 +14,7 @@ services:
       POSTGRES_USER: paperfactory
       POSTGRES_PASSWORD: paperfactory_dev
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -33,15 +24,15 @@ services:
       retries: 5
 
   # ============================================================
-  # TS Database Migration
+  # Database Migration (runs once, then exits)
   # ============================================================
-  ts-migrate:
+  migrate:
     build:
-      context: ./ts
+      context: ../ts
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - ./ts:/app
+      - ../ts:/app
       - ts_node_modules:/app/node_modules
     environment:
       DATABASE_URL: postgresql://paperfactory:paperfactory_dev@postgres:5432/paperfactory
@@ -49,58 +40,33 @@ services:
       postgres:
         condition: service_healthy
     command: sh -c "npx tsx src/persistence/migrate.ts"
-    profiles:
-      - typescript
-      - migrate
 
   # ============================================================
-  # Python 开发环境
+  # TypeScript App
   # ============================================================
-  dev-py:
+  ts-app:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile.python
-      target: dev
-    volumes:
-      - ../packages:/app/packages
-      - ../tests:/app/tests
-      - ../apps:/app/apps
-      - ../pyproject.toml:/app/pyproject.toml
-      - ../uv.lock:/app/uv.lock
-    environment:
-      PYTHONPATH: /app
-      PYTHONDONTWRITEBYTECODE: '1'
-      DATABASE_URL: postgresql://paperfactory:paperfactory_dev@postgres:5432/paperfactory
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: uv run pytest tests/ -v -x --tb=short
-    profiles:
-      - python
-
-  # ============================================================
-  # TypeScript 开发环境 (with PostgreSQL)
-  # ============================================================
-  dev-ts:
-    build:
-      context: ./ts
+      context: ../ts
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - ./ts:/app
+      - ../ts:/app
       - ts_node_modules:/app/node_modules
     environment:
       DATABASE_URL: postgresql://paperfactory:paperfactory_dev@postgres:5432/paperfactory
+      LLM_BASE_URL: http://host.docker.internal:8011/v1
+      PORT: "3001"
     ports:
-      - "3000:3000"
+      - "3001:3001"
     depends_on:
-      postgres:
-        condition: service_healthy
-    command: pnpm dev
-    profiles:
-      - typescript
+      migrate:
+        condition: service_started
+    command: sh -c "npx tsx src/app/cli.ts run"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:3001/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # ============================================================
   # Science Service (Python microservice)
@@ -111,133 +77,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8001:8001"
-    environment:
-      GROBID_URL: http://grobid:8070
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
-    profiles:
-      - science
-
-  # ============================================================
-  # Python 测试 (一次性运行)
-  # ============================================================
-  test-py:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.python
-      target: test
-    volumes:
-      - ../packages:/app/packages
-      - ../tests:/app/tests
-    environment:
-      PYTHONPATH: /app
-      PYTHONDONTWRITEBYTECODE: '1'
-    command: uv run pytest tests/ --cov=packages --cov-report=term-missing --cov-report=html
-    profiles:
-      - test-python
-
-  # ============================================================
-  # TypeScript 测试 (一次性运行)
-  # ============================================================
-  test-ts:
-    build:
-      context: ./ts
-      dockerfile: Dockerfile
-      target: test
-    volumes:
-      - ./ts:/app
-      - ts_node_modules:/app/node_modules
-    command: pnpm test:coverage
-    profiles:
-      - test-typescript
-
-  # ============================================================
-  # TypeScript Integration Tests (with real PostgreSQL)
-  # ============================================================
-  test-ts-integration:
-    build:
-      context: ./ts
-      dockerfile: Dockerfile
-      target: test
-    volumes:
-      - ./ts:/app
-      - ts_node_modules:/app/node_modules
-    environment:
-      DATABASE_URL: postgresql://paperfactory:paperfactory_dev@postgres:5432/paperfactory
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: sh -c "npx tsx src/persistence/migrate.ts && pnpm vitest run --config vitest.integration.config.ts"
-    profiles:
-      - test-typescript
-      - test-integration
-
-  # ============================================================
-  # Science Service Tests
-  # ============================================================
-  test-science:
-    build:
-      context: ../science-service
-      dockerfile: Dockerfile
-    volumes:
-      - ../science-service:/app
-    command: python -m pytest tests/ -v --tb=short
-    profiles:
-      - test-science
-
-  # ============================================================
-  # Python Lint + Type Check
-  # ============================================================
-  lint-py:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.python
-      target: dev
-    volumes:
-      - ../packages:/app/packages
-      - ../tests:/app/tests
-    command: >
-      sh -c "uv run ruff check packages/ tests/ &&
-             uv run ruff format --check packages/ tests/ &&
-             uv run pyright packages/ tests/"
-    profiles:
-      - lint-python
-
-  # ============================================================
-  # TS Lint + Type Check
-  # ============================================================
-  lint-ts:
-    build:
-      context: ./ts
-      dockerfile: Dockerfile
-      target: dev
-    volumes:
-      - ./ts:/app
-      - ts_node_modules:/app/node_modules
-    command: >
-      sh -c "pnpm lint && pnpm typecheck"
-    profiles:
-      - lint-typescript
-
-  # ============================================================
-  # 完整 CI 模拟 (本地等价于 GitHub Actions)
-  # ============================================================
-  ci-local:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.all
-      target: ci
-    volumes:
-      - ..:/app
-    environment:
-      PYTHONPATH: /app
-    command: /app/docker/ci-local.sh
 
 volumes:
   pg_data:
