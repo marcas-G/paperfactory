@@ -8,7 +8,7 @@ export interface ExperimentResult {
   analysis: { findings: string; significance: number; effectSize?: number };
 }
 
-const designSkill: Skill = {
+export const designSkill: Skill = {
   name: "experiment_design",
   description: "Design the experiment methodology using LLM",
   execute: (input: Record<string, unknown>) => {
@@ -66,7 +66,7 @@ const executeSkill: Skill = {
   },
 };
 
-const analyzeSkill: Skill = {
+export const analyzeSkill: Skill = {
   name: "experiment_analyze",
   description: "Analyze experiment results via science-service microservice",
   execute: (input: Record<string, unknown>) =>
