@@ -96,6 +96,8 @@ export class InMemoryObjectStore implements ObjectStore {
     if ("knowledgeId" in obj) return "KnowledgeItem";
     if ("questionId" in obj) return "ResearchQuestion";
     if ("resultId" in obj) return "Result";
+    if ("approvalId" in obj) return "ApprovalRequest";
+    if ("taskId" in obj) return "Task";
     if ("branchId" in obj && !("hypothesisId" in obj) && !("questionId" in obj) && !("gapId" in obj)) return "Branch";
     if ("projectId" in obj && !("branchId" in obj)) return "Project";
     return "Unknown";
