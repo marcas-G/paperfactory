@@ -71,7 +71,7 @@ describe("E2E: Hypothesis Verification", () => {
 
     const state = await runWorkflow(phases);
     expect(state.status).toBe("completed");
-    expect(state.phaseIndex).toBe(5);
+    expect(state.phaseIndex).toBe(6);
 
     const opt = await Effect.runPromise(ctx.objectStore.get(hypothesisId, "Hypothesis"));
     expect(opt.isSome()).toBe(true);

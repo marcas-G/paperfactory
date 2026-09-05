@@ -5,6 +5,7 @@ import type { ObjectStore } from "@persistence/object-store";
 import type { EventStore } from "@persistence/event-store";
 import type { ResearchController } from "@control/controller";
 import { createKnowledgeItem } from "@domain/objects/knowledge";
+import { createReport } from "@domain/objects/report";
 import { createEvidence } from "@domain/objects/evidence";
 import { createResult } from "@domain/objects/result";
 import { createExperiment } from "@domain/objects/experiment";
@@ -181,6 +182,47 @@ export function createHypothesisVerificationWorkflow(
             hypothesisConfirmed: controllerResult.success,
             manifest,
             phase: "confirm",
+          };
+        });
+      },
+    },
+    {
+      name: "report_generation",
+      execute: () => {
+        return Effect.promise(async () => {
+          const reportId = generateUuid();
+          const report = createReport({
+            reportId,
+            projectId: ctx.projectId,
+            branchId: ctx.branchId,
+            title: "Research Report",
+            status: "DRAFT",
+          });
+          await Effect.runPromise(ctx.objectStore.save(report));
+
+          if (ctx.provider) {
+            const prompt = `Generate a research report based on the following findings:
+Hypothesis: ${manifest.hypotheses[0]?.statement ?? "Unknown"}
+Evidence: ${manifest.evidence.map((e) => JSON.stringify(e)).join(", ")}
+Knowledge: ${manifest.knowledgeItems.map((k) => JSON.stringify(k)).join(", ")}
+
+Format as a structured report with abstract, introduction, methods, results, and conclusion.`;
+
+            const response = await Effect.runPromise(
+              ctx.provider.sendMessages([{ role: "user", content: prompt }])
+            );
+
+            report.content = response.content;
+            await Effect.runPromise(ctx.objectStore.save(report));
+          }
+
+          manifest.reports = [report];
+
+          return {
+            reportId,
+            report,
+            manifest,
+            phase: "report_generation",
           };
         });
       },
