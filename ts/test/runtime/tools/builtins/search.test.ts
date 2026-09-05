@@ -56,11 +56,20 @@ describe("Search Tool", () => {
   });
 
   it("handles empty query", async () => {
-    const tool = createSearchTool();
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: any) => {
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+    }) as any;
 
-    const result = await Effect.runPromise(tool.execute({}));
-
-    expect(result.content).toBeTruthy();
+    try {
+      const tool = createSearchTool();
+      const result = await Effect.runPromise(tool.execute({}));
+      expect(result.content).toBeTruthy();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 
   it("search tool defaults to Semantic Scholar API", async () => {
