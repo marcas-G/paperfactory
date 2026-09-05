@@ -1,18 +1,19 @@
 import * as Effect from "effect/Effect";
 
-import { Provider, Message } from "../provider";
+import { Provider, Message, ToolDefinition } from "../provider";
 import { ToolRegistry } from "../tools/registry";
 import { ToolInput, ToolOutput } from "../tools/contracts";
 
 export type AgentEventType =
-  | "thinking"         // Agent 正在思考
-  | "tool:calling"     // 正在调用工具
-  | "tool:result"      // 工具返回结果
-  | "phase:start"      // 阶段开始
-  | "phase:progress"   // 阶段进展
-  | "phase:complete"   // 阶段完成
-  | "message"          // Agent 说话
-  | "error";           // 错误
+  | "thinking"
+  | "tool:calling"
+  | "tool:result"
+  | "phase:start"
+  | "phase:progress"
+  | "phase:complete"
+  | "message"
+  | "user:interrupt"
+  | "error";
 
 export interface AgentEvent {
   type: AgentEventType;
@@ -28,6 +29,8 @@ export interface AgentEvent {
 export interface AgentLoopOptions {
   maxIterations?: number;
   onEvent?: (event: AgentEvent) => void;
+  tools?: ReadonlyArray<ToolDefinition>;
+  shouldStop?: () => boolean;
 }
 
 export interface AgentLoopResult {
@@ -48,7 +51,7 @@ export async function runAgentLoop(
   initialMessages: ReadonlyArray<Message>,
   options: AgentLoopOptions = {}
 ): Promise<AgentLoopResult> {
-  const { maxIterations = 20, onEvent } = options;
+  const { maxIterations = 20, onEvent, tools, shouldStop } = options;
   const messages: Message[] = [...initialMessages];
   const toolCalls: Array<{ toolName: string; input: ToolInput; output: ToolOutput }> = [];
   const events: AgentEvent[] = [];
@@ -56,12 +59,17 @@ export async function runAgentLoop(
   let iteration = 0;
 
   while (iteration < maxIterations) {
+    if (shouldStop?.()) {
+      realEmit({ type: "user:interrupt", content: "用户中断了 Agent" });
+      return { finalContent: "用户中断", messages, toolCalls, events };
+    }
+
     iteration++;
 
     realEmit({ type: "thinking", content: `第 ${iteration} 轮推理中...`, iteration });
 
     const responseOpt = await Effect.runPromise(
-      Effect.either(provider.sendMessages(messages))
+      Effect.either(provider.sendMessages(messages, { tools }))
     );
 
     if (responseOpt._tag === "Left") {
@@ -80,10 +88,20 @@ export async function runAgentLoop(
       return { finalContent: content, messages, toolCalls, events };
     }
 
+    messages.push({
+      role: "assistant",
+      content: response.content || "",
+    });
+
     for (const toolCall of response.toolCalls) {
+      if (shouldStop?.()) {
+        realEmit({ type: "user:interrupt", content: "用户中断了 Agent" });
+        return { finalContent: "用户中断", messages, toolCalls, events };
+      }
+
       realEmit({
         type: "tool:calling",
-        content: `调用工具: ${toolCall.toolName}`,
+        content: `正在调用工具: ${toolCall.toolName}`,
         toolName: toolCall.toolName,
         toolArgs: toolCall.arguments,
       });
@@ -94,7 +112,7 @@ export async function runAgentLoop(
 
       realEmit({
         type: "tool:result",
-        content: toolOutput.content || "(empty)",
+        content: (toolOutput.content || "(empty)").substring(0, 2000),
         toolName: toolCall.toolName,
         toolResult: toolOutput,
       });
@@ -106,11 +124,8 @@ export async function runAgentLoop(
       });
 
       messages.push({
-        role: "user",
-        content: JSON.stringify({
-          toolCallId: toolCall.toolCallId,
-          result: toolOutput.content,
-        }),
+        role: "tool" as const,
+        content: toolOutput.content || "",
       });
     }
   }

@@ -1,10 +1,16 @@
 import { BaseTool, ToolInput, ToolOutput } from "../contracts";
 import * as Effect from "effect/Effect";
 
-export interface SearchResult {
+export interface PaperMeta {
+  paperId: string;
   title: string;
+  abstract: string;
+  authors: ReadonlyArray<string>;
+  year: number | null;
   url: string;
-  snippet: string;
+  citationCount: number;
+  relevanceScore: number;
+  openAccessPdf: string | null;
 }
 
 export interface SearchToolConfig {
@@ -25,13 +31,13 @@ export function createSearchTool(
 
   const searchWeb = async (
     query: string
-  ): Promise<ReadonlyArray<SearchResult>> => {
+  ): Promise<ReadonlyArray<PaperMeta>> => {
     if (!endpoint) {
       return [];
     }
 
     try {
-      const url = `${endpoint}?query=${encodeURIComponent(query)}`;
+      const url = `${endpoint}?query=${encodeURIComponent(query)}&limit=${maxResults}&fields=title,abstract,authors,year,url,citationCount,relevanceScore,openAccessPdf,twitterId`;
       const response = await globalThis.fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -45,17 +51,28 @@ export function createSearchTool(
       }
 
       const parsed = await response.json();
-
-      const results: SearchResult[] = [];
       const items = parsed.data ?? parsed.results ?? parsed;
-      if (Array.isArray(items)) {
-        for (const item of items.slice(0, maxResults)) {
-          results.push({
-            title: String(item.title ?? ""),
-            url: String(item.url ?? ""),
-            snippet: String(item.snippet ?? item.abstract ?? ""),
-          });
-        }
+
+      if (!Array.isArray(items)) {
+        return [];
+      }
+
+      const results: PaperMeta[] = [];
+      for (const item of items.slice(0, maxResults)) {
+        const authors = item.authors
+          ? item.authors.map((a: any) => a.name ?? "Unknown").filter(Boolean)
+          : [];
+        results.push({
+          paperId: item.twitterId ?? item.paperId ?? `${Date.now()}-${Math.random()}`,
+          title: String(item.title ?? ""),
+          abstract: String(item.abstract ?? ""),
+          authors,
+          year: item.year ?? null,
+          url: String(item.url ?? item.openAccessPdf?.url ?? ""),
+          citationCount: item.citationCount ?? 0,
+          relevanceScore: item.relevanceScore ?? 0,
+          openAccessPdf: item.openAccessPdf?.url ?? null,
+        });
       }
 
       return results;
@@ -75,7 +92,7 @@ export function createSearchTool(
           query,
           results,
           count: results.length,
-        }),
+        }, null, 2),
       };
     } catch (err) {
       return {
@@ -91,7 +108,7 @@ export function createSearchTool(
 
   return {
     name: "search",
-    description: "Search for academic papers and documents",
+    description: "Search Semantic Scholar for academic papers. Returns full metadata: title, abstract, authors, year, citationCount, url, openAccessPdf.",
     execute: (input: ToolInput): Effect.Effect<ToolOutput, string> =>
       Effect.tryPromise({
         try: () => execFn(input),

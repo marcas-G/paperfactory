@@ -192,3 +192,33 @@ export const events = pgTable("events", {
   payload: jsonb("payload").$type<Record<string, unknown>>().default({}),
   revision: integer("revision").notNull(),
 });
+
+export const researchPhases = pgTable("research_phases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull(),
+  phaseName: varchar("phase_name", { length: 64 }).notNull(),
+  phaseLabel: varchar("phase_label", { length: 128 }).notNull(),
+  sequence: integer("sequence").notNull(),
+  status: varchar("status", { length: 32 }).notNull().default("PENDING"),
+  artifacts: jsonb("artifacts").$type<Record<string, unknown>>().default({}),
+  agentOutput: text("agent_output"),
+  needsReview: varchar("needs_review", { length: 16 }).notNull().default("false"),
+  reviewStatus: varchar("review_status", { length: 16 }).default(null).$type<string | null>(),
+  reviewComment: text("review_comment").default(null).$type<string | null>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const citations = pgTable("citations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull(),
+  knowledgeId: uuid("knowledge_id"),
+  sourceTitle: varchar("source_title", { length: 1024 }).notNull(),
+  sourceUrl: varchar("source_url", { length: 2048 }).notNull(),
+  sourceAuthors: jsonb("source_authors").$type<string[]>().default([]),
+  sourceYear: integer("source_year"),
+  abstract: text("abstract"),
+  relevanceScore: doublePrecision("relevance_score").notNull().default(0.5),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

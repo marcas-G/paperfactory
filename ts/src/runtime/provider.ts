@@ -4,8 +4,9 @@ import * as StreamNS from "effect/Stream";
 import OpenAI from "openai";
 
 export interface Message {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "tool";
   content: string;
+  toolCallId?: string;
 }
 
 export interface ProviderResponse {
@@ -36,10 +37,17 @@ export interface Provider {
   ): Effect.Effect<Stream<StreamEvent, never>, string>;
 }
 
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
 export interface ProviderOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  tools?: ReadonlyArray<ToolDefinition>;
 }
 
 export interface OpenAIProviderConfig {
@@ -67,17 +75,39 @@ export class OpenAIProvider implements Provider {
     return Effect.tryPromise({
       try: async () => {
         const openaiMessages: Array<OpenAI.ChatCompletionMessageParam> = messages.map(
-          (m) => ({
-            role: m.role as "user" | "assistant" | "system",
-            content: m.content,
-          })
+          (m) => {
+            if (m.role === "tool") {
+              return {
+                role: "tool" as const,
+                content: m.content,
+                tool_call_id: m.toolCallId,
+              };
+            }
+            return {
+              role: m.role as "user" | "assistant" | "system",
+              content: m.content,
+            };
+          }
         );
+
+        const openaiTools = options?.tools?.map((t) => ({
+          type: "function" as const,
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters ?? {
+              type: "object",
+              properties: {},
+            },
+          },
+        }));
 
         const response = await this.client.chat.completions.create({
           model: options?.model ?? this.model,
           messages: openaiMessages,
           temperature: options?.temperature ?? 0,
           max_tokens: options?.maxTokens ?? 4096,
+          ...(openaiTools && openaiTools.length > 0 ? { tools: openaiTools } : {}),
         });
 
         const choice = response.choices[0];

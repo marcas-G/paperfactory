@@ -1,11 +1,12 @@
 import * as fs from "fs";
 import * as Effect from "effect/Effect";
 import { Hono } from "hono";
-import { Provider } from "@runtime/provider";
+import { Provider, ToolDefinition } from "@runtime/provider";
 import { ObjectStore } from "@persistence/object-store";
 import { ResearchController } from "@control/controller";
 import { runAgentLoop } from "@runtime/agent/loop";
 import { ToolRegistry } from "@runtime/tools/registry";
+import { BaseTool } from "@runtime/tools/contracts";
 
 export interface APIRoute {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -70,11 +71,23 @@ function generateUuid(): string {
   });
 }
 
+function buildToolDefs(registry: ToolRegistry): ReadonlyArray<ToolDefinition> {
+  return registry.list().map((info) => ({
+    name: info.name,
+    description: info.description,
+    parameters: info.schema ?? {
+      type: "object",
+      properties: {},
+    },
+  }));
+}
+
 export function createHonoApp(
   _router: APIRouter,
   objectStore: ObjectStore,
   controller: ResearchController,
-  provider: Provider
+  provider: Provider,
+  appToolRegistry?: ToolRegistry
 ): Hono {
   const app = new Hono();
 
@@ -411,12 +424,12 @@ export function createHonoApp(
     );
 
     const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
-    const toolRegistry = new ToolRegistry();
+    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
+    const toolDefinitions = buildToolDefs(researchToolRegistry);
     const events: Array<Record<string, unknown>> = [];
     let stopped = false;
 
     const researchResult = await runAgentDrivenResearch({
-      hypothesisId,
       projectId,
       branchId,
       question: body.question ?? "",
@@ -424,7 +437,8 @@ export function createHonoApp(
       objectStore: memStore,
       eventStore: memEventStore,
       controller: memController,
-      toolRegistry,
+      toolRegistry: researchToolRegistry,
+      toolDefinitions,
       onEvent: (event) => events.push(event),
       shouldStop: () => stopped,
     });
@@ -438,9 +452,9 @@ export function createHonoApp(
       runId: generateUuid(),
       projectId,
       questionId,
-      hypothesisId,
       status: "completed",
-      hypothesis: [{ id: hypothesisId, statement: body.question, status: researchResult.hypothesisStatus }],
+      hypotheses: researchResult.hypotheses.map((h: any) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
+      researchGaps: researchResult.researchGaps,
       evidenceCount: researchResult.evidence.length,
       knowledgeCount: researchResult.knowledgeItems.length,
       reportCount: researchResult.reports.length,
@@ -494,7 +508,8 @@ export function createHonoApp(
     );
 
     const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
-    const toolRegistry = new ToolRegistry();
+    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
+    const toolDefinitions = buildToolDefs(researchToolRegistry);
     let stopped = false;
 
     // Store run state for interrupt
@@ -523,7 +538,6 @@ export function createHonoApp(
             sendEvent("run:start", { runId, projectId, question: body.question });
 
             const researchResult = await runAgentDrivenResearch({
-              hypothesisId,
               projectId,
               branchId,
               question: body.question ?? "",
@@ -531,7 +545,8 @@ export function createHonoApp(
               objectStore: memStore,
               eventStore: memEventStore,
               controller: memController,
-              toolRegistry,
+              toolRegistry: researchToolRegistry,
+              toolDefinitions,
               onEvent: (event) => {
                 sendEvent(event.type, event);
               },
@@ -597,6 +612,65 @@ export function createHonoApp(
       return c.json({ runId, status: run.stopped() ? "stopped" : "running" });
     }
     return c.json({ runId, status: "not_found" }, 404);
+  });
+
+  // Get all data for a project (phases, hypotheses, evidence, etc.)
+  app.get("/api/projects/:id/all", async (c) => {
+    const id = c.req.param("id");
+    const hypotheses = await Effect.runPromise(objectStore.list("Hypothesis"));
+    const evidence = await Effect.runPromise(objectStore.list("Evidence"));
+    const knowledge = await Effect.runPromise(objectStore.list("KnowledgeItem"));
+    const reports = await Effect.runPromise(objectStore.list("Report"));
+    const experiments = await Effect.runPromise(objectStore.list("Experiment"));
+    const citations = await Effect.runPromise(objectStore.list("Citation"));
+    return c.json({
+      hypotheses: hypotheses.filter((h: any) => h.projectId === id),
+      evidence: evidence.filter((e: any) => e.projectId === id),
+      knowledge: knowledge.filter((k: any) => k.projectId === id),
+      reports: reports.filter((r: any) => r.projectId === id),
+      experiments: experiments.filter((e: any) => e.projectId === id),
+      citations: citations.filter((ci: any) => ci.projectId === id),
+    });
+  });
+
+  // Re-run a specific phase for a project
+  app.post("/api/projects/:id/phases/:phaseName/run", async (c) => {
+    const id = c.req.param("id");
+    const phaseName = c.req.param("phaseName");
+    const body = await c.req.json().catch(() => ({}));
+
+    const { PHASE_CONTRACTS } = await import("@runtime/workflows/phase-contracts");
+    const contract = PHASE_CONTRACTS.find((p) => p.name === phaseName);
+    if (!contract) {
+      return c.json({ error: `Unknown phase: ${phaseName}` }, 404);
+    }
+
+    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
+    const toolDefinitions = buildToolDefs(researchToolRegistry);
+    const events: Array<Record<string, unknown>> = [];
+
+    const { runPhase } = await import("@runtime/workflows/phase-contracts");
+    const result = await runPhase(
+      contract,
+      objectStore,
+      provider,
+      researchToolRegistry,
+      toolDefinitions,
+      id,
+      body.question ?? "",
+      (event) => events.push(event),
+      () => false,
+    );
+
+    return c.json({
+      phaseName: result.phaseName,
+      status: result.status,
+      output: result.output,
+      rawOutput: result.rawOutput,
+      savedIds: result.savedIds,
+      toolCalls: result.toolCalls,
+      events,
+    });
   });
 
   return app;
