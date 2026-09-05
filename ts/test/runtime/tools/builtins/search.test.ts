@@ -3,29 +3,56 @@ import * as Effect from "effect/Effect";
 import { createSearchTool } from "@runtime/tools/builtins/search";
 
 describe("Search Tool", () => {
-  it("returns empty results when no endpoint configured", async () => {
-    const tool = createSearchTool();
+  it("returns results from Semantic Scholar by default", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: any) => {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ data: [{ title: "Default Result" }] }),
+          { status: 200 }
+        )
+      );
+    }) as any;
 
-    const result = await Effect.runPromise(
-      tool.execute({ query: "test" })
-    );
+    try {
+      const tool = createSearchTool();
+      const result = await Effect.runPromise(
+        tool.execute({ query: "test" })
+      );
 
-    expect(result.content).toBeTruthy();
+      expect(result.content).toContain("Default Result");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 
   it("uses custom config", async () => {
-    const tool = createSearchTool({
-      maxResults: 5,
-    });
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: any) => {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ data: [{ title: "Custom Result" }] }),
+          { status: 200 }
+        )
+      );
+    }) as any;
 
-    expect(tool.name).toBe("search");
-    expect(tool.description).toContain("Search");
+    try {
+      const tool = createSearchTool({
+        maxResults: 5,
+      });
 
-    const result = await Effect.runPromise(
-      tool.execute({ query: "machine learning" })
-    );
+      expect(tool.name).toBe("search");
+      expect(tool.description).toContain("Search");
 
-    expect(result.content).toBeTruthy();
+      const result = await Effect.runPromise(
+        tool.execute({ query: "machine learning" })
+      );
+
+      expect(result.content).toBeTruthy();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 
   it("handles empty query", async () => {
