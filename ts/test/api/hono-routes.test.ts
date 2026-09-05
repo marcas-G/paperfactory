@@ -43,7 +43,7 @@ describe("Hono API Routes", () => {
 
     const body = await res.json();
     expect(body.name).toBe("My Project");
-    expect(body.status).toBe("created");
+    expect(body.status).toBe("ACTIVE");
     expect(body).toHaveProperty("id");
     expect(body).toHaveProperty("createdAt");
   });

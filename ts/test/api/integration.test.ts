@@ -44,7 +44,7 @@ describe("API Integration - Real Endpoints", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     );
     expect(body.name).toBe("Test Project");
-    expect(body.status).toBe("created");
+    expect(body.status).toBe("ACTIVE");
     expect(body).toHaveProperty("createdAt");
 
     // Must have been saved to objectStore

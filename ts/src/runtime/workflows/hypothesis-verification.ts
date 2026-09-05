@@ -23,6 +23,7 @@ export interface HypothesisVerificationContext {
   hypothesisId: string;
   projectId: string;
   branchId: string;
+  provider?: import("@runtime/provider").Provider;
   objectStore: ObjectStore;
   eventStore: EventStore;
   controller: ResearchController;
