@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { Provider } from "@runtime/provider";
@@ -76,6 +77,11 @@ export function createHonoApp(
   provider: Provider
 ): Hono {
   const app = new Hono();
+
+  app.get("/", (c) => {
+    const html = fs.readFileSync("src/api/static/index.html", "utf8");
+    return c.html(html);
+  });
 
   app.get("/health", (c) =>
     c.json({
