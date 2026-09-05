@@ -9,6 +9,16 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 512 }).notNull(),
+  description: text("description").default(""),
+  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const researchQuestions = pgTable("research_questions", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").notNull(),

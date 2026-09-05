@@ -14,6 +14,18 @@ const MIGRATIONS = [
     name: "001_create_all_tables",
     up: async (db: ReturnType<typeof drizzle>) => {
       await db.execute(sql.raw(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(512) NOT NULL,
+          description TEXT DEFAULT '',
+          status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `));
+
+      await db.execute(sql.raw(`
         CREATE TABLE IF NOT EXISTS research_questions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           project_id UUID NOT NULL,

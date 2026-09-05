@@ -9,6 +9,7 @@ import * as Schema from "@persistence/drizzle/schema";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TABLE_MAP: Record<string, any> = {
+  Project: Schema.projects,
   ResearchQuestion: Schema.researchQuestions,
   KnowledgeItem: Schema.knowledgeItems,
   ResearchGap: Schema.researchGaps,
@@ -24,6 +25,7 @@ const TABLE_MAP: Record<string, any> = {
 };
 
 const ID_KEY_MAP: Record<string, string> = {
+  Project: "projectId",
   ResearchQuestion: "questionId",
   KnowledgeItem: "knowledgeId",
   ResearchGap: "gapId",
@@ -39,6 +41,7 @@ const ID_KEY_MAP: Record<string, string> = {
 };
 
 function detectType(obj: ResearchObject): string {
+  if ("projectId" in obj && "name" in obj && !("questionId" in obj)) return "Project";
   if ("submissionId" in obj) return "Submission";
   if ("reportId" in obj && "sectionIds" in obj) return "Report";
   if ("failureId" in obj) return "ResearchFailure";

@@ -88,11 +88,15 @@ export function createHonoApp(
   app.post("/api/projects", async (c) => {
     const body = await c.req.json();
     const id = generateUuid();
+    const now = new Date();
     const project = {
       projectId: id,
       name: body.name ?? "Untitled",
-      status: "created",
-      createdAt: new Date().toISOString(),
+      status: "ACTIVE",
+      description: "",
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
     };
     await Effect.runPromise(objectStore.save(project));
     return c.json(
@@ -100,7 +104,7 @@ export function createHonoApp(
         id,
         name: project.name,
         status: project.status,
-        createdAt: project.createdAt,
+        createdAt: now.toISOString(),
       },
       201
     );
