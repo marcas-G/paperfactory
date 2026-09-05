@@ -228,6 +228,46 @@ export function createHonoApp(
     return c.json({ error: "Research object not found" }, 404);
   });
 
+  app.get("/api/projects/:id/hypotheses", async (c) => {
+    const id = c.req.param("id");
+    const all = await Effect.runPromise(objectStore.list("Hypothesis"));
+    return c.json(all.filter((h: any) => h.projectId === id));
+  });
+
+  app.get("/api/projects/:id/evidence", async (c) => {
+    const id = c.req.param("id");
+    const all = await Effect.runPromise(objectStore.list("Evidence"));
+    return c.json(all.filter((e: any) => e.projectId === id));
+  });
+
+  app.get("/api/projects/:id/knowledge", async (c) => {
+    const id = c.req.param("id");
+    const all = await Effect.runPromise(objectStore.list("KnowledgeItem"));
+    return c.json(all.filter((k: any) => k.projectId === id));
+  });
+
+  app.get("/api/projects/:id/reports", async (c) => {
+    const id = c.req.param("id");
+    const all = await Effect.runPromise(objectStore.list("Report"));
+    return c.json(all.filter((r: any) => r.projectId === id));
+  });
+
+  app.get("/api/projects/:id/all", async (c) => {
+    const id = c.req.param("id");
+    const hypotheses = await Effect.runPromise(objectStore.list("Hypothesis"));
+    const evidence = await Effect.runPromise(objectStore.list("Evidence"));
+    const knowledge = await Effect.runPromise(objectStore.list("KnowledgeItem"));
+    const reports = await Effect.runPromise(objectStore.list("Report"));
+    const experiments = await Effect.runPromise(objectStore.list("Experiment"));
+    return c.json({
+      hypotheses: hypotheses.filter((h: any) => h.projectId === id),
+      evidence: evidence.filter((e: any) => e.projectId === id),
+      knowledge: knowledge.filter((k: any) => k.projectId === id),
+      reports: reports.filter((r: any) => r.projectId === id),
+      experiments: experiments.filter((e: any) => e.projectId === id),
+    });
+  });
+
   app.put("/api/research/:objectId", async (c) => {
     const objectId = c.req.param("objectId");
     const body = await c.req.json();
@@ -395,6 +435,14 @@ export function createHonoApp(
     const evidenceList = await Effect.runPromise(memStore.list("Evidence"));
     const knowledgeList = await Effect.runPromise(memStore.list("KnowledgeItem"));
     const reports = await Effect.runPromise(memStore.list("Report"));
+    const hypothesisList = await Effect.runPromise(memStore.list("Hypothesis"));
+    const experimentList = await Effect.runPromise(memStore.list("Experiment"));
+    const resultList = await Effect.runPromise(memStore.list("Result"));
+
+    // Persist research results to PG (project already saved above)
+    for (const item of [...evidenceList, ...knowledgeList, ...reports, ...hypothesisList, ...experimentList, ...resultList]) {
+      await Effect.runPromise(objectStore.save(item));
+    }
 
     return c.json({
       runId: generateUuid(),
@@ -403,6 +451,7 @@ export function createHonoApp(
       hypothesisId,
       status,
       phases: phaseResults,
+      hypothesis: hypothesisList.map((h: any) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
       evidenceCount: evidenceList.length,
       knowledgeCount: knowledgeList.length,
       reportCount: reports.length,
