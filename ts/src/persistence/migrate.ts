@@ -233,6 +233,76 @@ const MIGRATIONS = [
       `));
     },
   },
+  {
+    name: "002_add_phase_and_evidence_tables",
+    up: async (db: ReturnType<typeof drizzle>) => {
+      await db.execute(sql.raw(`
+        CREATE TABLE IF NOT EXISTS research_phases (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL,
+          phase_name VARCHAR(64) NOT NULL,
+          phase_label VARCHAR(128) NOT NULL,
+          sequence INTEGER NOT NULL,
+          status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+          artifacts JSONB DEFAULT '{}',
+          agent_output TEXT,
+          needs_review VARCHAR(16) NOT NULL DEFAULT 'false',
+          review_status VARCHAR(16) DEFAULT NULL,
+          review_comment TEXT DEFAULT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `));
+
+      await db.execute(sql.raw(`
+        CREATE TABLE IF NOT EXISTS citations (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL,
+          knowledge_id UUID,
+          source_title VARCHAR(1024) NOT NULL,
+          source_url VARCHAR(2048) NOT NULL,
+          source_authors JSONB DEFAULT '[]',
+          source_year INTEGER,
+          abstract TEXT,
+          relevance_score DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `));
+
+      await db.execute(sql.raw(`
+        CREATE TABLE IF NOT EXISTS phase_runs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL,
+          phase_name VARCHAR(64) NOT NULL,
+          phase_version INTEGER NOT NULL,
+          parent_run_id UUID,
+          status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+          artifacts JSONB DEFAULT '{}',
+          agent_output TEXT,
+          tool_calls JSONB DEFAULT '[]',
+          self_review JSONB DEFAULT NULL,
+          human_feedback TEXT,
+          active BOOLEAN NOT NULL DEFAULT false,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `));
+
+      await db.execute(sql.raw(`
+        CREATE TABLE IF NOT EXISTS evidence_chain (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL,
+          source_type VARCHAR(32) NOT NULL,
+          source_id UUID NOT NULL,
+          target_type VARCHAR(32) NOT NULL,
+          target_id UUID NOT NULL,
+          relation VARCHAR(32) NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `));
+    },
+  },
 ];
 
 export async function migrate(): Promise<void> {
