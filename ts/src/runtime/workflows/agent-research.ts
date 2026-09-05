@@ -7,6 +7,7 @@ import type { ToolRegistry } from "@runtime/tools/registry";
 import type { AgentEvent } from "@runtime/agent/loop";
 import { PHASE_CONTRACTS, runPhase } from "./phase-contracts";
 import { createPhaseRun } from "@domain/objects/phase-run";
+import { buildEvidenceChain } from "./evidence-chain";
 
 export interface ResearchRunContext {
   projectId: string;
@@ -134,6 +135,11 @@ export async function runAgentDrivenResearch(
     });
     await Effect.runPromise(objectStore.save(phaseRun as any));
     phaseRunIds[contract.name] = phaseRunId;
+
+    await buildEvidenceChain(objectStore, ctx.projectId, {
+      savedIds: result.savedIds,
+      phaseName: contract.name,
+    });
 
     onEvent({
       type: "phase:progress",
