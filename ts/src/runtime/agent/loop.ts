@@ -23,9 +23,23 @@ export async function runAgentLoop(
   while (iteration < maxIterations) {
     iteration++;
 
-    const response = await Effect.runPromise(
-      provider.sendMessages(messages)
+    const responseOpt = await Effect.runPromise(
+      Effect.either(provider.sendMessages(messages))
     );
+
+    if (responseOpt._tag === "Left") {
+      messages.push({
+        role: "assistant",
+        content: `Error: ${responseOpt.left}`,
+      });
+      return {
+        finalContent: `Error: ${responseOpt.left}`,
+        messages,
+        toolCalls,
+      };
+    }
+
+    const response = responseOpt.right;
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       messages.push({
