@@ -1,0 +1,23 @@
+# Research Domain
+name: research
+description: General academic research workflow
+
+research_question:
+  default_domain: general
+  auto_generate_hypotheses: true
+  min_evidence_count: 3
+
+hypothesis:
+  require_falsification_condition: true
+  min_certainty_threshold: 0.7
+  blind_review_enabled: true
+
+experiment:
+  require_power_analysis: true
+  min_sample_size: 30
+  default_significance_level: 0.05
+
+report:
+  format: academic_paper
+  sections: [abstract, introduction, methods, results, discussion, conclusion]
+  citation_style: APA

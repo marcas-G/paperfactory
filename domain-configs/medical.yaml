@@ -1,0 +1,34 @@
+# Medical Domain
+name: medical
+description: Clinical research and medical evidence evaluation
+
+research_question:
+  default_domain: medical
+  auto_generate_hypotheses: true
+  min_evidence_count: 5
+
+hypothesis:
+  require_falsification_condition: true
+  min_certainty_threshold: 0.8
+  blind_review_enabled: true
+  require_ethics_approval: true
+
+experiment:
+  require_power_analysis: true
+  min_sample_size: 100
+  default_significance_level: 0.01
+  require_irb_review: true
+
+evidence:
+  hierarchy:
+    - systematic_review
+    - randomized_controlled_trial
+    - cohort_study
+    - case_control_study
+    - case_series
+    - expert_opinion
+
+report:
+  format: clinical_paper
+  sections: [abstract, introduction, methods, results, discussion, limitations, conclusion]
+  citation_style: Vancouver
