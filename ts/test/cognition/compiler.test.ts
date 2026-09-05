@@ -85,6 +85,7 @@ const mockReport = (): Report => ({
   metadata: {},
   createdAt: new Date(),
   updatedAt: new Date(),
+  content: "",
 });
 
 describe("ContextCompiler", () => {

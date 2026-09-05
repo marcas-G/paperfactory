@@ -10,7 +10,7 @@ describe("Submission Capability", () => {
       projectId: "00000000-0000-4000-a000-000000000000",
       branchId: "00000000-0000-4000-a000-000000000000",
       reportId: "00000000-0000-4000-a000-000000000000",
-      targetVenue: "arxiv",
+      venue: "arxiv",
       status: "SUBMITTED",
     });
 
@@ -24,11 +24,11 @@ describe("Submission Capability", () => {
       projectId: "00000000-0000-4000-a000-000000000000",
       branchId: "00000000-0000-4000-a000-000000000000",
       reportId: "00000000-0000-4000-a000-000000000000",
-      targetVenue: "NeurIPS 2026",
+      venue: "NeurIPS 2026",
       status: "ACCEPTED",
     });
 
-    expect(submission.targetVenue).toBe("NeurIPS 2026");
+    expect(submission.venue).toBe("NeurIPS 2026");
     expect(submission.status).toBe("ACCEPTED");
   });
 
@@ -41,7 +41,7 @@ describe("Submission Capability", () => {
       projectId: "00000000-0000-4000-a000-000000000000",
       branchId: "00000000-0000-4000-a000-000000000000",
       reportId: "00000000-0000-4000-a000-000000000000",
-      targetVenue: "ICML 2026",
+      venue: "ICML 2026",
       status: "UNDER_REVIEW",
     });
 
@@ -49,7 +49,7 @@ describe("Submission Capability", () => {
     const opt = await Effect.runPromise(store.get("sub-003", "Submission"));
     expect(opt.isSome()).toBe(true);
     const retrieved = opt.value as Submission;
-    expect(retrieved.targetVenue).toBe("ICML 2026");
+    expect(retrieved.venue).toBe("ICML 2026");
     expect(retrieved.status).toBe("UNDER_REVIEW");
   });
 
@@ -74,8 +74,8 @@ describe("Submission Capability", () => {
     );
 
     expect(result).toBeDefined();
-    expect(result.coverLetter).toBeDefined();
-    expect(typeof result.coverLetter).toBe("string");
-    expect(result.coverLetter.length).toBeGreaterThan(10);
+    expect((result as Record<string, unknown>).coverLetter).toBeDefined();
+    expect(typeof (result as Record<string, unknown>).coverLetter).toBe("string");
+    expect(((result as Record<string, unknown>).coverLetter as string).length).toBeGreaterThan(10);
   });
 });

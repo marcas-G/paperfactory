@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect";
 
-export type ResearchObject = Record<string, unknown> & { [key: string]: unknown };
+export type ResearchObject = { [key: string]: unknown };
 
 export interface ObjectStore {
   get<T extends ResearchObject>(id: string, type: string): Effect.Effect<Option<T>, Error>;

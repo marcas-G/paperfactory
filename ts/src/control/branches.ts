@@ -25,7 +25,7 @@ export class BranchManager {
       createdAt: now,
       updatedAt: now,
     };
-    await Effect.runPromise(this.store.save(branch));
+    await Effect.runPromise(this.store.save(branch as unknown as import("@persistence/object-store").ResearchObject));
     return branch;
   }
 
@@ -34,7 +34,7 @@ export class BranchManager {
     if (parentOpt.isNone()) {
       throw new Error(`Parent branch ${parentBranchId} not found`);
     }
-    const parent = parentOpt.value as Branch;
+    const parent = parentOpt.value as unknown as Branch;
     const now = new Date();
     const branch: Branch = {
       branchId: newBranchId,
@@ -45,7 +45,7 @@ export class BranchManager {
       createdAt: now,
       updatedAt: now,
     };
-    await Effect.runPromise(this.store.save(branch));
+    await Effect.runPromise(this.store.save(branch as unknown as import("@persistence/object-store").ResearchObject));
     return branch;
   }
 
@@ -54,13 +54,13 @@ export class BranchManager {
     if (opt.isNone()) {
       throw new Error(`Branch ${branchId} not found`);
     }
-    const branch = opt.value as Branch;
+    const branch = opt.value as unknown as Branch;
     const updated: Branch = {
       ...branch,
       status: "CLOSED",
       updatedAt: new Date(),
     };
-    await Effect.runPromise(this.store.save(updated));
+    await Effect.runPromise(this.store.save(updated as unknown as import("@persistence/object-store").ResearchObject));
     return updated;
   }
 
@@ -69,21 +69,21 @@ export class BranchManager {
     if (opt.isNone()) {
       throw new Error(`Branch ${branchId} not found`);
     }
-    const branch = opt.value as Branch;
+    const branch = opt.value as unknown as Branch;
     const updated: Branch = {
       ...branch,
       status: "MERGED",
       updatedAt: new Date(),
     };
-    await Effect.runPromise(this.store.save(updated));
+    await Effect.runPromise(this.store.save(updated as unknown as import("@persistence/object-store").ResearchObject));
     return updated;
   }
 
   async list(projectId: string, status?: "ACTIVE" | "CLOSED" | "MERGED"): Promise<Branch[]> {
     const all = await Effect.runPromise(this.store.list("Branch"));
-    const projectBranches = all.filter(
-      (b: Branch) => b.projectId === projectId
-    ) as Branch[];
+    const projectBranches = (all as unknown as Branch[]).filter(
+      (b) => b.projectId === projectId
+    );
     if (status) {
       return projectBranches.filter((b) => b.status === status);
     }

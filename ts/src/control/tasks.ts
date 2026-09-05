@@ -22,7 +22,7 @@ export class TaskManager {
       createdAt: now,
       updatedAt: now,
     };
-    await Effect.runPromise(this.store.save(created));
+    await Effect.runPromise(this.store.save(created as unknown as import("@persistence/object-store").ResearchObject));
     return created;
   }
 
@@ -31,19 +31,21 @@ export class TaskManager {
     if (opt.isNone()) {
       throw new Error(`Task ${taskId} not found`);
     }
-    const existing = opt.value as Task;
+    const existing = opt.value as unknown as Task;
     const updated: Task = {
       ...existing,
       ...updates,
       updatedAt: new Date(),
     };
-    await Effect.runPromise(this.store.save(updated));
+    await Effect.runPromise(this.store.save(updated as unknown as import("@persistence/object-store").ResearchObject));
     return updated;
   }
 
   async list(projectId: string, status?: Task["status"]): Promise<Task[]> {
     const all = await Effect.runPromise(this.store.list("Task"));
-    const projectTasks = all.filter((t: Task) => t.projectId === projectId) as Task[];
+    const projectTasks = (all as unknown as Task[]).filter(
+      (t) => t.projectId === projectId
+    );
     if (status) {
       return projectTasks.filter((t) => t.status === status);
     }

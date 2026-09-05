@@ -35,5 +35,6 @@ export const submissionCapability: Capability = createCapability(
   "submission",
   "Prepare and manage paper submissions to venues",
   [prepareSkill],
-  []
+  [],
+  (input: Record<string, unknown>) => Effect.succeed(input)
 );

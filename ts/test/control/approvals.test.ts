@@ -20,6 +20,8 @@ describe("ApprovalManager", () => {
       type: "hypothesis_confirm",
       reason: "Evidence supports hypothesis",
       status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     expect(req.status).toBe("PENDING");
     expect(req.approvedBy).toBeUndefined();
@@ -34,6 +36,8 @@ describe("ApprovalManager", () => {
       type: "hypothesis_confirm",
       reason: "Support",
       status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     const approved = await manager.approve("appr-001", "bob");
     expect(approved.status).toBe("APPROVED");
@@ -49,6 +53,8 @@ describe("ApprovalManager", () => {
       type: "hypothesis_confirm",
       reason: "Support",
       status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     const rejected = await manager.reject("appr-001", "charlie", "Not enough evidence");
     expect(rejected.status).toBe("REJECTED");
@@ -64,10 +70,14 @@ describe("ApprovalManager", () => {
     await manager.request({
       approvalId: "a1", projectId: "p1", branchId: "b1", requestor: "alice",
       type: "hypothesis_confirm", reason: "R1", status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     await manager.request({
       approvalId: "a2", projectId: "p1", branchId: "b1", requestor: "bob",
       type: "submission", reason: "R2", status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const pending = await manager.list("p1", "PENDING");

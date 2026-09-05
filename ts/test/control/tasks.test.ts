@@ -18,6 +18,8 @@ describe("TaskManager", () => {
       branchId: "branch-001",
       title: "Search literature",
       status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     expect(task.taskId).toBe("task-001");
     expect(task.status).toBe("PENDING");
@@ -30,6 +32,8 @@ describe("TaskManager", () => {
       branchId: "branch-001",
       title: "Search",
       status: "PENDING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     const updated = await manager.update("task-001", { status: "IN_PROGRESS" });
     expect(updated.status).toBe("IN_PROGRESS");
@@ -40,16 +44,16 @@ describe("TaskManager", () => {
   });
 
   it("lists tasks for a project", async () => {
-    await manager.create({ taskId: "t1", projectId: "p1", branchId: "b1", title: "A", status: "PENDING" });
-    await manager.create({ taskId: "t2", projectId: "p1", branchId: "b1", title: "B", status: "PENDING" });
+    await manager.create({ taskId: "t1", projectId: "p1", branchId: "b1", title: "A", status: "PENDING", createdAt: new Date(), updatedAt: new Date() });
+    await manager.create({ taskId: "t2", projectId: "p1", branchId: "b1", title: "B", status: "PENDING", createdAt: new Date(), updatedAt: new Date() });
 
     const tasks = await manager.list("p1");
     expect(tasks.length).toBe(2);
   });
 
   it("filters tasks by status", async () => {
-    await manager.create({ taskId: "t1", projectId: "p1", branchId: "b1", title: "A", status: "PENDING" });
-    await manager.create({ taskId: "t2", projectId: "p1", branchId: "b1", title: "B", status: "IN_PROGRESS" });
+    await manager.create({ taskId: "t1", projectId: "p1", branchId: "b1", title: "A", status: "PENDING", createdAt: new Date(), updatedAt: new Date() });
+    await manager.create({ taskId: "t2", projectId: "p1", branchId: "b1", title: "B", status: "IN_PROGRESS", createdAt: new Date(), updatedAt: new Date() });
 
     const inProgress = await manager.list("p1", "IN_PROGRESS");
     expect(inProgress.length).toBe(1);

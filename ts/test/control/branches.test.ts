@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { BranchManager } from "@control/branches";
 import { InMemoryObjectStore, ObjectStore } from "@persistence/object-store";
 

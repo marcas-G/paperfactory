@@ -212,15 +212,16 @@ Format as a structured report with abstract, introduction, methods, results, and
               ctx.provider.sendMessages([{ role: "user", content: prompt }])
             );
 
-            report.content = response.content;
-            await Effect.runPromise(ctx.objectStore.save(report));
+            const updatedReport = { ...report, content: response.content };
+            await Effect.runPromise(ctx.objectStore.save(updatedReport as unknown as import("@persistence/object-store").ResearchObject));
+            manifest.reports = [updatedReport];
+          } else {
+            manifest.reports = [report];
           }
-
-          manifest.reports = [report];
 
           return {
             reportId,
-            report,
+            report: manifest.reports[0],
             manifest,
             phase: "report_generation",
           };

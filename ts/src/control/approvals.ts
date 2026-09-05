@@ -25,7 +25,7 @@ export class ApprovalManager {
       createdAt: now,
       updatedAt: now,
     };
-    await Effect.runPromise(this.store.save(created));
+    await Effect.runPromise(this.store.save(created as unknown as import("@persistence/object-store").ResearchObject));
     return created;
   }
 
@@ -34,14 +34,14 @@ export class ApprovalManager {
     if (opt.isNone()) {
       throw new Error(`Approval request ${approvalId} not found`);
     }
-    const existing = opt.value as ApprovalRequest;
+    const existing = opt.value as unknown as ApprovalRequest;
     const updated: ApprovalRequest = {
       ...existing,
       status: "APPROVED",
       approvedBy,
       updatedAt: new Date(),
     };
-    await Effect.runPromise(this.store.save(updated));
+    await Effect.runPromise(this.store.save(updated as unknown as import("@persistence/object-store").ResearchObject));
     return updated;
   }
 
@@ -54,7 +54,7 @@ export class ApprovalManager {
     if (opt.isNone()) {
       throw new Error(`Approval request ${approvalId} not found`);
     }
-    const existing = opt.value as ApprovalRequest;
+    const existing = opt.value as unknown as ApprovalRequest;
     const updated: ApprovalRequest = {
       ...existing,
       status: "REJECTED",
@@ -62,7 +62,7 @@ export class ApprovalManager {
       rejectionReason,
       updatedAt: new Date(),
     };
-    await Effect.runPromise(this.store.save(updated));
+    await Effect.runPromise(this.store.save(updated as unknown as import("@persistence/object-store").ResearchObject));
     return updated;
   }
 
@@ -71,9 +71,9 @@ export class ApprovalManager {
     status?: "PENDING" | "APPROVED" | "REJECTED"
   ): Promise<ApprovalRequest[]> {
     const all = await Effect.runPromise(this.store.list("ApprovalRequest"));
-    const projectApprovals = all.filter(
-      (a: ApprovalRequest) => a.projectId === projectId
-    ) as ApprovalRequest[];
+    const projectApprovals = (all as unknown as ApprovalRequest[]).filter(
+      (a) => a.projectId === projectId
+    );
     if (status) {
       return projectApprovals.filter((a) => a.status === status);
     }

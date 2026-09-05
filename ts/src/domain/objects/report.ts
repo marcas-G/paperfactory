@@ -15,6 +15,7 @@ export const Report = Schema.Struct({
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
   createdAt: Schema.DateFromSelf,
   updatedAt: Schema.DateFromSelf,
+  content: Schema.String,
 });
 
 export type Report = Schema.Schema.Type<typeof Report>;
@@ -29,5 +30,6 @@ export const createReport = (override: Partial<Report> = {}): Report => ({
   metadata: {},
   createdAt: new Date(),
   updatedAt: new Date(),
+  content: "",
   ...override,
 });
