@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { createHonoApp, HonoApp } from "@api/routes";
 import { InMemoryObjectStore } from "@persistence/object-store";
 import { MockProvider } from "@runtime/provider";

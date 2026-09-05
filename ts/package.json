@@ -20,11 +20,13 @@
     "@effect/schema": "^0.71.0",
     "@effect/sql-pg": "^0.2.0",
     "@hono/node-server": "^1.13.0",
+    "@types/ws": "^8.18.1",
     "effect": "^3.11.0",
     "hono": "^4.0.0",
     "openai": "^4.80.0",
     "pg": "^8.13.0",
-    "undici": "^6.20.0"
+    "undici": "^6.20.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

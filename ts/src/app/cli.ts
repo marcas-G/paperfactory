@@ -1,4 +1,3 @@
-import { serve } from "@hono/node-server";
 import { createApp, loadConfig, AppDependencies } from "./index";
 import * as Effect from "effect/Effect";
 import { createHypothesisVerificationWorkflow, runWorkflow } from "@runtime/workflows/hypothesis-verification";
@@ -158,15 +157,24 @@ export async function runCLI(
       const config = loadConfig();
       const app = createApp(config);
       const port = config.port ?? 3000;
-      const server = serve({ fetch: app.honoApp.fetch, port }, () => {
-        console.log("Server stopped");
+      const { createAdaptorServer } = await import("@hono/node-server");
+      const server = createAdaptorServer({ fetch: app.honoApp.fetch });
+
+      // Attach WebSocket event broadcaster
+      const { EventBroadcaster } = await import("@api/ws/events");
+      const broadcaster = new EventBroadcaster();
+      broadcaster.attach(server);
+
+      const httpServer = server.listen(port, () => {
+        console.log(`PaperFactory server running on port ${port}`);
+        console.log(`  UI: http://localhost:${port}/`);
+        console.log(`  Health: http://localhost:${port}/health`);
+        console.log(`  WebSocket: ws://localhost:${port}/ws`);
       });
-      console.log(`PaperFactory server running on port ${port}`);
-      console.log(`  Health: http://localhost:${port}/health`);
 
       const signalHandlers = () => {
         console.log("\nShutting down...");
-        server.close(() => {
+        httpServer.close(() => {
           process.exit(0);
         });
         setTimeout(() => process.exit(0), 5000);

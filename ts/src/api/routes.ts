@@ -288,16 +288,108 @@ export function createHonoApp(
     });
   });
 
-  app.get("/ws", (c) => {
+  app.post("/api/research/run", async (c) => {
+    const body = await c.req.json();
+    const projectId = generateUuid();
+    const questionId = generateUuid();
+    const branchId = generateUuid();
+    const hypothesisId = generateUuid();
+    const gapId = generateUuid();
+
+    // Create project
+    const now = new Date();
+    const project = {
+      projectId,
+      name: body.question ?? "Untitled Research",
+      status: "ACTIVE",
+      description: body.question ?? "",
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    await Effect.runPromise(objectStore.save(project));
+
+    // Create gap
+    await Effect.runPromise(objectStore.save({
+      gapId,
+      projectId,
+      branchId,
+      description: body.question ?? "",
+      status: "IDENTIFIED",
+      createdAt: now,
+    }));
+
+    // Create hypothesis
+    await Effect.runPromise(objectStore.save({
+      hypothesisId,
+      projectId,
+      branchId,
+      gapId,
+      statement: body.question ?? "",
+      falsificationCondition: "Evidence contradicts hypothesis",
+      status: "PROPOSED",
+      createdAt: now,
+    }));
+
+    // Run workflow
+    const { createHypothesisVerificationWorkflow, runWorkflow } = await import(
+      "@runtime/workflows/hypothesis-verification"
+    );
+
+    const phases = createHypothesisVerificationWorkflow({
+      hypothesisId,
+      projectId,
+      branchId,
+      provider,
+      objectStore,
+      eventStore: {} as any,
+      controller,
+    });
+
+    // Run phase by phase, emitting events via SSE-like response
+    const phaseResults: Array<{ name: string; status: string; data?: unknown }> = [];
+    let status = "running";
+
     try {
-      const upgradeHeader = c.req.raw.headers.get("upgrade");
-      if (upgradeHeader?.toLowerCase() === "websocket") {
-        return c.json({ message: "WebSocket upgrade" });
+    let prevResult: Record<string, unknown> = {};
+    for (let i = 0; i < phases.length; i++) {
+      const phase = phases[i];
+      const phaseResult = await Effect.runPromise(phase.execute(prevResult));
+      prevResult = phaseResult as Record<string, unknown>;
+
+        phaseResults.push({
+          name: phase.name,
+          status: "completed",
+          data: phaseResult,
+        });
       }
-    } catch {
-      // not websocket
+      status = "completed";
+    } catch (err: any) {
+      status = "error";
+      phaseResults.push({
+        name: "error",
+        status: "error",
+        data: { error: String(err) },
+      });
     }
-    return c.json({ message: "WebSocket endpoint" });
+
+    // Final state
+    const evidenceList = await Effect.runPromise(objectStore.list("Evidence"));
+    const knowledgeList = await Effect.runPromise(objectStore.list("KnowledgeItem"));
+    const reports = await Effect.runPromise(objectStore.list("Report"));
+
+    return c.json({
+      runId: generateUuid(),
+      projectId,
+      questionId,
+      hypothesisId,
+      status,
+      phases: phaseResults,
+      evidenceCount: evidenceList.length,
+      knowledgeCount: knowledgeList.length,
+      reportCount: reports.length,
+      completedAt: new Date().toISOString(),
+    });
   });
 
   return app;

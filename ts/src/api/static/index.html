@@ -1,226 +1,454 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PaperFactory — Evidence-Based Research</title>
+<title>PaperFactory — 证据驱动研究平台</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0a0a0f; --surface: #12121a; --border: #2a2a3a;
-    --text: #e0e0e8; --muted: #888; --accent: #6c5ce7;
-    --accent-hover: #7c6ef7; --success: #00b894; --error: #e17055;
-  }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg); color: var(--text); min-height: 100vh;
-  }
-  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 24px;
-  }
-  header h1 { font-size: 1.4rem; font-weight: 700; }
-  header h1 span { color: var(--accent); }
-  .status { font-size: 0.8rem; color: var(--muted); }
-  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-  .status .dot.green { background: var(--success); }
-  .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; }
-  .tab {
-    padding: 8px 16px; border-radius: 8px; cursor: pointer;
-    font-size: 0.9rem; color: var(--muted); transition: all 0.15s;
-    border: 1px solid transparent; background: none;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--text); background: var(--surface); border-color: var(--border); }
-  .panel { display: none; }
-  .panel.active { display: block; }
-  .input-group { margin-bottom: 16px; }
-  .input-group label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
-  input[type="text"], textarea {
-    width: 100%; padding: 10px 14px; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-size: 0.95rem; outline: none; transition: border 0.15s;
-  }
-  input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 80px; font-family: inherit; }
-  button.primary {
-    padding: 10px 24px; background: var(--accent); color: #fff;
-    border: none; border-radius: 8px; font-size: 0.95rem;
-    cursor: pointer; font-weight: 600; transition: background 0.15s;
-  }
-  button.primary:hover { background: var(--accent-hover); }
-  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  button.secondary {
-    padding: 8px 16px; background: var(--surface); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px;
-    font-size: 0.85rem; cursor: pointer; transition: border 0.15s;
-  }
-  button.secondary:hover { border-color: var(--accent); }
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px; margin-bottom: 12px;
-  }
-  .card h3 { font-size: 0.95rem; margin-bottom: 6px; }
-  .card .meta { font-size: 0.8rem; color: var(--muted); }
-  .card .status-badge {
-    display: inline-block; padding: 2px 8px; border-radius: 4px;
-    font-size: 0.75rem; font-weight: 600;
-  }
-  .badge-active { background: #00b89422; color: var(--success); }
-  .badge-archived { background: #e1705522; color: var(--error); }
-  .result-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 20px; margin-top: 16px;
-    white-space: pre-wrap; line-height: 1.6; font-size: 0.9rem;
-  }
-  .result-box .loading { color: var(--muted); font-style: italic; }
-  .empty { text-align: center; padding: 40px; color: var(--muted); }
-  .flex-between { display: flex; justify-content: space-between; align-items: center; }
-  #toast {
-    position: fixed; bottom: 20px; right: 20px; padding: 10px 18px;
-    background: var(--accent); color: #fff; border-radius: 8px;
-    font-size: 0.85rem; opacity: 0; transition: opacity 0.3s;
-    pointer-events: none; z-index: 99;
-  }
-  #toast.show { opacity: 1; }
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#c9d1d9;--text2:#8b949e;--accent:#58a6ff;--green:#3fb950;
+  --red:#f85149;--yellow:#d29922;--purple:#bc8cff;--orange:#f0883e;
+  --radius:8px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);padding:16px;flex-shrink:0;display:flex;flex-direction:column;height:100vh;position:fixed;left:0;top:0}
+.sidebar h1{font-size:1.1rem;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.sidebar h1 .logo{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+.nav-item{padding:8px 12px;border-radius:var(--radius);cursor:pointer;font-size:.875rem;color:var(--text2);transition:.15s;margin-bottom:2px;display:flex;align-items:center;gap:10px}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--surface2);color:var(--text);font-weight:600}
+.nav-icon{width:18px;text-align:center}
+.sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid var(--border);font-size:.75rem;color:var(--text2)}
+.main{margin-left:240px;flex:1;padding:24px 32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:24px}
+.page-header h2{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.page-header p{color:var(--text2);font-size:.875rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.card-title{font-weight:600;font-size:1rem}
+.badge{padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge-active{background:#3fb95022;color:var(--green)}
+.badge-archived{background:#f8514922;color:var(--red)}
+.badge-running{background:#58a6ff22;color:var(--accent)}
+.badge-completed{background:#3fb95022;color:var(--green)}
+.badge-error{background:#f8514922;color:var(--red)}
+.input-wrap{position:relative;margin-bottom:16px}
+.input-wrap input,.input-wrap textarea{width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:.9rem;outline:none;font-family:inherit;transition:border .15s}
+.input-wrap input:focus,.input-wrap textarea:focus{border-color:var(--accent)}
+.input-wrap label{position:absolute;top:-8px;left:12px;background:var(--surface);padding:0 4px;font-size:.7rem;color:var(--text2)}
+textarea{resize:vertical;min-height:80px}
+.btn{padding:10px 20px;border-radius:var(--radius);font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{opacity:.85}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent)}
+.btn-sm{padding:6px 12px;font-size:.8rem}
+.empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:.3}
+.empty h3{color:var(--text);margin-bottom:4px}
+/* Research Form */
+.research-form{max-width:700px}
+/* Pipeline */
+.pipeline{display:flex;gap:0;margin:20px 0;position:relative}
+.pipeline-step{flex:1;text-align:center;position:relative;padding:16px 8px 0}
+.pipeline-step .step-dot{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;transition:.3s}
+.pipeline-step.done .step-dot{background:var(--green);border-color:var(--green);color:#fff}
+.pipeline-step.running .step-dot{background:var(--accent);border-color:var(--accent);color:#fff;animation:pulse 1.5s infinite}
+.pipeline-step.error .step-dot{background:var(--red);border-color:var(--red);color:#fff}
+.pipeline-step .step-label{font-size:.75rem;color:var(--text2)}
+.pipeline-step.done .step-label,.pipeline-step.running .step-label{color:var(--text)}
+.pipeline-step:not(:last-child)::after{content:'';position:absolute;top:26px;left:calc(50% + 20px);width:calc(100% - 40px);height:2px;background:var(--border)}
+.pipeline-step.done:not(:last-child)::after{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+/* Phase detail */
+.phase-detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:16px}
+.phase-detail h4{font-size:.9rem;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.phase-content{font-size:.85rem;color:var(--text2);line-height:1.6;white-space:pre-wrap}
+/* Project list */
+.project-item{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;transition:border .15s}
+.project-item:hover{border-color:var(--accent)}
+.project-item .proj-name{font-weight:600}
+.project-item .proj-meta{font-size:.8rem;color:var(--text2);margin-top:2px}
+/* Hypothesis */
+.hypothesis-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.hypothesis-statement{font-weight:600;margin-bottom:8px}
+.hypothesis-actions{display:flex;gap:8px;margin-top:12px}
+/* Evidence */
+.evidence-item{padding:12px;border-left:3px solid var(--border);margin-bottom:8px;background:var(--bg)}
+.evidence-item.supporting{border-left-color:var(--green)}
+.evidence-item.contradicting{border-left-color:var(--red)}
+.evidence-item.neutral{border-left-color:var(--text2)}
+.evidence-dir{font-size:.7rem;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+/* Status bar */
+.status-bar{display:flex;gap:24px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px}
+.status-item{text-align:center}
+.status-item .num{font-size:1.5rem;font-weight:700;color:var(--accent)}
+.status-item .label{font-size:.75rem;color:var(--text2)}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:500px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:16px}
+.modal-close{float:right;cursor:pointer;background:none;border:none;color:var(--text2);font-size:1.2rem}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab-btn{padding:10px 16px;font-size:.85rem;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.tab-content{display:none}.tab-content.active{display:block}
+/* Loading dots */
+.loading-dots::after{content:'';animation:dots 1.5s infinite}
+@keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1><span>Paper</span>Factory</h1>
-    <div class="status"><span class="dot green"></span>Connected</div>
-  </header>
 
-  <div class="tab-bar">
-    <button class="tab active" onclick="switchTab('research')">Research</button>
-    <button class="tab" onclick="switchTab('projects')">Projects</button>
+<nav class="sidebar">
+  <h1><span class="logo">P</span> PaperFactory</h1>
+  <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> 总览</div>
+  <div class="nav-item" onclick="showPage('research')"><span class="nav-icon">🔬</span> 开始研究</div>
+  <div class="nav-item" onclick="showPage('projects')"><span class="nav-icon">📁</span> 项目</div>
+  <div class="nav-item" onclick="showPage('hypotheses')"><span class="nav-icon">💡</span> 假设</div>
+  <div class="nav-item" onclick="showPage('evidence')"><span class="nav-icon">📋</span> 证据库</div>
+  <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">📄</span> 报告</div>
+  <div class="sidebar-footer">
+    v0.1.0 · qwen3.6-27b
   </div>
+</nav>
 
-  <div id="research-panel" class="panel active">
-    <div class="input-group">
-      <label>Research Question</label>
-      <textarea id="question" placeholder="What causes quantum entanglement? What are the latest findings on CRISPR gene therapy?"></textarea>
-    </div>
-    <div class="input-group">
-      <label>Domain (optional)</label>
-      <input type="text" id="domain" placeholder="general, medical, physics...">
-    </div>
-    <button class="primary" id="btn-research" onclick="startResearch()">Start Research</button>
-    <div id="research-result" class="result-box" style="display:none"></div>
-  </div>
+<main class="main">
 
-  <div id="projects-panel" class="panel">
-    <div class="flex-between" style="margin-bottom:16px">
-      <div class="input-group" style="margin:0; flex:1; margin-right:12px">
-        <input type="text" id="new-project-name" placeholder="New project name...">
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header"><h2>研究总览</h2><p>你的证据驱动研究平台</p></div>
+    <div class="status-bar">
+      <div class="status-item"><div class="num" id="stat-projects">0</div><div class="label">项目</div></div>
+      <div class="status-item"><div class="num" id="stat-hypotheses">0</div><div class="label">假设</div></div>
+      <div class="status-item"><div class="num" id="stat-evidence">0</div><div class="label">证据</div></div>
+      <div class="status-item"><div class="num" id="stat-reports">0</div><div class="label">报告</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">快速开始</span></div>
+      <p style="color:var(--text2);font-size:.9rem;margin-bottom:16px">输入你的研究问题，系统将自动执行完整的验证流程：</p>
+      <div class="input-wrap"><input type="text" id="quick-question" placeholder="例如：量子纠缠的物理机制是什么？"></div>
+      <button class="btn btn-primary" onclick="quickResearch()">🔬 开始研究</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">研究流程</span></div>
+      <div class="pipeline" style="max-width:600px;margin:12px auto 0">
+        <div class="pipeline-step"><div class="step-dot">1</div><div class="step-label">文献搜索</div></div>
+        <div class="pipeline-step"><div class="step-dot">2</div><div class="step-label">实验设计</div></div>
+        <div class="pipeline-step"><div class="step-dot">3</div><div class="step-label">证据收集</div></div>
+        <div class="pipeline-step"><div class="step-dot">4</div><div class="step-label">假设验证</div></div>
+        <div class="pipeline-step"><div class="step-dot">5</div><div class="step-label">报告生成</div></div>
       </div>
-      <button class="secondary" onclick="createProject()">+ New</button>
+    </div>
+  </div>
+
+  <!-- RESEARCH -->
+  <div id="page-research" class="page">
+    <div class="page-header"><h2>开始研究</h2><p>输入研究问题，系统自动执行完整的证据驱动验证流程</p></div>
+    <div class="research-form">
+      <div class="input-wrap"><label>研究问题</label><textarea id="research-question" rows="4" placeholder="描述你的研究问题...&#10;例如：CRISPR-Cas9 在基因治疗中的长期安全性如何？"></textarea></div>
+      <div class="input-wrap"><label>研究领域</label><input type="text" id="research-domain" placeholder="general / medical / physics / ..."></div>
+      <button class="btn btn-primary" id="btn-start" onclick="startResearch()">🚀 启动研究流程</button>
+    </div>
+    <div id="research-progress" style="display:none;margin-top:24px">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">研究进度</span>
+          <span class="badge badge-running" id="research-status">运行中</span>
+        </div>
+        <div class="pipeline" id="pipeline-steps">
+          <div class="pipeline-step" id="step-literature_search"><div class="step-dot">1</div><div class="step-label">文献搜索</div></div>
+          <div class="pipeline-step" id="step-experiment_design"><div class="step-dot">2</div><div class="step-label">实验设计</div></div>
+          <div class="pipeline-step" id="step-evidence_collection"><div class="step-dot">3</div><div class="step-label">证据收集</div></div>
+          <div class="pipeline-step" id="step-link_evidence_and_assess"><div class="step-dot">4</div><div class="step-label">关联评估</div></div>
+          <div class="pipeline-step" id="step-confirm"><div class="step-dot">5</div><div class="step-label">假设验证</div></div>
+          <div class="pipeline-step" id="step-report_generation"><div class="step-dot">6</div><div class="step-label">报告生成</div></div>
+        </div>
+      </div>
+      <div id="phase-details"></div>
+    </div>
+  </div>
+
+  <!-- PROJECTS -->
+  <div id="page-projects" class="page">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:start">
+      <div><h2>项目列表</h2><p>管理你的研究项目</p></div>
+      <button class="btn btn-secondary btn-sm" onclick="showModal('new-project')">+ 新建项目</button>
     </div>
     <div id="project-list"></div>
   </div>
-</div>
 
-<div id="toast"></div>
+  <!-- HYPOTHESES -->
+  <div id="page-hypotheses" class="page">
+    <div class="page-header"><h2>假设管理</h2><p>查看和管理研究假设及其验证状态</p></div>
+    <div id="hypothesis-list"></div>
+  </div>
+
+  <!-- EVIDENCE -->
+  <div id="page-evidence" class="page">
+    <div class="page-header"><h2>证据库</h2><p>所有已收集和验证的证据</p></div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="filterEvidence('all',this)">全部</button>
+      <button class="tab-btn" onclick="filterEvidence('SUPPORTING',this)">支持</button>
+      <button class="tab-btn" onclick="filterEvidence('CONTRADICTING',this)">反对</button>
+      <button class="tab-btn" onclick="filterEvidence('NEUTRAL',this)">中立</button>
+    </div>
+    <div id="evidence-list"></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div id="page-reports" class="page">
+    <div class="page-header"><h2>研究报告</h2><p>自动生成的研究分析报告</p></div>
+    <div id="report-list"></div>
+  </div>
+
+</main>
+
+<!-- New Project Modal -->
+<div id="modal-new-project" class="modal-overlay" style="display:none" onclick="if(event.target===this)hideModal('new-project')">
+  <div class="modal">
+    <button class="modal-close" onclick="hideModal('new-project')">×</button>
+    <h3>新建项目</h3>
+    <div class="input-wrap" style="margin-top:12px"><label>项目名称</label><input type="text" id="modal-proj-name" placeholder="输入项目名称"></div>
+    <div class="input-wrap"><label>描述</label><textarea id="modal-proj-desc" rows="3" placeholder="项目描述"></textarea></div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="createProjectFromModal()">创建</button>
+      <button class="btn btn-secondary" onclick="hideModal('new-project')">取消</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = '';
 
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById(name + '-panel').classList.add('active');
+// ===== Navigation =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.closest('.nav-item')?.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
   if (name === 'projects') loadProjects();
+  if (name === 'hypotheses') loadHypotheses();
+  if (name === 'evidence') loadEvidence();
+  if (name === 'reports') loadReports();
+}
+
+// ===== Dashboard =====
+async function loadDashboard() {
+  try {
+    const res = await fetch(API + '/api/projects');
+    const projects = await res.json();
+    document.getElementById('stat-projects').textContent = projects.length;
+  } catch { document.getElementById('stat-projects').textContent = '—'; }
+}
+
+// ===== Research =====
+async function quickResearch() {
+  const q = document.getElementById('quick-question').value.trim();
+  if (!q) return;
+  document.getElementById('research-question').value = q;
+  showPage('research');
+  startResearch();
 }
 
 async function startResearch() {
-  const question = document.getElementById('question').value.trim();
+  const question = document.getElementById('research-question').value.trim();
   if (!question) return;
 
-  const btn = document.getElementById('btn-research');
-  const result = document.getElementById('research-result');
+  const btn = document.getElementById('btn-start');
+  const progress = document.getElementById('research-progress');
   btn.disabled = true;
-  btn.textContent = 'Researching...';
-  result.style.display = 'block';
-  result.innerHTML = '<span class="loading">Running research pipeline... this may take a moment.</span>';
+  btn.innerHTML = '⏳ 研究中...';
+  progress.style.display = 'block';
+  document.getElementById('research-status').textContent = '运行中';
+  document.getElementById('research-status').className = 'badge badge-running';
+  document.getElementById('phase-details').innerHTML = '';
+
+  // Reset pipeline
+  document.querySelectorAll('.pipeline-step').forEach(s => {
+    s.className = 'pipeline-step';
+  });
+
+  const phaseNames = {
+    'literature_search': 'step-literature_search',
+    'experiment_design': 'step-experiment_design',
+    'evidence_collection': 'step-evidence_collection',
+    'link_evidence_and_assess': 'step-link_evidence_and_assess',
+    'confirm': 'step-confirm',
+    'report_generation': 'step-report_generation',
+  };
 
   try {
-    const res = await fetch(API + '/api/agent/run', {
+    const res = await fetch(API + '/api/research/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: question })
+      body: JSON.stringify({
+        question,
+        domain: document.getElementById('research-domain').value || 'general'
+      })
     });
+
     const data = await res.json();
-    result.innerHTML = formatResult(data.result || 'No result returned.');
+
+    if (data.status === 'completed') {
+      document.getElementById('research-status').textContent = '已完成';
+      document.getElementById('research-status').className = 'badge badge-completed';
+    } else {
+      document.getElementById('research-status').textContent = '出错';
+      document.getElementById('research-status').className = 'badge badge-error';
+    }
+
+    // Update pipeline
+    (data.phases || []).forEach((phase, i) => {
+      const stepId = phaseNames[phase.name];
+      if (stepId) {
+        const el = document.getElementById(stepId);
+        if (el) {
+          el.className = 'pipeline-step ' + (phase.status === 'completed' ? 'done' : 'error');
+        }
+      }
+      // Add phase detail
+      const detail = document.createElement('div');
+      detail.className = 'phase-detail';
+      const icon = phase.status === 'completed' ? '✅' : '❌';
+      detail.innerHTML = `<h4>${icon} ${phase.name.replace(/_/g, ' ')}</h4>
+        <div class="phase-content">${phase.data ? formatPhaseData(phase.data) : ''}</div>`;
+      document.getElementById('phase-details').appendChild(detail);
+    });
+
   } catch (err) {
-    result.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(String(err)) + '</span>';
+    document.getElementById('research-status').textContent = '错误';
+    document.getElementById('research-status').className = 'badge badge-error';
+    const errBox = document.createElement('div');
+    errBox.className = 'phase-detail';
+    errBox.innerHTML = `<h4>❌ 研究失败</h4><div class="phase-content" style="color:var(--red)">${esc(String(err))}</div>`;
+    document.getElementById('phase-details').appendChild(errBox);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Start Research';
+    btn.innerHTML = '🚀 启动研究流程';
   }
 }
 
-function formatResult(text) {
-  return escapeHtml(text).replace(/\n/g, '<br>');
+function formatPhaseData(data) {
+  if (!data) return '';
+  const obj = data.manifest || data;
+  let s = '';
+  if (obj.hypotheses) s += `假设: ${(obj.hypotheses || []).length} 个\n`;
+  if (obj.evidence) s += `证据: ${(obj.evidence || []).length} 个\n`;
+  if (obj.knowledgeItems) s += `知识项: ${(obj.knowledgeItems || []).length} 个\n`;
+  if (obj.experiments) s += `实验: ${(obj.experiments || []).length} 个\n`;
+  if (obj.reports) s += `报告: ${(obj.reports || []).length} 个\n`;
+  if (obj.controllerResult) {
+    const cr = obj.controllerResult;
+    if (typeof cr === 'object') s += `控制器: ${cr.success ? '成功' : '失败'}\n`;
+  }
+  if (obj.sandboxResult) {
+    const sr = obj.sandboxResult;
+    s += `沙箱执行: ${sr.isError ? '失败' : '成功'}\n输出: ${sr.output || '无'}\n`;
+  }
+  return s || JSON.stringify(obj).substring(0, 500);
 }
 
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
+// ===== Projects =====
+async function loadProjects() {
+  const list = document.getElementById('project-list');
+  list.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><h3>加载中...</h3></div>';
+  try {
+    const res = await fetch(API + '/api/projects');
+    const projects = await res.json();
+    if (!projects.length) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><h3>暂无项目</h3><p style="color:var(--text2);font-size:.85rem">点击"新建项目"开始你的第一个研究</p></div>';
+      return;
+    }
+    list.innerHTML = projects.map(p => `
+      <div class="project-item" onclick="viewProject('${p.id}')">
+        <div>
+          <div class="proj-name">${esc(p.name)}</div>
+          <div class="proj-meta">创建时间: ${new Date(p.createdAt).toLocaleString()} · ${p.id}</div>
+        </div>
+        <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-archived'}">${p.status}</span>
+      </div>
+    `).join('');
+  } catch {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><h3>加载失败</h3></div>';
+  }
 }
 
-async function createProject() {
-  const name = document.getElementById('new-project-name').value.trim();
+function viewProject(id) {
+  showPage('hypotheses');
+}
+
+function showModal(name) {
+  document.getElementById('modal-' + name).style.display = 'flex';
+}
+function hideModal(name) {
+  document.getElementById('modal-' + name).style.display = 'none';
+}
+
+async function createProjectFromModal() {
+  const name = document.getElementById('modal-proj-name').value.trim();
   if (!name) return;
-
   try {
     await fetch(API + '/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
     });
-    document.getElementById('new-project-name').value = '';
-    toast('Project created');
+    hideModal('new-project');
+    document.getElementById('modal-proj-name').value = '';
+    document.getElementById('modal-proj-desc').value = '';
     loadProjects();
-  } catch (err) {
-    toast('Failed to create project');
-  }
+  } catch { alert('创建失败'); }
 }
 
-async function loadProjects() {
-  const list = document.getElementById('project-list');
-  list.innerHTML = '<div class="empty">Loading...</div>';
+// ===== Hypotheses =====
+async function loadHypotheses() {
+  const list = document.getElementById('hypothesis-list');
+  list.innerHTML = '<div class="empty"><div class="empty-icon">💡</div><h3>暂无假设</h3><p style="color:var(--text2);font-size:.85rem">启动研究流程后会自动生成假设</p></div>';
+}
 
+// ===== Evidence =====
+let allEvidence = [];
+async function loadEvidence() {
+  const list = document.getElementById('evidence-list');
+  list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><h3>加载中...</h3></div>';
   try {
     const res = await fetch(API + '/api/projects');
     const projects = await res.json();
-    if (!projects.length) {
-      list.innerHTML = '<div class="empty">No projects yet. Create one above.</div>';
-      return;
-    }
-    list.innerHTML = projects.map(p => `
-      <div class="card">
-        <div class="flex-between">
-          <h3>${escapeHtml(p.name)}</h3>
-          <span class="status-badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-archived'}">${p.status}</span>
-        </div>
-        <div class="meta">ID: ${p.id} &nbsp;·&nbsp; Created: ${new Date(p.createdAt).toLocaleString()}</div>
-      </div>
-    `).join('');
-  } catch (err) {
-    list.innerHTML = '<div class="empty" style="color:var(--error)">Failed to load projects</div>';
+    // For now show empty state - evidence is accessed via research run
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><h3>暂无证据</h3><p style="color:var(--text2);font-size:.85rem">启动研究流程后会自动收集证据</p></div>';
+  } catch {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><h3>加载失败</h3></div>';
   }
 }
-
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+function filterEvidence(dir, btn) {
+  document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
+
+// ===== Reports =====
+async function loadReports() {
+  document.getElementById('report-list').innerHTML =
+    '<div class="empty"><div class="empty-icon">📄</div><h3>暂无报告</h3><p style="color:var(--text2);font-size:.85rem">研究流程完成后会自动生成报告</p></div>';
+}
+
+// ===== Utils =====
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Init
+loadDashboard();
 </script>
 </body>
 </html>
