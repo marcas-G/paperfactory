@@ -687,7 +687,7 @@ export function createHonoApp(
     const projectRuns = runs
       .filter((r: any) => r.projectId === id)
       .sort((a: any, b: any) => (a.phaseVersion || 0) - (b.phaseVersion || 0));
-    return c.json(projectRuns.map((r: any) => {
+    const mapped = projectRuns.map((r: any) => {
       const artifacts = r.artifacts || {};
       const firstKey = Object.keys(artifacts)[0];
       const typeMap: Record<string, string> = {
@@ -713,7 +713,8 @@ export function createHonoApp(
         objectType: firstKey ? (typeMap[firstKey] ?? firstKey) : "",
         objectId: firstKey ? (artifacts[firstKey]?.[0] ?? "") : "",
       };
-    })));
+    });
+    return c.json(mapped);
   });
 
   // Get phases grouped by phase name
