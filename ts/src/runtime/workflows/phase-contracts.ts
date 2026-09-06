@@ -14,6 +14,9 @@ import { createEvidence } from "@domain/objects/evidence";
 import { createReport } from "@domain/objects/report";
 import { selfReview, SelfReviewResult } from "./self-review";
 import { chainOfVerification, CoVeResult } from "./cove";
+import { beamSearch } from "./tot-engine";
+import { sampleConsensus } from "./self-consistency";
+import { debate } from "./debate";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -188,12 +191,30 @@ export async function buildPhaseContext(
   projectId: string,
   question: string,
   contract: PhaseIOContract,
+  provider?: Provider,
 ): Promise<string> {
   const lines: string[] = [];
   lines.push(`研究问题: ${question}`);
   lines.push(`当前阶段: ${contract.label}`);
   lines.push(`需要读取的对象: ${contract.readObjects.join(", ") || "无(初始阶段)"}`);
   lines.push("");
+
+  // ToT keyword exploration for literature_search
+  if (contract.name === "literature_search" && provider) {
+    try {
+      const totResult = await beamSearch(
+        `Generate search keyword strategies for: ${question}`,
+        provider,
+        { beamWidth: 3, depth: 2 },
+      );
+      const strategies = totResult.bestPath.map((n) => n.thought).join("\n");
+      lines.push(`[ToT 关键词探索推荐]`);
+      lines.push(strategies);
+      lines.push("");
+    } catch {
+      /* ToT exploration failed, continue without it */
+    }
+  }
 
   for (const objType of contract.readObjects) {
     const items = await Effect.runPromise(store.list(objType));
@@ -344,7 +365,7 @@ export async function runPhase(
   });
 
   // Step 1: Build context from PG objects
-  const context = await buildPhaseContext(store, projectId, question, contract);
+  const context = await buildPhaseContext(store, projectId, question, contract, provider);
 
   // Step 2: Build system prompt with output schema
   let outputSchemaDesc = "";
@@ -474,6 +495,92 @@ export async function runPhase(
       phaseName: contract.name, status: "ERROR", output: null, rawOutput: "",
       savedIds: {}, toolCalls, selfReview: null,
     };
+  }
+
+  // Step 3d: Thinking paradigm enhancements per phase
+  if (contract.name === "hypothesis_generation" && rawOutput && rawOutput.trim().length > 0) {
+    try {
+      const hypTotResult = await beamSearch(
+        `Generate candidate hypotheses from literature findings for: ${question}`,
+        provider,
+        { beamWidth: 5, depth: 2 },
+      );
+      const candidateHypotheses = hypTotResult.bestPath.map((n) => n.thought);
+      const debateConclusions: Array<{ hypothesis: string; conclusion: string; confidence: number }> = [];
+      for (const hyp of candidateHypotheses.slice(0, 3)) {
+        const debateResult = await debate(
+          hyp,
+          [context],
+          provider,
+          { rounds: 3 },
+        );
+        debateConclusions.push({
+          hypothesis: hyp,
+          conclusion: debateResult.conclusion,
+          confidence: debateResult.confidence,
+        });
+      }
+      const bestHyp = debateConclusions.reduce((best, cur) =>
+        cur.confidence > best.confidence ? cur : best,
+        debateConclusions[0],
+      );
+      if (bestHyp) {
+        const parsedExisting = tryParseLLMOutput(rawOutput, contract.name);
+        const enhancedOutput = parsedExisting
+          ? { ...parsedExisting, debateSelection: { selected: bestHyp.hypothesis, confidence: bestHyp.confidence, allDebateResults: debateConclusions } }
+          : { debateSelection: { selected: bestHyp.hypothesis, confidence: bestHyp.confidence, allDebateResults: debateConclusions } };
+        rawOutput = JSON.stringify(enhancedOutput);
+      }
+    } catch {
+      /* Thinking paradigm enhancement failed, continue with original output */
+    }
+  }
+
+  if (contract.name === "evidence_assessment" && rawOutput && rawOutput.trim().length > 0) {
+    try {
+      const parsedTemp = tryParseLLMOutput(rawOutput, contract.name);
+      const evidenceItems = ((parsedTemp as any)?.assessments as any[]) ?? [];
+      const enhancedAssessments = [];
+      for (const ev of evidenceItems) {
+        const summary = ev.reasoning ?? ev.evidenceId ?? "";
+        const consensus = await sampleConsensus(
+          `Rate this evidence on relevance, reliability, and impact (1-10 each):\n${summary}`,
+          provider,
+          { samples: 7, temperature: 0.7 },
+        );
+        enhancedAssessments.push({
+          ...ev,
+          consensusScore: parseFloat((consensus.confidence * 10).toFixed(2)),
+          consensusAnswer: consensus.answer,
+        });
+      }
+      if (enhancedAssessments.length > 0) {
+        const enhancedOutput = parsedTemp
+          ? { ...parsedTemp, assessments: enhancedAssessments }
+          : { assessments: enhancedAssessments };
+        rawOutput = JSON.stringify(enhancedOutput);
+      }
+    } catch {
+      /* Self-consistency enhancement failed, continue with original output */
+    }
+  }
+
+  if (contract.name === "report_generation" && rawOutput && rawOutput.trim().length > 0) {
+    try {
+      const debateResult = await debate(
+        `Peer review of research report on: ${question}`,
+        [rawOutput],
+        provider,
+        { rounds: 3 },
+      );
+      const parsedExisting = tryParseLLMOutput(rawOutput, contract.name);
+      const enhancedOutput = parsedExisting
+        ? { ...parsedExisting, peerReview: { conclusion: debateResult.conclusion, confidence: debateResult.confidence, rounds: debateResult.debates } }
+        : { peerReview: { conclusion: debateResult.conclusion, confidence: debateResult.confidence, rounds: debateResult.debates } };
+      rawOutput = JSON.stringify(enhancedOutput);
+    } catch {
+      /* Debate peer review failed, continue with original output */
+    }
   }
 
   // Step 4: Parse JSON output
