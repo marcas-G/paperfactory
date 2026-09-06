@@ -13,6 +13,7 @@ import { createResult } from "@domain/objects/result";
 import { createEvidence } from "@domain/objects/evidence";
 import { createReport } from "@domain/objects/report";
 import { selfReview, SelfReviewResult } from "./self-review";
+import { chainOfVerification, CoVeResult } from "./cove";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -244,6 +245,30 @@ function buildSystemPrompt(
     ? `\n## 可用工具\n${contract.tools.map(t => `- **${t}**: 使用此工具获取数据`).join("\n")}`
     : "";
 
+  const reactInstructions = `## ReAct 模式
+
+你遵循 ReAct (Reasoning + Acting) 模式进行科研工作:
+
+Thought: 分析当前情况，规划下一步行动
+Action: 调用工具并传入具体参数
+Observation: 审查工具输出（由系统提供）
+Thought: 分析结果质量，决定是否需要进一步行动
+... (重复)
+Final Answer: 输出结构化 JSON
+
+重要:
+- 调用工具前，思考 WHY 你需要这个工具以及 WHAT 你期望得到
+- 收到结果后，思考结果的质量和充分性
+- 如果结果不足，反思原因并调整策略`;
+
+  const planInstructions = `## 计划指令
+
+在开始执行前，先生成一个计划:
+1. 我需要哪些信息？
+2. 应该按什么顺序使用哪些工具？
+3. 如何验证我的输出是完整和准确的？
+然后按计划逐步执行。`;
+
   return `你是一个科研系统的工作节点。你的认知模式是: ${contract.cognitiveMode}。
 ${cogInstr}
 
@@ -255,6 +280,10 @@ ${cogInstr}
 ${outputSchema}
 
 ${toolHints}
+
+${reactInstructions}
+
+${planInstructions}
 
 ## 重要规则
 1. 只根据输入对象中的信息推理，不要编造数据
@@ -397,7 +426,31 @@ export async function runPhase(
       output: tc.output.content?.substring(0, 10000) ?? "",
     })));
 
-    // Step 3b: Self-review
+    // Step 3b: CoVe verification (before self-review)
+    if (rawOutput && rawOutput.trim().length > 0) {
+      const coveResult: CoVeResult = await chainOfVerification(
+        rawOutput,
+        contract.name,
+        provider,
+        context,
+        toolRegistry
+      );
+
+      if (coveResult.revisedOutput) {
+        rawOutput = coveResult.revisedOutput;
+      }
+
+      onEvent({
+        type: "self:review",
+        content: `CoVe 验证: ${coveResult.issues.length} 个问题被发现`,
+        phase: contract.name,
+        timestamp: new Date().toISOString(),
+        passed: coveResult.issues.length === 0,
+        issues: coveResult.issues,
+      });
+    }
+
+    // Step 3c: Self-review
     if (rawOutput && rawOutput.trim().length > 0) {
       selfReviewResult = await selfReview(rawOutput, contract.name, provider);
 
