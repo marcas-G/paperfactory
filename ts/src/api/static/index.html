@@ -507,7 +507,7 @@ async function rerunPhase(phaseName) {
     });
     const result = await resp.json();
     phaseResults[phaseName] = result;
-    updatePhase(phaseName, result.status === 'COMPLETED' ? 'done' : 'error');
+    updatePhase(phaseName, result.status === 'COMPLETED' ? 'done' : result.status === 'SKIPPED' ? 'pending' : 'error');
     addMsg('system', '重跑完成', `${phaseName}: ${result.status}`);
     showPhaseDetail(phaseName);
   } catch(e) {

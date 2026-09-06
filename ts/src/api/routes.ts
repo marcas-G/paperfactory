@@ -315,8 +315,19 @@ export function createHonoApp(
 
   app.delete("/api/research/:objectId", async (c) => {
     const objectId = c.req.param("objectId");
-    await Effect.runPromise(objectStore.delete(objectId, "ResearchQuestion"));
-    return c.json({ deleted: objectId });
+    const types = [
+      "ResearchQuestion", "Hypothesis", "Evidence", "Experiment", "Result",
+      "ResearchGap", "KnowledgeItem", "Protocol", "Claim", "Report",
+      "Submission", "ResearchFailure", "PhaseRun", "EvidenceChain", "Citation",
+    ];
+    for (const type of types) {
+      const opt = await Effect.runPromise(objectStore.get(objectId, type));
+      if (opt.isSome()) {
+        await Effect.runPromise(objectStore.delete(objectId, type));
+        return c.json({ deleted: objectId, type });
+      }
+    }
+    return c.json({ error: "Object not found" }, 404);
   });
 
   app.post("/api/agent/run", async (c) => {
@@ -339,41 +350,54 @@ export function createHonoApp(
     });
   });
 
-  // SSE streaming endpoint
+  // SSE streaming endpoint for agent chat
   app.post("/api/agent/stream", async (c) => {
     const body = await c.req.json();
     const runId = generateUuid();
     const toolRegistry = new ToolRegistry();
 
-    c.header("Content-Type", "text/event-stream");
-    c.header("Cache-Control", "no-cache");
-    c.header("Connection", "keep-alive");
+    const encoder = new TextEncoder();
+    let controllerRef: ReadableStreamDefaultController | null = null;
+    let closed = false;
 
-    const events: Array<Record<string, unknown>> = [];
+    const stream = new ReadableStream({
+      start(controller) {
+        controllerRef = controller;
+        const sendEvent = (eventType: string, data: Record<string, unknown>) => {
+          if (closed) return;
+          try {
+            const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(line));
+          } catch {
+            closed = true;
+          }
+        };
 
-    await runAgentLoop(
-      provider,
-      toolRegistry,
-      [{ role: "user", content: body.prompt ?? "" }],
-      {
-        maxIterations: 20,
-        onEvent: (event) => {
-          const data = JSON.stringify(event);
-          c.respondWith(new Response(
-            `event: ${event.type}\ndata: ${data}\n\n`,
-            { headers: { "Content-Type": "text/event-stream" } }
-          ));
-          events.push(event);
-        },
-      }
-    );
+        runAgentLoop(
+          provider,
+          toolRegistry,
+          [{ role: "user", content: body.prompt ?? "" }],
+          {
+            maxIterations: 20,
+            onEvent: (event) => {
+              sendEvent(event.type, event);
+            },
+          }
+        ).finally(() => {
+          sendEvent("done", { runId, content: "完成", timestamp: new Date().toISOString() });
+          closed = true;
+          try { controller.close(); } catch { /* already closed */ }
+        });
+      },
+    });
 
-    // Send final event
-    const finalEvent = { type: "done", content: "完成", timestamp: new Date().toISOString() };
-    return new Response(
-      `event: done\ndata: ${JSON.stringify(finalEvent)}\n\n`,
-      { headers: { "Content-Type": "text/event-stream" } }
-    );
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    });
   });
 
   // Blocking research run (legacy)
