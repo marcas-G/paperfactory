@@ -107,6 +107,39 @@ export const COGNITIVE_MODES: CognitiveMode[] = [
       "ResearchQuestion",
     ],
   },
+  {
+    name: "PLAN",
+    instructions:
+      "在采取行动之前，先生成详细的执行计划。明确：需要哪些信息、使用什么工具、按什么顺序执行、如何验证结果。计划应该具体、可执行、可验证。",
+    applicableTo: [
+      "ResearchQuestion",
+      "Protocol",
+      "Experiment",
+      "Report",
+    ],
+  },
+  {
+    name: "REFLECT",
+    instructions:
+      "在行动后反思结果质量。问自己：结果充分吗？有什么不足之处？下次可以改进什么？基于反思调整后续策略。反思要具体，指出明确的问题和改进方向。",
+    applicableTo: [
+      "KnowledgeItem",
+      "Evidence",
+      "Result",
+      "Hypothesis",
+    ],
+  },
+  {
+    name: "DEBATE",
+    instructions:
+      "扮演对立角色进行辩论。支持方论证观点的合理性，反对方寻找漏洞和反例，裁判基于证据做出裁决。辩论应该基于证据和逻辑，而非立场。多轮辩论后达成共识。",
+    applicableTo: [
+      "Hypothesis",
+      "Evidence",
+      "Report",
+      "Submission",
+    ],
+  },
 ];
 
 export function getCognitiveModeByName(name: string): CognitiveMode | undefined {
