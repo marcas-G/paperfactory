@@ -265,7 +265,7 @@ describe("Tree of Thoughts Engine", () => {
   });
 
   it("uses custom system prompt when provided", async () => {
-    let receivedMessages = null;
+    let receivedMessages: import("@runtime/provider").Message[] | null = null;
     const provider = createDeterministicProvider({
       name: "tot-custom-prompt",
       responses: [
