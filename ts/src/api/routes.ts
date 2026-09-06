@@ -567,7 +567,25 @@ export function createHonoApp(
               shouldStop: () => stopped,
             });
 
-            // Persist to PG
+            // Persist PhaseRuns to PG
+            const phaseRuns = await Effect.runPromise(memStore.list("PhaseRun"));
+            for (const pr of phaseRuns) {
+              await Effect.runPromise(objectStore.save(pr));
+            }
+
+            // Persist EvidenceChains to PG
+            const chains = await Effect.runPromise(memStore.list("EvidenceChain"));
+            for (const ch of chains) {
+              await Effect.runPromise(objectStore.save(ch));
+            }
+
+            // Persist Citations to PG
+            const citations = await Effect.runPromise(memStore.list("Citation"));
+            for (const ci of citations) {
+              await Effect.runPromise(objectStore.save(ci));
+            }
+
+            // Persist other objects to PG
             for (const item of [...researchResult.knowledgeItems, ...researchResult.evidence, ...researchResult.experiments, ...researchResult.results, ...researchResult.reports]) {
               await Effect.runPromise(objectStore.save(item));
             }
