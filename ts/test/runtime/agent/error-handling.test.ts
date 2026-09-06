@@ -14,7 +14,7 @@ describe("Error Handling and Timeout Recovery", () => {
 
     const toolRegistry = new ToolRegistry();
 
-    const result = await runAgentLoop(errorProvider, toolRegistry, [{ role: "user", content: "test" }], 3);
+    const result = await runAgentLoop(errorProvider, toolRegistry, [{ role: "user", content: "test" }], { maxIterations: 3 });
 
     // Should not crash
     expect(result).toBeDefined();
@@ -43,7 +43,7 @@ describe("Error Handling and Timeout Recovery", () => {
       { name: "noop", description: "no op", schema: {}, writeOnly: false }
     );
 
-    const result = await runAgentLoop(infiniteProvider, toolRegistry, [{ role: "user", content: "test" }], 2);
+    const result = await runAgentLoop(infiniteProvider, toolRegistry, [{ role: "user", content: "test" }], { maxIterations: 2 });
 
     // Should stop after maxIterations
     expect(result).toBeDefined();
@@ -78,7 +78,7 @@ describe("Error Handling and Timeout Recovery", () => {
       { name: "bad_tool", description: "fails", schema: {}, writeOnly: false }
     );
 
-    const result = await runAgentLoop(provider, toolRegistry, [{ role: "user", content: "original prompt" }], 5);
+    const result = await runAgentLoop(provider, toolRegistry, [{ role: "user", content: "original prompt" }], { maxIterations: 5 });
 
     // Should not crash after tool error
     expect(result).toBeDefined();

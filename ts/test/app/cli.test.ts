@@ -33,7 +33,7 @@ describe("CLI init command", () => {
   });
 
   it("init creates a ResearchQuestion in the object store", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes Alzheimer's disease?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -41,7 +41,7 @@ describe("CLI init command", () => {
   });
 
   it("init creates a Project in the object store", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes X?", app);
 
     const projects = await Effect.runPromise(app.objectStore.list("Project"));
@@ -49,7 +49,7 @@ describe("CLI init command", () => {
   });
 
   it("init stores the user question in the title", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes X?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -58,7 +58,7 @@ describe("CLI init command", () => {
   });
 
   it("init generates real UUIDs (not zero UUID)", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes X?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -68,7 +68,7 @@ describe("CLI init command", () => {
   });
 
   it("init creates question with DRAFT status", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes X?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -77,7 +77,7 @@ describe("CLI init command", () => {
   });
 
   it("init links question to the created project", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await initCommand("What causes X?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -96,7 +96,7 @@ describe("CLI research command", () => {
   });
 
   it("research creates a ResearchQuestion in the store", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await researchCommand("Does exercise improve memory?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -104,7 +104,7 @@ describe("CLI research command", () => {
   });
 
   it("research stores the question text", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await researchCommand("Does exercise improve memory?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -113,7 +113,7 @@ describe("CLI research command", () => {
   });
 
   it("research generates real UUIDs", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     await researchCommand("Does exercise improve memory?", app);
 
     const questions = await Effect.runPromise(app.objectStore.list("ResearchQuestion"));
@@ -122,7 +122,7 @@ describe("CLI research command", () => {
   });
 
   it("research produces a workflow result", async () => {
-    const app = createApp();
+    const app = createApp({ databaseUrl: undefined });
     const result = await researchCommand("Does exercise improve memory?", app);
 
     expect(result).toBeDefined();

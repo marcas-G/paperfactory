@@ -126,10 +126,11 @@ describe("API Integration - Real Endpoints", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
 
-    expect(body.status).toBe("started");
+    expect(body.status).toBe("completed");
     expect(body.prompt).toBe("Research X");
     expect(body).toHaveProperty("runId");
     expect(body).toHaveProperty("startedAt");
+    expect(body).toHaveProperty("result");
 
     // Must have called Provider (not hardcoded response)
     expect(provider.getCallCount()).toBeGreaterThan(0);

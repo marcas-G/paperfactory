@@ -31,7 +31,7 @@ export class SubagentExecutor {
       this.config.provider,
       this.config.toolRegistry,
       messages,
-      this.config.maxIterations ?? 10
+      { maxIterations: this.config.maxIterations ?? 10 }
     );
 
     let summary = result.finalContent;

@@ -90,6 +90,13 @@ export function createHonoApp(
 ): Hono {
   const researchController = controller;
   const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
+  const researchRuns = new Map<string, {
+    stopped: () => boolean;
+    setStopped: (v: boolean) => void;
+    approvalResolve: ((v: string) => void) | null;
+    approvalPhase: string | null;
+    approvalRunId: string | null;
+  }>();
   const app = new Hono();
 
   app.get("/", (c) => {
@@ -498,8 +505,7 @@ export function createHonoApp(
     let stopped = false;
 
     // Store run state for interrupt + approval pending
-    (globalThis as any).__researchRuns = (globalThis as any).__researchRuns ?? new Map();
-    (globalThis as any).__researchRuns.set(runId, { stopped: () => stopped, setStopped: (v: boolean) => { stopped = v; }, approvalResolve: null, approvalPhase: null, approvalRunId: null });
+    researchRuns.set(runId, { stopped: () => stopped, setStopped: (v: boolean) => { stopped = v; }, approvalResolve: null, approvalPhase: null, approvalRunId: null });
 
     const encoder = new TextEncoder();
     let controllerRef: ReadableStreamDefaultController | null = null;
@@ -543,7 +549,7 @@ export function createHonoApp(
                 sendEvent("phase:awaiting_approval", { runId: runId2, phaseName, summary });
                 // Wait for HTTP decision endpoint to resolve
                 return new Promise<string>((resolve) => {
-                  const runState = (globalThis as any).__researchRuns.get(runId);
+                  const runState = researchRuns.get(runId);
                   runState.approvalPhase = phaseName;
                   runState.approvalRunId = runId2;
                   runState.approvalResolve = resolve;
@@ -556,7 +562,7 @@ export function createHonoApp(
               runId,
               projectId,
               hypothesisId,
-              hypothesisStatus: researchResult.hypothesisStatus,
+              hypothesisStatements: researchResult.hypothesisStatements,
               evidenceCount: researchResult.evidence.length,
               knowledgeCount: researchResult.knowledgeItems.length,
               reportCount: researchResult.reports.length,
@@ -569,7 +575,7 @@ export function createHonoApp(
               closed = true;
               try { controllerRef?.close(); } catch { /* already closed */ }
             }
-            (globalThis as any).__researchRuns.delete(runId);
+            researchRuns.delete(runId);
           }
         })();
       },
@@ -588,8 +594,7 @@ export function createHonoApp(
   // Interrupt a running research
   app.post("/api/research/:runId/stop", async (c) => {
     const runId = c.req.param("runId");
-    const runs = (globalThis as any).__researchRuns as Map<string, { stopped: () => boolean; setStopped: (v: boolean) => void }>;
-    const run = runs?.get(runId);
+    const run = researchRuns.get(runId);
     if (run) {
       run.setStopped(true);
       return c.json({ runId, stopped: true });
@@ -600,8 +605,7 @@ export function createHonoApp(
   // Get current run status
   app.get("/api/research/:runId/status", async (c) => {
     const runId = c.req.param("runId");
-    const runs = (globalThis as any).__researchRuns as Map<string, { stopped: () => boolean }>;
-    const run = runs?.get(runId);
+    const run = researchRuns.get(runId);
     if (run) {
       return c.json({ runId, status: run.stopped() ? "stopped" : "running" });
     }
@@ -723,7 +727,7 @@ export function createHonoApp(
     const body = await c.req.json();
 
     // Resolve pending approval in active research run
-    const allRuns = (globalThis as any).__researchRuns ?? new Map();
+    const allRuns = researchRuns;
     for (const [researchRunId, state] of allRuns.entries()) {
       if (state && state.approvalRunId === runId && state.approvalResolve) {
         const resolve = state.approvalResolve;

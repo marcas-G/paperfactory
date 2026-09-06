@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { COGNITIVE_MODES, getCognitiveModeByName } from "@cognition/modes";
 
 describe("Cognitive Modes", () => {
-  it("has exactly 10 cognitive modes", () => {
-    expect(COGNITIVE_MODES.length).toBe(10);
+  it("has exactly 13 cognitive modes", () => {
+    expect(COGNITIVE_MODES.length).toBe(13);
   });
 
   it("all modes have required fields", () => {
@@ -16,7 +16,7 @@ describe("Cognitive Modes", () => {
     }
   });
 
-  it("includes all 10 mode names from design §13.2", () => {
+  it("includes all 13 mode names", () => {
     const names = COGNITIVE_MODES.map((m) => m.name);
     expect(names).toContain("FRAME");
     expect(names).toContain("EXPLORE");
@@ -28,6 +28,9 @@ describe("Cognitive Modes", () => {
     expect(names).toContain("VERIFY");
     expect(names).toContain("SYNTHESIZE");
     expect(names).toContain("DECIDE");
+    expect(names).toContain("PLAN");
+    expect(names).toContain("REFLECT");
+    expect(names).toContain("DEBATE");
   });
 
   it("FALSIFY mode instructions contain counterexample-seeking language", () => {
@@ -93,5 +96,32 @@ describe("Cognitive Modes", () => {
 
   it("getCognitiveModeByName returns undefined for unknown mode", () => {
     expect(getCognitiveModeByName("UNKNOWN")).toBeUndefined();
+  });
+
+  it("PLAN mode applies to ResearchQuestion, Protocol, Experiment, Report", () => {
+    const plan = getCognitiveModeByName("PLAN");
+    expect(plan).toBeTruthy();
+    expect(plan?.applicableTo).toContain("ResearchQuestion");
+    expect(plan?.applicableTo).toContain("Protocol");
+    expect(plan?.applicableTo).toContain("Experiment");
+    expect(plan?.applicableTo).toContain("Report");
+  });
+
+  it("REFLECT mode applies to KnowledgeItem, Evidence, Result, Hypothesis", () => {
+    const reflect = getCognitiveModeByName("REFLECT");
+    expect(reflect).toBeTruthy();
+    expect(reflect?.applicableTo).toContain("KnowledgeItem");
+    expect(reflect?.applicableTo).toContain("Evidence");
+    expect(reflect?.applicableTo).toContain("Result");
+    expect(reflect?.applicableTo).toContain("Hypothesis");
+  });
+
+  it("DEBATE mode applies to Hypothesis, Evidence, Report, Submission", () => {
+    const debate = getCognitiveModeByName("DEBATE");
+    expect(debate).toBeTruthy();
+    expect(debate?.applicableTo).toContain("Hypothesis");
+    expect(debate?.applicableTo).toContain("Evidence");
+    expect(debate?.applicableTo).toContain("Report");
+    expect(debate?.applicableTo).toContain("Submission");
   });
 });

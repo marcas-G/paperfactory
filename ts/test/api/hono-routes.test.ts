@@ -9,7 +9,15 @@ import { ActionRegistry } from "@control/registry";
 
 describe("Hono API Routes", () => {
   const router = new APIRouter();
-  const mockProvider = new MockProvider();
+  const mockProvider = new MockProvider([
+    {
+      pattern: "",
+      response: {
+        content: "Agent response",
+        stopReason: "end_turn",
+      },
+    },
+  ]);
   const objectStore = new InMemoryObjectStore();
   const eventStore = new InMemoryEventStore();
   const transitionEngine = new TransitionEngine();
@@ -77,22 +85,21 @@ describe("Hono API Routes", () => {
     expect(res.status).toBe(200);
 
     const body = await res.json();
-    expect(body.status).toBe("started");
+    expect(body.status).toBe("completed");
     expect(body.prompt).toBe("Research quantum computing");
     expect(body).toHaveProperty("runId");
     expect(body).toHaveProperty("startedAt");
-  });
-
-  it("websocket endpoint returns info", async () => {
-    const res = await app.request("/ws");
-    expect(res.status).toBe(200);
-
-    const body = await res.json();
-    expect(body.message).toBe("WebSocket endpoint");
+    expect(body).toHaveProperty("result");
   });
 
   it("unknown route returns 404", async () => {
     const res = await app.request("/unknown");
     expect(res.status).toBe(404);
   });
+
+  it("unknown ws route returns 404", async () => {
+    const res = await app.request("/ws");
+    expect(res.status).toBe(404);
+  });
+
 });

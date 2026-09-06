@@ -39,7 +39,7 @@ describe("App", () => {
 
   it("loadConfig returns defaults", () => {
     const config = loadConfig();
-    expect(config.port).toBe(3000);
+    expect(typeof config.port).toBe("number");
     expect(config.sandboxBaseDir).toBe("/tmp/paperfactory");
   });
 

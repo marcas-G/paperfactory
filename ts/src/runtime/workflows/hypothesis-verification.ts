@@ -40,42 +40,46 @@ export function createHypothesisVerificationWorkflow(
     {
       name: "literature_search",
       execute: () => {
-        const items: Array<Record<string, unknown>> = [];
-        if (ctx.literatureResults) {
-          for (const result of ctx.literatureResults) {
-            const item = createKnowledgeItem({
-              knowledgeId: generateUuid(),
-              projectId: ctx.projectId,
-              branchId: ctx.branchId,
-              summary: result.summary,
-              sourceType: "paper",
-              certaintyLevel: result.certaintyLevel,
-              status: "ASSESSED",
-            });
-            Effect.runSync(ctx.objectStore.save(item));
-            items.push(item);
+        return Effect.promise(async () => {
+          const items: Array<Record<string, unknown>> = [];
+          if (ctx.literatureResults) {
+            for (const result of ctx.literatureResults) {
+              const item = createKnowledgeItem({
+                knowledgeId: generateUuid(),
+                projectId: ctx.projectId,
+                branchId: ctx.branchId,
+                summary: result.summary,
+                sourceType: "paper",
+                certaintyLevel: result.certaintyLevel,
+                status: "ASSESSED",
+              });
+              await Effect.runPromise(ctx.objectStore.save(item));
+              items.push(item);
+            }
           }
-        }
-        return Effect.succeed({ knowledgeItems: items, phase: "literature_search" });
+          return { knowledgeItems: items, phase: "literature_search" };
+        });
       },
     },
     {
       name: "experiment_design",
       execute: (input) => {
-        const knowledgeItems = input.knowledgeItems as Array<Record<string, unknown>> | undefined;
-        const experiment = createExperiment({
-          experimentId: generateUuid(),
-          projectId: ctx.projectId,
-          branchId: ctx.branchId,
-          title: "Verification Experiment",
-          status: "PLANNED",
-        });
-        Effect.runSync(ctx.objectStore.save(experiment));
-        manifest.experiments = [...manifest.experiments, experiment];
-        return Effect.succeed({
-          experiment,
-          knowledgeItems,
-          phase: "experiment_design",
+        return Effect.promise(async () => {
+          const knowledgeItems = input.knowledgeItems as Array<Record<string, unknown>> | undefined;
+          const experiment = createExperiment({
+            experimentId: generateUuid(),
+            projectId: ctx.projectId,
+            branchId: ctx.branchId,
+            title: "Verification Experiment",
+            status: "PLANNED",
+          });
+          await Effect.runPromise(ctx.objectStore.save(experiment));
+          manifest.experiments = [...manifest.experiments, experiment];
+          return {
+            experiment,
+            knowledgeItems,
+            phase: "experiment_design",
+          };
         });
       },
     },

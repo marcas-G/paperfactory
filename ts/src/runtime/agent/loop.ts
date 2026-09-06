@@ -13,7 +13,8 @@ export type AgentEventType =
   | "phase:complete"
   | "message"
   | "user:interrupt"
-  | "error";
+  | "error"
+  | "self:review";
 
 export interface AgentEvent {
   type: AgentEventType;
@@ -24,6 +25,9 @@ export interface AgentEvent {
   phase?: string;
   iteration?: number;
   timestamp: string;
+  passed?: boolean;
+  rounds?: number;
+  issues?: Array<{ severity: "blocking" | "warning"; category: string; message: string }>;
 }
 
 export interface AgentLoopOptions {
@@ -41,7 +45,6 @@ export interface AgentLoopResult {
 }
 
 function emit(onEvent: AgentLoopOptions["onEvent"], event: AgentEvent) {
-  event.timestamp = new Date().toISOString();
   onEvent?.(event);
 }
 
@@ -55,7 +58,12 @@ export async function runAgentLoop(
   const messages: Message[] = [...initialMessages];
   const toolCalls: Array<{ toolName: string; input: ToolInput; output: ToolOutput }> = [];
   const events: AgentEvent[] = [];
-  const realEmit = (e: AgentEvent) => { events.push(e); emit(onEvent, e); };
+  const realEmit = (e: Omit<AgentEvent, "timestamp">): AgentEvent => {
+    const event: AgentEvent = { ...e, timestamp: new Date().toISOString() };
+    events.push(event);
+    emit(onEvent, event);
+    return event;
+  };
   let iteration = 0;
 
   while (iteration < maxIterations) {

@@ -99,9 +99,9 @@ describe("Agent Loop", () => {
       provider,
       toolRegistry,
       [{ role: "user", content: "infinite loop" }],
-      3
+      { maxIterations: 3 }
     );
 
-    expect(result.finalContent).toBe("Max iterations reached");
+    expect(result.finalContent).toBe("达到最大迭代次数");
   });
 });
