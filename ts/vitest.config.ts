@@ -33,15 +33,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@domain": "/src/domain",
-      "@control": "/src/control",
       "@cognition": "/src/cognition",
-      "@runtime": "/src/runtime",
-      "@capabilities": "/src/capabilities",
       "@persistence": "/src/persistence",
+      "@control": "/src/control",
+      "@runtime": "/src/runtime",
+      "@orchestration": "/src/orchestration",
       "@api": "/src/api",
+      "@app": "/src/app",
       "@observability": "/src/observability",
       "@evals": "/src/evals",
-      "@app": "/src/app",
     },
   },
 });

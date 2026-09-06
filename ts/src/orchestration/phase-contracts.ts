@@ -12,11 +12,11 @@ import { createExperiment } from "@domain/objects/experiment";
 import { createResult } from "@domain/objects/result";
 import { createEvidence } from "@domain/objects/evidence";
 import { createReport } from "@domain/objects/report";
-import { selfReview, SelfReviewResult } from "./self-review";
-import { chainOfVerification, CoVeResult } from "./cove";
-import { beamSearch } from "./tot-engine";
-import { sampleConsensus } from "./self-consistency";
-import { debate } from "./debate";
+import { selfReview, SelfReviewResult } from "@runtime/workflows/self-review";
+import { chainOfVerification, CoVeResult } from "@runtime/workflows/cove";
+import { beamSearch } from "@runtime/workflows/tot-engine";
+import { sampleConsensus } from "@runtime/workflows/self-consistency";
+import { debate } from "@runtime/workflows/debate";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

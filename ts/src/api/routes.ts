@@ -436,7 +436,7 @@ export function createHonoApp(
       createdAt: now,
     }));
 
-    const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
+    const { runAgentDrivenResearch } = await import("@orchestration/agent-research");
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     const events: Array<Record<string, unknown>> = [];
     let stopped = false;
@@ -500,7 +500,7 @@ export function createHonoApp(
       createdAt: now,
     }));
 
-    const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
+    const { runAgentDrivenResearch } = await import("@orchestration/agent-research");
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     let stopped = false;
 
@@ -773,7 +773,7 @@ export function createHonoApp(
     const phaseName = c.req.param("phaseName");
     const body = await c.req.json().catch(() => ({}));
 
-    const { PHASE_CONTRACTS } = await import("@runtime/workflows/phase-contracts");
+    const { PHASE_CONTRACTS } = await import("@orchestration/phase-contracts");
     const contract = PHASE_CONTRACTS.find((p) => p.name === phaseName);
     if (!contract) {
       return c.json({ error: `Unknown phase: ${phaseName}` }, 404);
@@ -782,7 +782,7 @@ export function createHonoApp(
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     const events: Array<Record<string, unknown>> = [];
 
-    const { runPhase } = await import("@runtime/workflows/phase-contracts");
+    const { runPhase } = await import("@orchestration/phase-contracts");
     const result = await runPhase(
       contract,
       objectStore,

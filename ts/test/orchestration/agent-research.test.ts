@@ -9,8 +9,8 @@ import { ToolRegistry } from "@runtime/tools/registry";
 import { MockProvider } from "@runtime/provider";
 import type { Provider, ToolDefinition, Message } from "@runtime/provider";
 import type { AgentEvent } from "@runtime/agent/loop";
-import { runAgentDrivenResearch } from "@runtime/workflows/agent-research";
-import { PHASE_CONTRACTS } from "@runtime/workflows/phase-contracts";
+import { runAgentDrivenResearch } from "@orchestration/agent-research";
+import { PHASE_CONTRACTS } from "@orchestration/phase-contracts";
 
 class SequentialProvider implements Provider {
   private index = 0;

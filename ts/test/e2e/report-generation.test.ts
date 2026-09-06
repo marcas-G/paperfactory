@@ -4,7 +4,7 @@ import { createApp, AppConfig } from "@app/index";
 import { createDeterministicProvider } from "@runtime/provider-deterministic";
 import { createResearchGap } from "@domain/objects/gap";
 import { createHypothesis } from "@domain/objects/hypothesis";
-import { runWorkflow, createHypothesisVerificationWorkflow } from "@runtime/workflows/hypothesis-verification";
+import { runWorkflow, createHypothesisVerificationWorkflow } from "@orchestration/hypothesis-verification";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

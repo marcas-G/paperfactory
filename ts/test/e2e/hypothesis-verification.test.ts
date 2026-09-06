@@ -5,12 +5,12 @@ import { createDeterministicProvider } from "@runtime/provider-deterministic";
 import {
   createHypothesisVerificationWorkflow,
   runWorkflow,
-} from "@runtime/workflows/hypothesis-verification";
+} from "@orchestration/hypothesis-verification";
 import { createHypothesis } from "@domain/objects/hypothesis";
 import { createResearchGap } from "@domain/objects/gap";
 import { createEvidence } from "@domain/objects/evidence";
 import type { WorkflowPhase } from "@runtime/workflows/engine";
-import { createEmptyManifest } from "@runtime/workflows/manifest";
+import { createEmptyManifest } from "@orchestration/manifest";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

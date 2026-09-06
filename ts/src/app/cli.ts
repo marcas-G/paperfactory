@@ -1,7 +1,7 @@
 import { createApp, loadConfig, AppDependencies } from "./index";
 import * as Effect from "effect/Effect";
-import { createHypothesisVerificationWorkflow, runWorkflow } from "@runtime/workflows/hypothesis-verification";
-import type { HypothesisVerificationContext } from "@runtime/workflows/hypothesis-verification";
+import { createHypothesisVerificationWorkflow, runWorkflow } from "@orchestration/hypothesis-verification";
+import type { HypothesisVerificationContext } from "@orchestration/hypothesis-verification";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

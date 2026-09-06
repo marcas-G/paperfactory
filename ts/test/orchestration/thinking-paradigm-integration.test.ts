@@ -8,7 +8,7 @@ import { ActionRegistry } from "@control/registry";
 import { ToolRegistry } from "@runtime/tools/registry";
 import type { Provider, ToolDefinition, Message } from "@runtime/provider";
 import type { AgentEvent } from "@runtime/agent/loop";
-import { buildPhaseContext, runPhase, PHASE_CONTRACTS } from "@runtime/workflows/phase-contracts";
+import { buildPhaseContext, runPhase, PHASE_CONTRACTS } from "@orchestration/phase-contracts";
 import { createDeterministicProvider } from "@runtime/provider-deterministic";
 
 describe("Thinking paradigm integration in research phases", () => {

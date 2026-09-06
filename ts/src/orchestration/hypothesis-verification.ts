@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect";
-import type { WorkflowPhase } from "./engine";
-import { runWorkflow } from "./engine";
+import type { WorkflowPhase } from "@runtime/workflows/engine";
+import { runWorkflow } from "@runtime/workflows/engine";
 import type { ObjectStore } from "@persistence/object-store";
 import type { EventStore } from "@persistence/event-store";
 import type { ResearchController } from "@control/controller";
