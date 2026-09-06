@@ -128,6 +128,30 @@ export async function runAgentLoop(
         content: toolOutput.content || "",
       });
     }
+
+    // Reflexion: after all tool results in this iteration, if iterations remain,
+    // insert a reflection prompt using the REFLECT cognitive mode.
+    if (iteration < maxIterations - 1) {
+      const { getCognitiveModeByName } = await import("@cognition/modes");
+      const reflectMode = getCognitiveModeByName("REFLECT");
+      const reflectInstruction = reflectMode?.instructions || "";
+
+      messages.push({
+        role: "user",
+        content: `${reflectInstruction}
+
+Reflect on the tool result above:
+1. Is the result sufficient?
+2. What can be improved?
+3. What action should you take next?`,
+      });
+
+      realEmit({
+        type: "thinking",
+        content: "反思工具结果，规划下一步行动",
+        iteration,
+      });
+    }
   }
 
   realEmit({ type: "error", content: "达到最大迭代次数" });
