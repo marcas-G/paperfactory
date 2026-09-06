@@ -512,9 +512,9 @@ export function createHonoApp(
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     let stopped = false;
 
-    // Store run state for interrupt
+    // Store run state for interrupt + approval pending
     (globalThis as any).__researchRuns = (globalThis as any).__researchRuns ?? new Map();
-    (globalThis as any).__researchRuns.set(runId, { stopped: () => stopped, setStopped: (v: boolean) => { stopped = v; } });
+    (globalThis as any).__researchRuns.set(runId, { stopped: () => stopped, setStopped: (v: boolean) => { stopped = v; }, approvalResolve: null, approvalPhase: null, approvalRunId: null });
 
     const encoder = new TextEncoder();
     let controllerRef: ReadableStreamDefaultController | null = null;
@@ -551,9 +551,18 @@ export function createHonoApp(
               onEvent: (event) => {
                 sendEvent(event.type, event);
               },
-              onApprovalNeeded: async (runId: string, phaseName: string, summary: string) => {
-                sendEvent("awaiting_approval", { runId, phaseName, summary });
-                return "approve";
+              onApprovalNeeded: async (runId2: string, phaseName: string, summary: string) => {
+                if (body.mode === "auto") {
+                  return "approve";
+                }
+                sendEvent("phase:awaiting_approval", { runId: runId2, phaseName, summary });
+                // Wait for HTTP decision endpoint to resolve
+                return new Promise<string>((resolve) => {
+                  const runState = (globalThis as any).__researchRuns.get(runId);
+                  runState.approvalPhase = phaseName;
+                  runState.approvalRunId = runId2;
+                  runState.approvalResolve = resolve;
+                });
               },
               shouldStop: () => stopped,
             });
@@ -698,6 +707,21 @@ export function createHonoApp(
     const id = c.req.param("id");
     const runId = c.req.param("runId");
     const body = await c.req.json();
+
+    // Resolve pending approval in active research run
+    const allRuns = (globalThis as any).__researchRuns ?? new Map();
+    for (const [researchRunId, state] of allRuns.entries()) {
+      if (state && state.approvalRunId === runId && state.approvalResolve) {
+        const resolve = state.approvalResolve;
+        state.approvalResolve = null;
+        state.approvalRunId = null;
+        resolve(body.decision ?? "approve");
+
+        // Send SSE event after decision
+        const eventType = body.decision === "approve" ? "phase:approved" : body.decision === "modify" ? "phase:modified" : "phase:rejected";
+        // Will be handled by agent-research onApprovalNeeded callback
+      }
+    }
 
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
     const run = runs.find((r: any) => r.phaseRunId === runId && r.projectId === id);

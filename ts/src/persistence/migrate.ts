@@ -266,6 +266,7 @@ const MIGRATIONS = [
           abstract TEXT,
           relevance_score DOUBLE PRECISION NOT NULL DEFAULT 0.5,
           metadata JSONB DEFAULT '{}',
+          local_pdf_path VARCHAR(1024),
           created_at TIMESTAMP NOT NULL DEFAULT NOW()
         )
       `));
@@ -322,6 +323,19 @@ const MIGRATIONS = [
       await db.execute(sql.raw(`
         CREATE INDEX IF NOT EXISTS idx_ec_project
           ON evidence_chain(project_id)
+      `));
+
+      // Add local_pdf_path to citations if not exists
+      await db.execute(sql.raw(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'citations' AND column_name = 'local_pdf_path'
+          ) THEN
+            ALTER TABLE citations ADD COLUMN local_pdf_path VARCHAR(1024);
+          END IF;
+        END $$
       `));
     },
   },

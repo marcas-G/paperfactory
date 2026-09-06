@@ -317,6 +317,7 @@ function addToolCall(toolName, input, output) {
               <div class="paper-meta">${esc(p.authors?.join(', ') || '')} (${p.year || '?'}) · ${p.citationCount || 0} citations</div>
               <div class="paper-abstract">${esc((p.abstract || '').substring(0, 200))}</div>
               ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="paper-link">查看原文</a>` : ''}
+              ${p.openAccessPdf ? `<span class="paper-link" style="margin-left:8px" title="本地PDF下载">📥 PDF</span>` : ''}
             </div>`
           ).join('') + '</div>';
       }
@@ -584,6 +585,28 @@ async function startResearch() {
               objectId: data.objectId
             };
           }
+        }
+        else if (eventType === 'self:review') {
+          addMsg('system', '自我审查', `${data.passed ? '✅ 通过' : '⚠️ 发现问题'} (${data.rounds} 轮)`);
+          if (data.issues && data.issues.length > 0) {
+            addMsg('system', '审查问题', data.issues.map(i => `  • [${i.severity}] ${i.category}: ${i.message}`).join('\n'));
+          }
+        }
+        else if (eventType === 'phase:awaiting_approval') {
+          addMsg('system', '等待审批', `阶段 "${data.phaseName}" 需要审批`);
+          if (data.runId) {
+            phaseResults[data.phaseName] = {
+              ...phaseResults[data.phaseName],
+              status: 'WAITING_APPROVAL',
+              runId: data.runId,
+              summary: data.summary
+            };
+          }
+          const phaseEl = document.querySelector(`[data-phase="${data.phaseName}"]`);
+          if (phaseEl) phaseEl.className = 'phase review';
+        }
+        else if (eventType === 'phase:approved') {
+          addMsg('system', '已批准', `阶段 "${data.phaseName}" 已批准`);
         }
         else if (eventType === 'thinking') {
           addMsg('agent', '思考', data.content);

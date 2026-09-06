@@ -221,6 +221,7 @@ export const citations = pgTable("citations", {
   abstract: text("abstract"),
   relevanceScore: doublePrecision("relevance_score").notNull().default(0.5),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  localPdfPath: varchar("local_pdf_path", { length: 1024 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

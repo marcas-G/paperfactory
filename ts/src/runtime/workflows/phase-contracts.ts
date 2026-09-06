@@ -401,10 +401,13 @@ export async function runPhase(
       selfReviewResult = await selfReview(rawOutput, contract.name, provider);
 
       onEvent({
-        type: "phase:progress",
+        type: "self:review",
         content: `自我审查: ${selfReviewResult.passed ? "通过" : "发现问题"} (${selfReviewResult.rounds} 轮)`,
         phase: contract.name,
         timestamp: new Date().toISOString(),
+        passed: selfReviewResult.passed,
+        rounds: selfReviewResult.rounds,
+        issues: selfReviewResult.issues || [],
       });
 
       if (selfReviewResult.finalOutput !== rawOutput) {
