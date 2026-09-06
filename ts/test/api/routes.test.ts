@@ -319,12 +319,12 @@ describe("Health & UI", () => {
     expect(body).toContain("PaperFactory");
   });
 
-  it("GET / returns interactive research form", async () => {
+  it("GET / returns Vue SPA entry point", async () => {
     const res = await app.request("/");
+    expect(res.status).toBe(200);
     const body = await res.text();
-    expect(body).toContain("research");
-    expect(body).toContain("input");
-    expect(body).toContain("button");
+    expect(body).toContain("<!DOCTYPE html>");
+    expect(body).toContain("<div id=\"app\"");
   });
 
   it("GET /ws returns 404", async () => {

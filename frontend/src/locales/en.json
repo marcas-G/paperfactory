@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "research": "Research",
+    "projects": "Projects"
+  },
+  "status": {
+    "ready": "Ready",
+    "running": "Running",
+    "done": "Completed",
+    "error": "Error"
+  },
+  "phases": {
+    "literature_search": "Literature Search",
+    "gap_analysis": "Gap Analysis",
+    "hypothesis": "Hypothesis Generation",
+    "experiment_design": "Experiment Design",
+    "experiment_execution": "Experiment Execution",
+    "evidence_evaluation": "Evidence Evaluation",
+    "conclusion": "Conclusion",
+    "report": "Report Generation"
+  },
+  "btn": {
+    "startResearch": "Start Research",
+    "stop": "Stop",
+    "approve": "Approve",
+    "modify": "Modify",
+    "reject": "Reject"
+  },
+  "common": {
+    "new": "New",
+    "delete": "Delete",
+    "loading": "Loading",
+    "projects": "Projects",
+    "enterQuestion": "Enter research question",
+    "agentLog": "Agent Log",
+    "rawOutput": "Raw Output",
+    "selfReview": "Self-Review",
+    "rounds": "Rounds",
+    "approval": "Approval",
+    "summary": "Summary",
+    "papers": "Papers"
+  }
+}
