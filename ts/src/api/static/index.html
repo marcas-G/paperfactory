@@ -236,7 +236,7 @@ async function loadPhaseRuns(projectId) {
     runs.forEach(run => {
       phaseResults[run.phase] = {
         status: run.status,
-        runId: run.id,
+        runId: run.phaseRunId,
         objectType: run.objectType,
         objectId: run.objectId,
         rawOutput: run.rawOutput,

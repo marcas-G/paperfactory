@@ -394,7 +394,7 @@ export async function runPhase(
     toolCalls.push(...result.toolCalls.map(tc => ({
       toolName: tc.toolName,
       input: tc.input,
-      output: tc.output.content?.substring(0, 3000) ?? "",
+      output: tc.output.content?.substring(0, 10000) ?? "",
     })));
 
     // Step 3b: Self-review
@@ -430,8 +430,41 @@ export async function runPhase(
   const savedIds: Record<string, string[]> = {};
 
   if (parsed && contract.name === "literature_search") {
+    // First: extract papers from search tool results
+    const searchToolCall = toolCalls.find((tc: any) =>
+      tc.toolName === "search" || tc.toolName === "literatureSearch" || tc.toolName === "web_search"
+    );
+    let searchPapers: any[] = [];
+    if (searchToolCall) {
+      try {
+        const outputData = JSON.parse(searchToolCall.output);
+        searchPapers = outputData.results || outputData.data || [];
+      } catch { /* search output not valid JSON, skip */ }
+    }
+
+    // Save search papers as Citations with full metadata
+    const savedCitationIds: string[] = [];
+    for (const paper of searchPapers) {
+      const citationId = generateUuid();
+      await Effect.runPromise(store.save({
+        citationId, projectId,
+        sourceTitle: paper.title ?? "Unknown",
+        sourceUrl: paper.url ?? "",
+        sourceAuthors: paper.authors ?? [],
+        sourceYear: paper.year ?? null,
+        abstract: paper.abstract ?? "",
+        relevanceScore: paper.relevanceScore ?? 0.5,
+        localPdfPath: paper.localPdfPath ?? null,
+        metadata: { openAccessPdf: paper.openAccessPdf, citationCount: paper.citationCount } ?? {},
+      } as any));
+      savedCitationIds.push(citationId);
+    }
+
+    // Also save LLM-extracted keyFindings as Citations if not already in search results
     const findings = (parsed.keyFindings as any[]) ?? [];
+    const searchTitles = new Set(searchPapers.map((p: any) => (p.title ?? "").toLowerCase()));
     for (const f of findings) {
+      if (searchTitles.has((f.sourceTitle ?? "").toLowerCase())) continue;
       const citationId = generateUuid();
       await Effect.runPromise(store.save({
         citationId, projectId,
@@ -440,8 +473,9 @@ export async function runPhase(
         sourceAuthors: [],
         relevanceScore: 0.8,
       } as any));
-      savedIds.citationIds = [...(savedIds.citationIds ?? []), citationId];
+      savedCitationIds.push(citationId);
     }
+    savedIds.citationIds = savedCitationIds;
 
     const knowledgeId = generateUuid();
     await Effect.runPromise(store.save(createKnowledgeItem({
@@ -593,6 +627,8 @@ export async function runPhase(
     runId: runId ?? "",
     objectType,
     objectId,
+    rawOutput,
+    toolCalls,
   } as any);
 
   return {
