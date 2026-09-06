@@ -187,6 +187,19 @@ export function createHonoApp(
     if (opt.isNone()) {
       return c.json({ error: "Project not found" }, 404);
     }
+
+    // Cascade delete: remove all associated objects
+    const cascadeTypes = ["PhaseRun", "EvidenceChain", "Citation", "Evidence", "Result", "Experiment", "Report", "Hypothesis", "ResearchGap", "KnowledgeItem", "ResearchQuestion", "ResearchFailure"];
+    for (const type of cascadeTypes) {
+      const items = await Effect.runPromise(objectStore.list(type));
+      for (const item of items) {
+        const itemId = (item as any).citationId || (item as any).evidenceChainId || (item as any).phaseRunId || (item as any).evidenceId || (item as any).resultId || (item as any).experimentId || (item as any).reportId || (item as any).hypothesisId || (item as any).gapId || (item as any).knowledgeId || (item as any).questionId || (item as any).failureId || (item as any).id;
+        if ((item as any).projectId === id && itemId) {
+          await Effect.runPromise(objectStore.delete(itemId, type)).catch(() => {});
+        }
+      }
+    }
+
     await Effect.runPromise(objectStore.delete(id, "Project"));
     return c.json({ deleted: id });
   });
@@ -263,22 +276,6 @@ export function createHonoApp(
     const id = c.req.param("id");
     const all = await Effect.runPromise(objectStore.list("Report"));
     return c.json(all.filter((r: any) => r.projectId === id));
-  });
-
-  app.get("/api/projects/:id/all", async (c) => {
-    const id = c.req.param("id");
-    const hypotheses = await Effect.runPromise(objectStore.list("Hypothesis"));
-    const evidence = await Effect.runPromise(objectStore.list("Evidence"));
-    const knowledge = await Effect.runPromise(objectStore.list("KnowledgeItem"));
-    const reports = await Effect.runPromise(objectStore.list("Report"));
-    const experiments = await Effect.runPromise(objectStore.list("Experiment"));
-    return c.json({
-      hypotheses: hypotheses.filter((h: any) => h.projectId === id),
-      evidence: evidence.filter((e: any) => e.projectId === id),
-      knowledge: knowledge.filter((k: any) => k.projectId === id),
-      reports: reports.filter((r: any) => r.projectId === id),
-      experiments: experiments.filter((e: any) => e.projectId === id),
-    });
   });
 
   app.put("/api/research/:objectId", async (c) => {
@@ -689,21 +686,33 @@ export function createHonoApp(
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
     const projectRuns = runs
       .filter((r: any) => r.projectId === id)
-      .sort((a: any, b: any) => a.phase_version - b.phase_version);
-    return c.json(projectRuns.map((r: any) => ({
-      phaseRunId: r.phaseRunId,
-      projectId: r.projectId,
-      phase: r.phaseName,
-      phaseName: r.phaseName,
-      phaseVersion: r.phaseVersion,
-      status: r.status,
-      artifacts: r.artifacts,
-      rawOutput: r.agentOutput,
-      toolCalls: r.toolCalls,
-      selfReview: r.selfReview,
-      active: r.active,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      .sort((a: any, b: any) => (a.phaseVersion || 0) - (b.phaseVersion || 0));
+    return c.json(projectRuns.map((r: any) => {
+      const artifacts = r.artifacts || {};
+      const firstKey = Object.keys(artifacts)[0];
+      const typeMap: Record<string, string> = {
+        knowledgeIds: "KnowledgeItem", hypothesisIds: "Hypothesis",
+        gapIds: "ResearchGap", experimentIds: "Experiment",
+        resultIds: "Result", evidenceIds: "Evidence",
+        reportIds: "Report", citationIds: "Citation",
+      };
+      return {
+        phaseRunId: r.phaseRunId,
+        projectId: r.projectId,
+        phase: r.phaseName,
+        phaseName: r.phaseName,
+        phaseVersion: r.phaseVersion,
+        status: r.status,
+        artifacts: r.artifacts,
+        rawOutput: r.agentOutput,
+        toolCalls: r.toolCalls,
+        selfReview: r.selfReview,
+        active: r.active,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        objectType: firstKey ? (typeMap[firstKey] ?? firstKey) : "",
+        objectId: firstKey ? (artifacts[firstKey]?.[0] ?? "") : "",
+      };
     })));
   });
 

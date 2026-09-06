@@ -30,6 +30,9 @@ body{font-family:'JetBrains Mono','SF Mono',Consolas,monospace;background:var(--
 .proj.active{background:var(--s2);border-left:3px solid var(--accent)}
 .proj .pname{font-size:.8rem;color:var(--t1)}
 .proj .pstatus{font-size:.65rem;color:var(--t2);margin-top:2px}
+.proj-delete{position:absolute;right:8px;top:10px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:.7rem;padding:2px 6px;border-radius:3px;line-height:1}
+.proj-delete:hover{background:var(--red);color:#fff}
+.proj{position:relative}
 /* Content area */
 #content{flex:1;display:flex;overflow:hidden}
 /* Phase sidebar */
@@ -119,8 +122,8 @@ body{font-family:'JetBrains Mono','SF Mono',Consolas,monospace;background:var(--
 <div id="topbar">
   <h1>PAPERFACTORY</h1>
   <div class="nav">
-    <button class="active" onclick="showView('research')">研究</button>
-    <button onclick="showView('projects')">项目</button>
+    <button class="active" onclick="showView('research', event)">研究</button>
+    <button onclick="showView('projects', event)">项目</button>
   </div>
   <div class="status">
     <span id="status-text">就绪</span>
@@ -188,11 +191,30 @@ async function loadProjects() {
 
 function renderProjects() {
   projectListEl.innerHTML = projects.map(p =>
-    `<div class="proj${p.id === currentProjectId ? ' active' : ''}" onclick="selectProject('${p.id}')">
-      <div class="pname">${esc(p.name)}</div>
+    `<div class="proj${p.id === currentProjectId ? ' active' : ''}">
+      <div class="pname" onclick="selectProject('${p.id}')">${esc(p.name)}</div>
       <div class="pstatus">${p.status || 'ACTIVE'} · ${new Date(p.createdAt).toLocaleDateString()}</div>
+      <button class="proj-delete" onclick="event.stopPropagation();deleteProject('${p.id}','${esc(p.name)}')" title="删除">✕</button>
     </div>`
   ).join('');
+}
+
+async function deleteProject(id, name) {
+  if (!confirm(`确定要删除「${name}」吗？此操作不可恢复。`)) return;
+  try {
+    const resp = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    if (!resp.ok) throw new Error(await resp.text());
+    if (currentProjectId === id) {
+      currentProjectId = null;
+      phaseResults = {};
+      resetPhaseUI();
+      clearLog();
+    }
+    await loadProjects();
+    addMsg('system', '系统', `已删除项目「${name}」`);
+  } catch(e) {
+    addMsg('error', '错误', `删除失败: ${e.message}`);
+  }
 }
 
 async function selectProject(id) {
@@ -341,7 +363,7 @@ function addToolCall(toolName, input, output) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-function esc(s) { return (s ?? '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return (s ?? '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\\/g,'&#92;'); }
 
 function resetPhaseUI() {
   document.querySelectorAll('.phase').forEach(el => el.className = 'phase pending');
@@ -669,9 +691,9 @@ async function stopResearch() {
   stopBtn.classList.add('hidden');
 }
 
-function showView(view) {
+function showView(view, e) {
   document.querySelectorAll('#topbar .nav button').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (e && e.target) e.target.classList.add('active');
 }
 
 inputEl.addEventListener('keydown', (e) => {
