@@ -6,7 +6,6 @@ import { ObjectStore } from "@persistence/object-store";
 import { ResearchController } from "@control/controller";
 import { runAgentLoop } from "@runtime/agent/loop";
 import { ToolRegistry } from "@runtime/tools/registry";
-import { BaseTool } from "@runtime/tools/contracts";
 
 export interface APIRoute {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -89,6 +88,8 @@ export function createHonoApp(
   provider: Provider,
   appToolRegistry?: ToolRegistry
 ): Hono {
+  const researchController = controller;
+  const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
   const app = new Hono();
 
   app.get("/", (c) => {
@@ -333,10 +334,9 @@ export function createHonoApp(
   app.post("/api/agent/run", async (c) => {
     const body = await c.req.json();
     const runId = generateUuid();
-    const toolRegistry = new ToolRegistry();
     const loopResult = await runAgentLoop(
       provider,
-      toolRegistry,
+      researchToolRegistry,
       [{ role: "user", content: body.prompt ?? "" }],
       { maxIterations: 20 }
     );
@@ -354,7 +354,6 @@ export function createHonoApp(
   app.post("/api/agent/stream", async (c) => {
     const body = await c.req.json();
     const runId = generateUuid();
-    const toolRegistry = new ToolRegistry();
 
     const encoder = new TextEncoder();
     let controllerRef: ReadableStreamDefaultController | null = null;
@@ -375,7 +374,7 @@ export function createHonoApp(
 
         runAgentLoop(
           provider,
-          toolRegistry,
+          researchToolRegistry,
           [{ role: "user", content: body.prompt ?? "" }],
           {
             maxIterations: 20,
@@ -420,12 +419,7 @@ export function createHonoApp(
     };
     await Effect.runPromise(objectStore.save(project));
 
-    const { InMemoryObjectStore } = await import("@persistence/object-store");
-    const { InMemoryEventStore } = await import("@persistence/event-store");
-    const memStore = new InMemoryObjectStore();
-    const memEventStore = new InMemoryEventStore();
-
-    await Effect.runPromise(memStore.save({
+    await Effect.runPromise(objectStore.save({
       hypothesisId,
       projectId,
       branchId,
@@ -435,17 +429,7 @@ export function createHonoApp(
       createdAt: now,
     }));
 
-    const { TransitionEngine } = await import("@control/engine");
-    const { ActionRegistry } = await import("@control/registry");
-    const memController = new (await import("@control/controller")).ResearchController(
-      memStore,
-      memEventStore,
-      new TransitionEngine(),
-      new ActionRegistry()
-    );
-
     const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
-    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     const events: Array<Record<string, unknown>> = [];
     let stopped = false;
@@ -455,37 +439,14 @@ export function createHonoApp(
       branchId,
       question: body.question ?? "",
       provider,
-      objectStore: memStore,
-      eventStore: memEventStore,
-      controller: memController,
+      objectStore,
+      eventStore: researchController.eventStore,
+      controller: researchController,
       toolRegistry: researchToolRegistry,
       toolDefinitions,
       onEvent: (event) => events.push(event),
       shouldStop: () => stopped,
     });
-
-    // Persist PhaseRuns to PG
-    const phaseRuns = await Effect.runPromise(memStore.list("PhaseRun"));
-    for (const pr of phaseRuns) {
-      await Effect.runPromise(objectStore.save(pr));
-    }
-
-    // Persist EvidenceChains to PG
-    const chains = await Effect.runPromise(memStore.list("EvidenceChain"));
-    for (const ch of chains) {
-      await Effect.runPromise(objectStore.save(ch));
-    }
-
-    // Persist Citations to PG
-    const citations = await Effect.runPromise(memStore.list("Citation"));
-    for (const ci of citations) {
-      await Effect.runPromise(objectStore.save(ci));
-    }
-
-    // Persist other objects to PG
-    for (const item of [...researchResult.knowledgeItems, ...researchResult.evidence, ...researchResult.experiments, ...researchResult.results, ...researchResult.reports]) {
-      await Effect.runPromise(objectStore.save(item));
-    }
 
     return c.json({
       runId: generateUuid(),
@@ -522,12 +483,7 @@ export function createHonoApp(
     };
     await Effect.runPromise(objectStore.save(project));
 
-    const { InMemoryObjectStore } = await import("@persistence/object-store");
-    const { InMemoryEventStore } = await import("@persistence/event-store");
-    const memStore = new InMemoryObjectStore();
-    const memEventStore = new InMemoryEventStore();
-
-    await Effect.runPromise(memStore.save({
+    await Effect.runPromise(objectStore.save({
       hypothesisId,
       projectId,
       branchId,
@@ -537,17 +493,7 @@ export function createHonoApp(
       createdAt: now,
     }));
 
-    const { TransitionEngine } = await import("@control/engine");
-    const { ActionRegistry } = await import("@control/registry");
-    const memController = new (await import("@control/controller")).ResearchController(
-      memStore,
-      memEventStore,
-      new TransitionEngine(),
-      new ActionRegistry()
-    );
-
     const { runAgentDrivenResearch } = await import("@runtime/workflows/agent-research");
-    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     let stopped = false;
 
@@ -581,9 +527,9 @@ export function createHonoApp(
               branchId,
               question: body.question ?? "",
               provider,
-              objectStore: memStore,
-              eventStore: memEventStore,
-              controller: memController,
+              objectStore,
+              eventStore: researchController.eventStore,
+              controller: researchController,
               toolRegistry: researchToolRegistry,
               toolDefinitions,
               mode: body.mode ?? "manual",
@@ -605,29 +551,6 @@ export function createHonoApp(
               },
               shouldStop: () => stopped,
             });
-
-            // Persist PhaseRuns to PG
-            const phaseRuns = await Effect.runPromise(memStore.list("PhaseRun"));
-            for (const pr of phaseRuns) {
-              await Effect.runPromise(objectStore.save(pr));
-            }
-
-            // Persist EvidenceChains to PG
-            const chains = await Effect.runPromise(memStore.list("EvidenceChain"));
-            for (const ch of chains) {
-              await Effect.runPromise(objectStore.save(ch));
-            }
-
-            // Persist Citations to PG
-            const citations = await Effect.runPromise(memStore.list("Citation"));
-            for (const ci of citations) {
-              await Effect.runPromise(objectStore.save(ci));
-            }
-
-            // Persist other objects to PG
-            for (const item of [...researchResult.knowledgeItems, ...researchResult.evidence, ...researchResult.experiments, ...researchResult.results, ...researchResult.reports]) {
-              await Effect.runPromise(objectStore.save(item));
-            }
 
             sendEvent("run:complete", {
               runId,
@@ -852,7 +775,6 @@ export function createHonoApp(
       return c.json({ error: `Unknown phase: ${phaseName}` }, 404);
     }
 
-    const researchToolRegistry = appToolRegistry ?? new ToolRegistry();
     const toolDefinitions = buildToolDefs(researchToolRegistry);
     const events: Array<Record<string, unknown>> = [];
 

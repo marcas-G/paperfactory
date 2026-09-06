@@ -125,9 +125,10 @@ export function createApp(
 
   const honoApp = createHonoApp(
     apiRouter,
-    objectStore as InMemoryObjectStore,
+    objectStore,
     controller,
-    provider
+    provider,
+    toolRegistry
   );
 
   return {
