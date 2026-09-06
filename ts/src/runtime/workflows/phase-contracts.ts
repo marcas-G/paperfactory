@@ -301,6 +301,7 @@ export async function runPhase(
   onEvent: (e: AgentEvent) => void,
   shouldStop: () => boolean,
   extraContext?: string,
+  runId?: string,
 ): Promise<PhaseRunResult> {
   if (shouldStop()) {
     return { phaseName: contract.name, status: "SKIPPED", output: null, rawOutput: "", savedIds: {}, toolCalls: [], selfReview: null };
@@ -589,7 +590,7 @@ export async function runPhase(
     phase: contract.name,
     timestamp: new Date().toISOString(),
     needsApproval,
-    runId: "",
+    runId: runId ?? "",
     objectType,
     objectId,
   } as any);

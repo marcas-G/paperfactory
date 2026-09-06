@@ -104,6 +104,9 @@ export async function runAgentDrivenResearch(
       continue;
     }
 
+    const phaseRunId = generateUuid();
+    const version = (phaseVersions[contract.name] ?? 0) + 1;
+
     const result = await runPhase(
       contract,
       objectStore,
@@ -113,12 +116,12 @@ export async function runAgentDrivenResearch(
       ctx.projectId,
       ctx.question,
       onEvent,
-      shouldStop
+      shouldStop,
+      undefined,
+      phaseRunId
     );
 
     // Save PhaseRun to PG
-    const phaseRunId = generateUuid();
-    const version = (phaseVersions[contract.name] ?? 0) + 1;
     phaseVersions[contract.name] = version;
 
     const phaseRun = createPhaseRun({
@@ -141,12 +144,29 @@ export async function runAgentDrivenResearch(
       phaseName: contract.name,
     });
 
+    const firstKey = Object.keys(result.savedIds)[0];
+    const typeMap: Record<string, string> = {
+      knowledgeIds: "KnowledgeItem",
+      hypothesisIds: "Hypothesis",
+      gapIds: "ResearchGap",
+      experimentIds: "Experiment",
+      resultIds: "Result",
+      evidenceIds: "Evidence",
+      reportIds: "Report",
+      citationIds: "Citation",
+    };
+    const objectType = firstKey ? (typeMap[firstKey] ?? firstKey) : "";
+    const objectId = firstKey ? (result.savedIds[firstKey]?.[0] ?? "") : "";
+
     onEvent({
       type: "phase:progress",
       content: `阶段 ${contract.label} 已保存 (v${version})`,
       phase: contract.name,
       timestamp: new Date().toISOString(),
-    });
+      runId: phaseRunId,
+      objectType,
+      objectId,
+    } as any);
 
     // Approval gate (manual mode)
     if (ctx.mode === "manual" && ctx.onApprovalNeeded) {

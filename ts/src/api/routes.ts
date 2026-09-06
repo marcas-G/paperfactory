@@ -653,8 +653,22 @@ export function createHonoApp(
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
     const projectRuns = runs
       .filter((r: any) => r.projectId === id)
-      .sort((a: any, b: any) => a.phaseVersion - b.phaseVersion);
-    return c.json(projectRuns);
+      .sort((a: any, b: any) => a.phase_version - b.phase_version);
+    return c.json(projectRuns.map((r: any) => ({
+      phaseRunId: r.phaseRunId,
+      projectId: r.projectId,
+      phase: r.phaseName,
+      phaseName: r.phaseName,
+      phaseVersion: r.phaseVersion,
+      status: r.status,
+      artifacts: r.artifacts,
+      rawOutput: r.agentOutput,
+      toolCalls: r.toolCalls,
+      selfReview: r.selfReview,
+      active: r.active,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })));
   });
 
   // Get phases grouped by phase name
@@ -667,7 +681,14 @@ export function createHonoApp(
     for (const run of projectRuns) {
       const name = (run as any).phaseName;
       if (!grouped[name]) grouped[name] = [];
-      grouped[name].push(run);
+      grouped[name].push({
+        phaseRunId: run.phaseRunId,
+        phaseName: run.phaseName,
+        phaseVersion: run.phaseVersion,
+        status: run.status,
+        active: run.active,
+        createdAt: run.createdAt,
+      });
     }
     return c.json(grouped);
   });
@@ -732,7 +753,7 @@ export function createHonoApp(
     const updated = {
       ...run,
       status: body.decision === "approve" ? "COMPLETED" : body.decision === "modify" ? "MODIFY_REQUESTED" : "REJECTED",
-      humanFeedback: body.feedback ?? run.humanFeedback,
+      human_feedback: body.feedback ?? run.humanFeedback,
       active: body.decision === "approve" ? true : run.active,
       updatedAt: new Date(),
     };
