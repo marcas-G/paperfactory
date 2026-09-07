@@ -63,19 +63,20 @@ interface VersionCompare {
 }
 ```
 
+
 ## 执行进度
 
 | # | 任务 | 状态 | Commit |
 |---|------|------|--------|
-| 1 | Vue 3 项目脚手架 (Vite + Element Plus + vue-i18n) | ✅ | [commit] |
-| 2 | 三栏布局 (TopBar + Sidebar + MainContent + DetailPanel + InputBar) | ✅ (skeleton) | [commit] |
-| 3 | 时间线组件 (PhaseTimeline + PhaseNode) | ✅ (skeleton) | [commit] |
-| 4 | Agent 日志组件 (AgentLog + 消息类型: Thinking/Tool/Phase/Review/Message) | ✅ (skeleton) | [commit] |
-| 5 | SSE 连接管理 (EventSource wrapper + 事件分发) | ✅ | [commit] |
-| 6 | 审批面板 (ApprovalPanel + VersionCards + DecisionButtons) | ✅ (skeleton) | [commit] |
-| 7 | 论文库内嵌视图 (PaperLibrary + PaperCard) | ✅ (skeleton) | [commit] |
-| 8 | 版本对比 (VersionCompare + 卡片列表 + 详情) | ✅ (skeleton) | [commit] |
-| 9 | 中英双语 (vue-i18n locales/zh.json + en.json) | ✅ | [commit] |
-| 10 | Docker 构建集成 (Vite build → ts/src/api/static/) | ✅ | [commit] |
-| 11 | API 层新增端点实现 | ✅ | [commit] |
-| 12 | 全量测试 + Docker 构建验证 | ✅ 480 pass | [commit] |
+| 1 | Vue 3 项目脚手架 (Vite + Element Plus + vue-i18n) | ✅ | 76e301a6 |
+| 2 | 三栏布局 (TopBar + Sidebar + DetailPanel + InputBar) | ✅ 完整实现 | 76e301a6 |
+| 3 | 时间线组件 (PhaseTimeline) | ✅ 完整实现 | 76e301a6 |
+| 4 | Agent 日志组件 (AgentLog + 消息类型) | ✅ 完整实现 | 76e301a6 |
+| 5 | SSE 连接管理 (自动重连) | ✅ 完整实现 | 76e301a6 |
+| 6 | 审批面板 (ApprovalPanel + VersionCards) | ✅ 完整实现 | 76e301a6 |
+| 7 | 论文库内嵌视图 (PaperLibrary) | ✅ 完整实现 | 76e301a6 |
+| 8 | 版本对比 (VersionCards) | ✅ 完整实现 | 76e301a6 |
+| 9 | 中英双语 (vue-i18n) | ✅ | 76e301a6 |
+| 10 | Docker 构建集成 | ✅ | 76e301a6 |
+| 11 | API 层新增端点 (5 个) | ✅ 13 新测试 | 76e301a6 |
+| 12 | 全量测试验证 | ✅ 480 pass | 76e301a6 |
