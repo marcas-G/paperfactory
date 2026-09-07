@@ -41,4 +41,10 @@ export class ToolRegistry {
   has(name: string): boolean {
     return this.tools.has(name);
   }
+
+  unregister(name: string): boolean {
+    const toolRemoved = this.tools.delete(name);
+    const infoRemoved = this.infos.delete(name);
+    return toolRemoved && infoRemoved;
+  }
 }
