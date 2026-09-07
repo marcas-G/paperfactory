@@ -193,7 +193,8 @@ export async function runCLI(
         | { store?: Map<string, unknown> }
         | { store?: { size?: number } };
       const evtStore = app.eventStore as { events?: unknown[] };
-      console.log(`  Objects: ${store.store ? (store.store as any).size ?? "N/A" : "N/A"}`);
+      const size = typeof store.store?.size === "number" ? store.store.size : "N/A";
+      console.log(`  Objects: ${size}`);
       console.log(`  Events: ${evtStore.events ? evtStore.events.length : "N/A"}`);
       console.log(`  Actions: ${app.actionRegistry.list().length}`);
       console.log(`  Tools: ${app.toolRegistry.list().length}`);

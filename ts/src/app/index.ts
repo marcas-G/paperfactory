@@ -121,7 +121,6 @@ export function createApp(
   });
 
   const honoApp = createHonoApp(
-    {} as any,
     objectStore,
     controller,
     provider,

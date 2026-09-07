@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { IncomingMessage } from "http";
+import { IncomingMessage, Socket } from "http";
 
 export interface ResearchEvent {
   type:
@@ -25,7 +25,7 @@ export class EventBroadcaster {
   attach(server: ReturnType<typeof import("@hono/node-server").createAdaptorServer>): void {
     this.wss = new WebSocketServer({ noServer: true });
 
-    server.on("upgrade", (request: IncomingMessage, socket: any, head: Buffer) => {
+    server.on("upgrade", (request: IncomingMessage, socket: Socket, head: Buffer) => {
       const url = new URL(request.url || "/", `http://${request.headers.host}`);
       if (url.pathname === "/ws") {
         this.wss?.handleUpgrade(request, socket, head, (ws) => {

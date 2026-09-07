@@ -189,7 +189,7 @@ export function createResearchRunRoutes(
               reportCount: researchResult.reports.length,
               completedAt: new Date().toISOString(),
             });
-          } catch (err: any) {
+          } catch (err: unknown) {
             sendEvent("run:error", { runId, error: String(err) });
           } finally {
             if (!closed) {

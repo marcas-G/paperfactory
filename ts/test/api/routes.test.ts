@@ -29,7 +29,7 @@ function buildFullApp() {
     name: "test",
     responses: [{ content: "ok", stopReason: "stop" }],
   });
-  const app = createHonoApp(router, objectStore, controller, provider);
+  const app = createHonoApp(objectStore, controller, provider);
   return { app, objectStore, controller, provider };
 }
 
@@ -40,7 +40,6 @@ function buildMockApp() {
   ]);
   const mockController = {} as ResearchController;
   return createHonoApp(
-    { use: () => {} } as any,
     store,
     mockController,
     mockProvider
@@ -96,7 +95,6 @@ describe("CRUD Endpoints", () => {
   beforeEach(() => {
     const store = new InMemoryObjectStore();
     app = createHonoApp(
-      { use: () => {} } as any,
       store,
       mockController,
       mockProvider
@@ -295,7 +293,6 @@ describe("Health & UI", () => {
     ]);
     const mockController = {} as ResearchController;
     app = createHonoApp(
-      { use: () => {} } as any,
       store,
       mockController,
       mockProvider
@@ -441,7 +438,6 @@ describe("Papers API", () => {
   beforeEach(() => {
     objectStore = new InMemoryObjectStore();
     app = createHonoApp(
-      { use: () => {} } as any,
       objectStore,
       mockController,
       mockProvider
@@ -603,7 +599,7 @@ describe("Papers API", () => {
 
     const opt = await Effect.runPromise(objectStore.get("cit-pdf", "Citation"));
     expect(opt.isSome()).toBe(true);
-    const saved = opt.value as any;
+    const saved = opt.value as Record<string, unknown>;
     expect(saved.localPdfPath).toBe(body.pdfPath);
   });
 
@@ -657,7 +653,6 @@ describe("Phase Versions API", () => {
   beforeEach(() => {
     objectStore = new InMemoryObjectStore();
     app = createHonoApp(
-      { use: () => {} } as any,
       objectStore,
       mockController,
       mockProvider

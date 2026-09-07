@@ -69,7 +69,6 @@ export class APIRouter {
 }
 
 export function createHonoApp(
-  _router: APIRouter,
   objectStore: ObjectStore,
   controller: ResearchController,
   provider: Provider,
