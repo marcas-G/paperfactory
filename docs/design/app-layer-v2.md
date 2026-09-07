@@ -1,5 +1,21 @@
 # PaperFactory 前端设计 — App Layer
 
+## 架构上下文
+
+前端通过 HTTP 调用第 7 层 API，不直接依赖下面 6 层。后端共 8 层：
+
+```
+domain          ← 第 1 层：纯对象
+cognition       ← 第 2 层：认知模式
+persistence     ← 第 3 层：持久化
+control         ← 第 4 层：控制器
+runtime         ← 第 5 层：Agent + 思考引擎
+orchestration   ← 第 6 层：编排器
+api             ← 第 7 层：HTTP + SSE
+app             ← 第 8 层：CLI + App 初始化
+frontend/       ← Vue 3 SPA，覆盖第 7 层之上
+```
+
 ## 用户决策记录
 
 | 维度 | 决策 |

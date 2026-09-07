@@ -4,61 +4,37 @@
 
 **清晰的分层 + 每层独立可运行 + 无重复 + 统一 fixture**
 
-## 分层架构
+## 分层架构（8 层）
+
+```
+第 1 层  domain/        领域对象工厂、事件、ID、枚举（零依赖）
+第 2 层  cognition/     认知模式（零依赖）
+第 3 层  persistence/   持久化（→ domain）
+第 4 层  control/       控制器、引擎、规则（→ domain, persistence）
+第 5 层  runtime/       Agent loop、思考引擎（→ domain/enums, runtime 内部）
+第 6 层  orchestration/ 编排器：phase/agent/hypothesis（→ 1-5）
+第 7 层  api/           HTTP 端点 + SSE（→ 4-6）
+第 8 层  app/           CLI, App 初始化（→ 全层 + evals + observability）
+前端     frontend/      Vue 3 SPA，通过 HTTP 调用第 7 层 API
+```
+
+### 测试目录
 
 ```
 test/
 ├── fixtures/            # 共享 fixture factory
-│   ├── test-context.ts  #   → 统一创建 ObjectStore + Controller + Provider
-│   └── deterministic.ts #   → 统一创建 DeterministicProvider
+│   └── test-context.ts  #   → 统一创建 ObjectStore + Controller + Provider
 │
-├── domain/              # 第 1 层：纯函数，无依赖
-│   ├── events.test.ts
-│   ├── enums.test.ts
-│   ├── ids.test.ts
-│   ├── project.test.ts
-│   └── objects/         #   每个对象 1 个文件，测试 createX 工厂 + 约束
-│
-├── cognition/           # 第 2 层：认知模式
-│   └── modes.test.ts
-│
-├── persistence/         # 第 3 层：内存 store（无外部依赖）
-│   ├── object-store.test.ts
-│   └── event-store.test.ts
-│
-├── control/             # 第 4 层：控制器 + 引擎 + 规则
-│   ├── engine.test.ts
-│   ├── actions.test.ts
-│   ├── gates.test.ts
-│   ├── policy.test.ts
-│   ├── controller.test.ts
-│   ├── branches.test.ts
-│   ├── approvals.test.ts
-│   └── tasks.test.ts
-│
-├── runtime/             # 第 5 层：Agent + 工具 + 引擎
-│   ├── agent/           #   Agent loop
-│   ├── tools/           #   工具（搜索/代码/文件系统）
-│   ├── workflows/       #   引擎（ToT/Debate/CoVe/SelfCons/SelfReview）
-│   ├── provider.test.ts
-│   ├── hooks/
-│   └── sandbox/
-│
-├── api/                 # 第 6 层：HTTP 端点
-│   └── routes.test.ts   #   合并后的唯一 API 测试
-│
+├── domain/              # 第 1 层
+├── cognition/           # 第 2 层
+├── persistence/         # 第 3 层
+├── control/             # 第 4 层
+├── runtime/             # 第 5 层（仅纯引擎）
+├── orchestration/       # 第 6 层（编排器测试）
+├── api/                 # 第 7 层
 ├── integration/         # 外部依赖（DB / HTTP / 网络）
-│   ├── database.test.ts
-│   ├── pg-stores.test.ts  #   合并 PG object + event store
-│   └── provider.test.ts   #   OpenAI HTTP 调用
-│
-├── e2e/                 # 端到端（仅 2 个）
-│   ├── research-flow.test.ts  #   合并 full-research-flow + full-pipeline
-│   └── thinking-paradigms.test.ts  #   思考范式验证
-│
-└── app/                 # App 初始化 + CLI
-    ├── index.test.ts
-    └── cli.test.ts
+├── e2e/                 # 端到端
+└── app/                 # 第 8 层
 ```
 
 ## 合并/删除清单
@@ -100,15 +76,18 @@ vitest run test/control/
 # 第 5 层：runtime（中速，<10s）
 vitest run test/runtime/
 
-# 第 6 层：API（中速，<5s）
+# 第 6 层：orchestration（中速）
+vitest run test/orchestration/
+
+# 第 7 层：API（中速）
 vitest run test/api/
 
-# 外部依赖（需要 Docker）
+# 第 8 层：app
+vitest run test/app/
+
+# 外部依赖（需要 Docker PG）
 vitest run test/integration/
 
 # E2E（慢，<30s）
 vitest run test/e2e/
-
-# App
-vitest run test/app/
 ```
