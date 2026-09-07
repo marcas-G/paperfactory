@@ -9,11 +9,11 @@
 
 | 方法 | 路径 | 参数 | 返回类型 | 状态 |
 |------|------|------|----------|------|
-| `GET` | `/api/projects/:id/papers` | — | `Paper[]` | TODO |
-| `GET` | `/api/papers/:citationId` | — | `Paper` | TODO |
-| `POST` | `/api/papers/:citationId/download-pdf` | — | `{ status: string, pdfPath?: string }` | TODO |
-| `GET` | `/api/projects/:id/phases/:phaseName/versions` | — | `PhaseRun[]` | TODO |
-| `GET` | `/api/projects/:id/phases/:phaseName/compare?runIds=A,B` | `runIds: string[]` | `VersionCompare` | TODO |
+| `GET` | `/api/projects/:id/papers` | — | `Paper[]` | ✅ |
+| `GET` | `/api/papers/:citationId` | — | `Paper` | ✅ |
+| `POST` | `/api/papers/:citationId/download-pdf` | — | `{ status: string, pdfPath?: string }` | ✅ |
+| `GET` | `/api/projects/:id/phases/:phaseName/versions` | — | `PhaseRun[]` | ✅ |
+| `GET` | `/api/projects/:id/phases/:phaseName/compare?runIds=A,B` | `runIds: string[]` | `VersionCompare` | ✅ |
 
 ### 补充 SSE 事件
 
@@ -77,5 +77,5 @@ interface VersionCompare {
 | 8 | 版本对比 (VersionCompare + 卡片列表 + 详情) | ✅ (skeleton) | [commit] |
 | 9 | 中英双语 (vue-i18n locales/zh.json + en.json) | ✅ | [commit] |
 | 10 | Docker 构建集成 (Vite build → ts/src/api/static/) | ✅ | [commit] |
-| 11 | API 层新增端点实现 | TODO | — |
-| 12 | 全量测试 + Docker 构建验证 | ✅ 467 pass | [commit] |
+| 11 | API 层新增端点实现 | ✅ | [commit] |
+| 12 | 全量测试 + Docker 构建验证 | ✅ 480 pass | [commit] |
