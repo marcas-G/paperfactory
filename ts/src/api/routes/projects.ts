@@ -51,6 +51,12 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
   router.put("/api/projects/:id", async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json();
+    if (body.name !== undefined) {
+      const name = validateString(body.name, 512);
+      if (!name) {
+        return c.json(apiError("VALIDATION_ERROR", "name must be a non-empty string (max 512 chars)"), 400);
+      }
+    }
     const opt = await Effect.runPromise(objectStore.get(id, "Project"));
     if (opt.isNone()) {
       return c.json(apiError("NOT_FOUND", "Project not found"), 404);

@@ -4,8 +4,7 @@ import { Provider } from "@runtime/provider";
 import { ObjectStore } from "@persistence/object-store";
 import { ResearchController } from "@control/controller";
 import { ToolRegistry } from "@runtime/tools/registry";
-import { apiError } from "../utils";
-import { generateUuid, buildToolDefs } from "../utils";
+import { apiError, generateUuid, buildToolDefs, validateString } from "../utils";
 
 export interface ResearchRunState {
   stopped: () => boolean;
@@ -26,6 +25,10 @@ export function createResearchRunRoutes(
 
   router.post("/api/research/run", async (c) => {
     const body = await c.req.json();
+    const question = validateString(body?.question, 2048);
+    if (!question) {
+      return c.json(apiError("VALIDATION_ERROR", "question is required (max 2048 chars)"), 400);
+    }
     const projectId = generateUuid();
     const questionId = generateUuid();
     const branchId = generateUuid();
@@ -34,9 +37,9 @@ export function createResearchRunRoutes(
     const now = new Date();
     const project = {
       projectId,
-      name: body.question ?? "Untitled Research",
+      name: question,
       status: "ACTIVE",
-      description: body.question ?? "",
+      description: question,
       metadata: {},
       createdAt: now,
       updatedAt: now,
@@ -47,7 +50,7 @@ export function createResearchRunRoutes(
       hypothesisId,
       projectId,
       branchId,
-      statement: body.question ?? "",
+      statement: question,
       falsificationCondition: "Evidence contradicts hypothesis",
       status: "PROPOSED",
       createdAt: now,
@@ -61,7 +64,7 @@ export function createResearchRunRoutes(
     const researchResult = await runAgentDrivenResearch({
       projectId,
       branchId,
-      question: body.question ?? "",
+      question,
       provider,
       objectStore,
       eventStore: controller.eventStore,
@@ -89,6 +92,10 @@ export function createResearchRunRoutes(
 
   router.post("/api/research/stream", async (c) => {
     const body = await c.req.json();
+    const question = validateString(body?.question, 2048);
+    if (!question) {
+      return c.json(apiError("VALIDATION_ERROR", "question is required (max 2048 chars)"), 400);
+    }
     const runId = generateUuid();
     const projectId = generateUuid();
     const branchId = generateUuid();
@@ -97,9 +104,9 @@ export function createResearchRunRoutes(
     const now = new Date();
     const project = {
       projectId,
-      name: body.question ?? "Untitled Research",
+      name: question,
       status: "ACTIVE",
-      description: body.question ?? "",
+      description: question,
       metadata: {},
       createdAt: now,
       updatedAt: now,
@@ -110,7 +117,7 @@ export function createResearchRunRoutes(
       hypothesisId,
       projectId,
       branchId,
-      statement: body.question ?? "",
+      statement: question,
       falsificationCondition: "Evidence contradicts hypothesis",
       status: "PROPOSED",
       createdAt: now,
@@ -141,12 +148,12 @@ export function createResearchRunRoutes(
 
         (async () => {
           try {
-            sendEvent("run:start", { runId, projectId, question: body.question });
+            sendEvent("run:start", { runId, projectId, question });
 
             const researchResult = await runAgentDrivenResearch({
               projectId,
               branchId,
-              question: body.question ?? "",
+              question,
               provider,
               objectStore,
               eventStore: controller.eventStore,
@@ -212,7 +219,7 @@ export function createResearchRunRoutes(
       run.setStopped(true);
       return c.json({ runId, stopped: true });
     }
-    return c.json({ runId, ...apiError("NOT_FOUND", "Run not found") }, 404);
+    return c.json(apiError("NOT_FOUND", "Run not found"), 404);
   });
 
   router.get("/api/research/:runId/status", async (c) => {
@@ -221,7 +228,7 @@ export function createResearchRunRoutes(
     if (run) {
       return c.json({ runId, status: run.stopped() ? "stopped" : "running" });
     }
-    return c.json({ runId, status: "not_found" }, 404);
+    return c.json(apiError("NOT_FOUND", "Run not found"), 404);
   });
 
   return router;

@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { Provider } from "@runtime/provider";
 import { ObjectStore } from "@persistence/object-store";
-import { apiError } from "../utils";
+import { apiError, lineDiff } from "../utils";
 import { ToolRegistry } from "@runtime/tools/registry";
 import { buildToolDefs } from "../utils";
 import { toPhaseRunDTO } from "../types";
@@ -78,17 +78,18 @@ export function createPhaseRoutes(
     const id = c.req.param("id");
     const runId = c.req.param("runId");
     const body = await c.req.json();
+    const dec = body?.decision as string | undefined;
+    if (!["approve", "modify", "reject"].includes(dec)) {
+      return c.json(apiError("VALIDATION_ERROR", "decision must be approve, modify, or reject"), 400);
+    }
 
     const allRuns = researchRuns;
-    for (const [researchRunId, state] of allRuns.entries()) {
+    for (const [, state] of allRuns.entries()) {
       if (state && state.approvalRunId === runId && state.approvalResolve) {
         const resolve = state.approvalResolve;
         state.approvalResolve = null;
         state.approvalRunId = null;
-        resolve(body.decision ?? "approve");
-
-        const eventType = body.decision === "approve" ? "phase:approved" : body.decision === "modify" ? "phase:modified" : "phase:rejected";
-        void eventType;
+        resolve(dec);
       }
     }
 
@@ -100,9 +101,9 @@ export function createPhaseRoutes(
 
     const updated = {
       ...run,
-      status: body.decision === "approve" ? "COMPLETED" : body.decision === "modify" ? "MODIFY_REQUESTED" : "REJECTED",
+      status: dec === "approve" ? "COMPLETED" : dec === "modify" ? "MODIFY_REQUESTED" : "REJECTED",
       human_feedback: body.feedback ?? run.humanFeedback,
-      active: body.decision === "approve" ? true : run.active,
+      active: dec === "approve" ? true : run.active,
       updatedAt: new Date(),
     };
 
@@ -153,6 +154,55 @@ export function createPhaseRoutes(
       toolCalls: result.toolCalls,
       events,
     });
+  });
+
+  router.get("/api/projects/:id/phases/:phaseName/versions", async (c) => {
+    const id = c.req.param("id");
+    const phaseName = c.req.param("phaseName");
+    const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
+    const phaseVersions = runs
+      .filter((r: Record<string, unknown>) => r.projectId === id && r.phaseName === phaseName)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(a.phaseVersion || 0) - Number(b.phaseVersion || 0));
+    const mapped = phaseVersions.map((r: Record<string, unknown>) => toPhaseRunDTO(r));
+    return c.json(mapped);
+  });
+
+  router.get("/api/projects/:id/phases/:phaseName/compare", async (c) => {
+    const id = c.req.param("id");
+    const phaseName = c.req.param("phaseName");
+    const runIdsParam = c.req.query("runIds");
+    const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
+    let phaseVersions = runs
+      .filter((r: Record<string, unknown>) => r.projectId === id && r.phaseName === phaseName)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(a.phaseVersion || 0) - Number(b.phaseVersion || 0));
+    if (runIdsParam) {
+      const runIds = runIdsParam.split(",").map((s) => s.trim());
+      phaseVersions = phaseVersions.filter((r: Record<string, unknown>) => runIds.includes(String(r.phaseRunId)));
+    }
+    const versions = phaseVersions.map((r: Record<string, unknown>) => ({
+      runId: r.phaseRunId,
+      version: r.phaseVersion,
+      summary: r.agentOutput ? String(r.agentOutput).substring(0, 200) : "",
+      status: r.status,
+      active: r.active,
+      output: r.agentOutput ?? "",
+      toolCalls: r.toolCalls ?? [],
+      selfReview: r.selfReview ?? null,
+      createdAt: r.createdAt,
+    }));
+    const diffs: Array<{ field: string; changes: Array<{ from: string; to: string }> }> = [];
+    if (phaseVersions.length >= 2) {
+      const baseOutput = (phaseVersions[0].agentOutput ?? "") as string;
+      for (let i = 1; i < phaseVersions.length; i++) {
+        const compareOutput = (phaseVersions[i].agentOutput ?? "") as string;
+        const changes = lineDiff(baseOutput, compareOutput);
+        diffs.push({
+          field: `agentOutput (version ${phaseVersions[0].phaseVersion} vs ${phaseVersions[i].phaseVersion})`,
+          changes,
+        });
+      }
+    }
+    return c.json({ versions, diff: diffs });
   });
 
   return router;

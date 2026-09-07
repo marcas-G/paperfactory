@@ -1,7 +1,7 @@
 import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { ObjectStore } from "@persistence/object-store";
-import { generateUuid, apiError } from "../utils";
+import { generateUuid, apiError, validateString } from "../utils";
 
 const RESEARCH_OBJECT_TYPES = [
   "ResearchQuestion",
@@ -23,10 +23,14 @@ export function createResearchObjectRoutes(objectStore: ObjectStore): Hono {
 
   router.post("/api/research/questions", async (c) => {
     const body = await c.req.json();
+    const title = validateString(body?.title, 512);
+    if (!title) {
+      return c.json(apiError("VALIDATION_ERROR", "title is required (max 512 chars)"), 400);
+    }
     const questionId = generateUuid();
     const question = {
       questionId,
-      title: body.title ?? "Untitled Question",
+      title,
       statement: body.statement ?? "",
       domain: body.domain ?? "general",
       status: "DRAFT",

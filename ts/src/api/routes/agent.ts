@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { Provider } from "@runtime/provider";
 import { ToolRegistry } from "@runtime/tools/registry";
 import { runAgentLoop } from "@runtime/agent/loop";
-import { generateUuid } from "../utils";
+import { generateUuid, validateString, apiError } from "../utils";
 
 export function createAgentRoutes(
   provider: Provider,
@@ -12,17 +12,21 @@ export function createAgentRoutes(
 
   router.post("/api/agent/run", async (c) => {
     const body = await c.req.json();
+    const prompt = validateString(body?.prompt, 4096);
+    if (!prompt) {
+      return c.json(apiError("VALIDATION_ERROR", "prompt is required (max 4096 chars)"), 400);
+    }
     const runId = generateUuid();
     const loopResult = await runAgentLoop(
       provider,
       toolRegistry,
-      [{ role: "user", content: body.prompt ?? "" }],
+      [{ role: "user", content: prompt }],
       { maxIterations: 20 }
     );
     return c.json({
       runId,
       status: "completed",
-      prompt: body.prompt ?? "",
+      prompt,
       startedAt: new Date().toISOString(),
       result: loopResult.finalContent,
       events: loopResult.events,
@@ -31,6 +35,10 @@ export function createAgentRoutes(
 
   router.post("/api/agent/stream", async (c) => {
     const body = await c.req.json();
+    const prompt = validateString(body?.prompt, 4096);
+    if (!prompt) {
+      return c.json(apiError("VALIDATION_ERROR", "prompt is required (max 4096 chars)"), 400);
+    }
     const runId = generateUuid();
 
     const encoder = new TextEncoder();
@@ -53,7 +61,7 @@ export function createAgentRoutes(
         runAgentLoop(
           provider,
           toolRegistry,
-          [{ role: "user", content: body.prompt ?? "" }],
+          [{ role: "user", content: prompt }],
           {
             maxIterations: 20,
             onEvent: (event) => {
