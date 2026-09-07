@@ -15,7 +15,6 @@ describe("App", () => {
     expect(app.metrics).toBeDefined();
     expect(app.evalFramework).toBeDefined();
     expect(app.hookSystem).toBeDefined();
-    expect(app.apiRouter).toBeDefined();
     expect(app.honoApp).toBeDefined();
   });
 

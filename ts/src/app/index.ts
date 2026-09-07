@@ -11,7 +11,6 @@ import { NoOpTracer } from "@observability/tracer";
 import { InMemoryMetrics } from "@observability/metrics";
 import { DefaultEvalFramework } from "@evals/framework";
 import { HookSystem } from "@runtime/hooks/system";
-import { APIRouter } from "@api/routes";
 import { searchTool } from "@runtime/tools/builtins/search";
 import { codeTool } from "@runtime/tools/builtins/code";
 import {
@@ -33,7 +32,6 @@ export interface AppDependencies {
   metrics: InMemoryMetrics;
   evalFramework: DefaultEvalFramework;
   hookSystem: HookSystem;
-  apiRouter: APIRouter;
   honoApp: HonoApp;
 }
 
@@ -115,7 +113,6 @@ export function createApp(
   const metrics = new InMemoryMetrics();
   const evalFramework = new DefaultEvalFramework();
   const hookSystem = new HookSystem();
-  const apiRouter = new APIRouter();
 
   const provider = new OpenAIProvider({
     baseUrl: config.llmBaseUrl ?? "http://localhost:8011/v1",
@@ -124,7 +121,7 @@ export function createApp(
   });
 
   const honoApp = createHonoApp(
-    apiRouter,
+    {} as any,
     objectStore,
     controller,
     provider,
@@ -142,7 +139,6 @@ export function createApp(
     metrics,
     evalFramework,
     hookSystem,
-    apiRouter,
     honoApp,
   };
 }
