@@ -3,10 +3,7 @@ import * as Effect from "effect/Effect";
 import { Provider, Message, ToolDefinition } from "../provider";
 import { ToolRegistry } from "../tools/registry";
 import { ToolInput, ToolOutput } from "../tools/contracts";
-
-const REFLECT_INSTRUCTION =
-  "反思模式: 不要急于得出结论。审视你的推理过程，识别可能的盲点和假设。" +
-  "考虑反例和替代解释。评估证据的充分性和可靠性。";
+import { getCognitiveModeByName } from "@cognition/modes";
 
 export type AgentEventType =
   | "thinking"
@@ -142,9 +139,9 @@ export async function runAgentLoop(
     }
 
     // Reflexion: after all tool results in this iteration, if iterations remain,
-    // insert a reflection prompt.
+    // insert a reflection prompt using the REFLECT cognitive mode.
     if (iteration < maxIterations - 1) {
-      const reflectInstruction = REFLECT_INSTRUCTION;
+      const reflectInstruction = getCognitiveModeByName("REFLECT")?.instructions ?? "";
 
       messages.push({
         role: "user",

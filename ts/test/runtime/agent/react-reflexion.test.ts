@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import { runAgentLoop } from "@runtime/agent/loop";
 import { MockProvider } from "@runtime/provider";
 import { ToolRegistry } from "@runtime/tools/registry";
-// REFLECT instruction is now inlined in loop.ts (no cross-layer dependency)
+import { getCognitiveModeByName } from "@cognition/modes";
 
 describe("ReAct + Reflexion in Agent Loop", () => {
   it("emits thinking event before each iteration", async () => {
@@ -195,7 +195,7 @@ describe("ReAct + Reflexion in Agent Loop", () => {
     expect(reflexionMessages.length).toBe(0);
   });
 
-  it("reflexion uses the REFLECT mode instructions", async () => {
+  it("reflexion uses the REFLECT mode instructions from cognition", async () => {
     const events: any[] = [];
     const registry = new ToolRegistry();
     registry.register(
@@ -238,12 +238,14 @@ describe("ReAct + Reflexion in Agent Loop", () => {
       { maxIterations: 5, onEvent: (e) => events.push(e) }
     );
 
-    // The reflexion message should contain the REFLECT instruction (inlined in loop.ts)
-    const REFLECT_INSTRUCTION = "反思模式: 不要急于得出结论";
+    const reflectMode = getCognitiveModeByName("REFLECT");
+    expect(reflectMode).toBeDefined();
+
+    // The reflexion message should contain the REFLECT mode instructions from cognition
     const reflexionMessages = result.messages.filter(
       (m) =>
         m.role === "user" &&
-        m.content.includes(REFLECT_INSTRUCTION)
+        m.content.includes(reflectMode!.instructions)
     );
     expect(reflexionMessages.length).toBeGreaterThan(0);
   });

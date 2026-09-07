@@ -4,6 +4,7 @@ import type { Provider, Message, ToolDefinition } from "@runtime/provider";
 import type { ToolRegistry } from "@runtime/tools/registry";
 import type { AgentEvent } from "@runtime/agent/loop";
 import { runAgentLoop } from "@runtime/agent/loop";
+import { COGNITIVE_MODES } from "@cognition/modes";
 import * as Effect from "effect/Effect";
 import { createKnowledgeItem } from "@domain/objects/knowledge";
 import { createHypothesis } from "@domain/objects/hypothesis";
@@ -241,15 +242,9 @@ export async function buildPhaseContext(
 
 // ===== System Prompt Builder =====
 
-const COGNITIVE_INSTRUCTIONS: Record<string, string> = {
-  EXPLORE: "广泛探索信息空间，不要过早收敛。收集多样化的信息来源，关注不同视角。",
-  DISCRIMINATE: "区分真正的知识缺口和已有研究覆盖的区域。找出市面上缺少的、有研究价值的问题。",
-  FRAME: "定义清晰的框架。确保输出具体、可操作、可测试。",
-  VERIFY: "验证证据与结论之间的一致性。客观分析，不要预设结论。",
-  FALSIFY: "主动寻找反例和证伪证据。挑战自己的推理链条。科学进步来自证伪。",
-  DECIDE: "基于证据做出最终决策。权衡支持和反对的证据，决策必须基于证据。",
-  SYNTHESIZE: "综合多个来源的证据形成统一结论。确保结论有充分的证据支撑。",
-};
+const COGNITIVE_INSTRUCTIONS: Record<string, string> = Object.fromEntries(
+  COGNITIVE_MODES.map((m) => [m.name, m.instructions])
+);
 
 function buildSystemPrompt(
   contract: PhaseIOContract,
