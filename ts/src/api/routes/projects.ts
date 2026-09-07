@@ -1,18 +1,23 @@
 import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { ObjectStore } from "@persistence/object-store";
-import { generateUuid } from "../utils";
+import { generateUuid, apiError, validateString } from "../utils";
+import { toProjectSummary, toProjectDetail } from "../types";
 
 export function createProjectRoutes(objectStore: ObjectStore): Hono {
   const router = new Hono();
 
   router.post("/api/projects", async (c) => {
     const body = await c.req.json();
+    const name = validateString(body?.name, 512);
+    if (!name) {
+      return c.json(apiError("VALIDATION_ERROR", "name is required (max 512 chars)"), 400);
+    }
     const id = generateUuid();
     const now = new Date();
     const project = {
       projectId: id,
-      name: body.name ?? "Untitled",
+      name,
       status: "ACTIVE",
       description: "",
       metadata: {},
@@ -29,12 +34,7 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
   router.get("/api/projects", async (c) => {
     const projects = await Effect.runPromise(objectStore.list("Project"));
     return c.json(
-      projects.map((p: Record<string, unknown>) => ({
-        id: p.projectId,
-        name: p.name,
-        status: p.status,
-        createdAt: p.createdAt,
-      }))
+      projects.map((p: Record<string, unknown>) => toProjectSummary(p))
     );
   });
 
@@ -42,18 +42,10 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
     const id = c.req.param("id");
     const opt = await Effect.runPromise(objectStore.get(id, "Project"));
     if (opt.isNone()) {
-      return c.json({ error: "Project not found" }, 404);
+      return c.json(apiError("NOT_FOUND", "Project not found"), 404);
     }
     const project = opt.value as Record<string, unknown>;
-    return c.json({
-      id: project.projectId,
-      name: project.name,
-      status: project.status,
-      description: project.description,
-      metadata: project.metadata,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-    });
+    return c.json(toProjectDetail(project));
   });
 
   router.put("/api/projects/:id", async (c) => {
@@ -61,7 +53,7 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
     const body = await c.req.json();
     const opt = await Effect.runPromise(objectStore.get(id, "Project"));
     if (opt.isNone()) {
-      return c.json({ error: "Project not found" }, 404);
+      return c.json(apiError("NOT_FOUND", "Project not found"), 404);
     }
     const existing = opt.value as Record<string, unknown>;
     const updated = {
@@ -87,16 +79,17 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
     const id = c.req.param("id");
     const opt = await Effect.runPromise(objectStore.get(id, "Project"));
     if (opt.isNone()) {
-      return c.json({ error: "Project not found" }, 404);
+      return c.json(apiError("NOT_FOUND", "Project not found"), 404);
     }
 
     const cascadeTypes = ["PhaseRun", "EvidenceChain", "Citation", "Evidence", "Result", "Experiment", "Report", "Hypothesis", "ResearchGap", "KnowledgeItem", "ResearchQuestion", "ResearchFailure"];
     for (const type of cascadeTypes) {
       const items = await Effect.runPromise(objectStore.list(type));
       for (const item of items) {
-        const itemId = (item as any).citationId || (item as any).evidenceChainId || (item as any).phaseRunId || (item as any).evidenceId || (item as any).resultId || (item as any).experimentId || (item as any).reportId || (item as any).hypothesisId || (item as any).gapId || (item as any).knowledgeId || (item as any).questionId || (item as any).failureId || (item as any).id;
-        if ((item as any).projectId === id && itemId) {
-          await Effect.runPromise(objectStore.delete(itemId, type)).catch(() => {});
+        const itemRecord = item as Record<string, unknown>;
+        const itemId = itemRecord.citationId || itemRecord.evidenceChainId || itemRecord.phaseRunId || itemRecord.evidenceId || itemRecord.resultId || itemRecord.experimentId || itemRecord.reportId || itemRecord.hypothesisId || itemRecord.gapId || itemRecord.knowledgeId || itemRecord.questionId || itemRecord.failureId || itemRecord.id;
+        if (itemRecord.projectId === id && itemId) {
+          await Effect.runPromise(objectStore.delete(String(itemId), type)).catch(() => {});
         }
       }
     }
@@ -108,25 +101,25 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
   router.get("/api/projects/:id/hypotheses", async (c) => {
     const id = c.req.param("id");
     const all = await Effect.runPromise(objectStore.list("Hypothesis"));
-    return c.json(all.filter((h: any) => h.projectId === id));
+    return c.json(all.filter((h: Record<string, unknown>) => h.projectId === id));
   });
 
   router.get("/api/projects/:id/evidence", async (c) => {
     const id = c.req.param("id");
     const all = await Effect.runPromise(objectStore.list("Evidence"));
-    return c.json(all.filter((e: any) => e.projectId === id));
+    return c.json(all.filter((e: Record<string, unknown>) => e.projectId === id));
   });
 
   router.get("/api/projects/:id/knowledge", async (c) => {
     const id = c.req.param("id");
     const all = await Effect.runPromise(objectStore.list("KnowledgeItem"));
-    return c.json(all.filter((k: any) => k.projectId === id));
+    return c.json(all.filter((k: Record<string, unknown>) => k.projectId === id));
   });
 
   router.get("/api/projects/:id/reports", async (c) => {
     const id = c.req.param("id");
     const all = await Effect.runPromise(objectStore.list("Report"));
-    return c.json(all.filter((r: any) => r.projectId === id));
+    return c.json(all.filter((r: Record<string, unknown>) => r.projectId === id));
   });
 
   router.get("/api/projects/:id/all", async (c) => {
@@ -138,12 +131,12 @@ export function createProjectRoutes(objectStore: ObjectStore): Hono {
     const experiments = await Effect.runPromise(objectStore.list("Experiment"));
     const citations = await Effect.runPromise(objectStore.list("Citation"));
     return c.json({
-      hypotheses: hypotheses.filter((h: any) => h.projectId === id),
-      evidence: evidence.filter((e: any) => e.projectId === id),
-      knowledge: knowledge.filter((k: any) => k.projectId === id),
-      reports: reports.filter((r: any) => r.projectId === id),
-      experiments: experiments.filter((e: any) => e.projectId === id),
-      citations: citations.filter((ci: any) => ci.projectId === id),
+      hypotheses: hypotheses.filter((h: Record<string, unknown>) => h.projectId === id),
+      evidence: evidence.filter((e: Record<string, unknown>) => e.projectId === id),
+      knowledge: knowledge.filter((k: Record<string, unknown>) => k.projectId === id),
+      reports: reports.filter((r: Record<string, unknown>) => r.projectId === id),
+      experiments: experiments.filter((e: Record<string, unknown>) => e.projectId === id),
+      citations: citations.filter((ci: Record<string, unknown>) => ci.projectId === id),
     });
   });
 

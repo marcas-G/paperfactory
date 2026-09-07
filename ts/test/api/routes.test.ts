@@ -637,8 +637,7 @@ describe("Papers API", () => {
     });
     expect(res.status).toBe(404);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.status).toBe("failed");
-    expect(body.error).toBe("Citation not found");
+    expect(body.error).toEqual({ code: "NOT_FOUND", message: "Citation not found" });
   });
 });
 

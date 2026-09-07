@@ -2,8 +2,10 @@ import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { Provider } from "@runtime/provider";
 import { ObjectStore } from "@persistence/object-store";
+import { apiError } from "../utils";
 import { ToolRegistry } from "@runtime/tools/registry";
 import { buildToolDefs } from "../utils";
+import { toPhaseRunDTO } from "../types";
 import { ResearchRunState } from "./research-runs";
 
 export function createPhaseRoutes(
@@ -18,46 +20,20 @@ export function createPhaseRoutes(
     const id = c.req.param("id");
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
     const projectRuns = runs
-      .filter((r: any) => r.projectId === id)
-      .sort((a: any, b: any) => (a.phaseVersion || 0) - (b.phaseVersion || 0));
-    const mapped = projectRuns.map((r: any) => {
-      const artifacts = r.artifacts || {};
-      const firstKey = Object.keys(artifacts)[0];
-      const typeMap: Record<string, string> = {
-        knowledgeIds: "KnowledgeItem", hypothesisIds: "Hypothesis",
-        gapIds: "ResearchGap", experimentIds: "Experiment",
-        resultIds: "Result", evidenceIds: "Evidence",
-        reportIds: "Report", citationIds: "Citation",
-      };
-      return {
-        phaseRunId: r.phaseRunId,
-        projectId: r.projectId,
-        phase: r.phaseName,
-        phaseName: r.phaseName,
-        phaseVersion: r.phaseVersion,
-        status: r.status,
-        artifacts: r.artifacts,
-        rawOutput: r.agentOutput,
-        toolCalls: r.toolCalls,
-        selfReview: r.selfReview,
-        active: r.active,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-        objectType: firstKey ? (typeMap[firstKey] ?? firstKey) : "",
-        objectId: firstKey ? (artifacts[firstKey]?.[0] ?? "") : "",
-      };
-    });
+      .filter((r: Record<string, unknown>) => r.projectId === id)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(a.phaseVersion || 0) - Number(b.phaseVersion || 0));
+    const mapped = projectRuns.map((r: Record<string, unknown>) => toPhaseRunDTO(r));
     return c.json(mapped);
   });
 
   router.get("/api/projects/:id/phases/grouped", async (c) => {
     const id = c.req.param("id");
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
-    const projectRuns = runs.filter((r: any) => r.projectId === id);
+    const projectRuns = runs.filter((r: Record<string, unknown>) => r.projectId === id);
 
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, Record<string, unknown>[]> = {};
     for (const run of projectRuns) {
-      const name = (run as any).phaseName;
+      const name = String(run.phaseName);
       if (!grouped[name]) grouped[name] = [];
       grouped[name].push({
         phaseRunId: run.phaseRunId,
@@ -77,19 +53,19 @@ export function createPhaseRoutes(
     const objectId = c.req.param("objectId");
 
     const chains = await Effect.runPromise(objectStore.list("EvidenceChain"));
-    const projectChains = chains.filter((ch: any) => ch.projectId === id);
+    const projectChains = chains.filter((ch: Record<string, unknown>) => ch.projectId === id);
 
-    const upstream = projectChains.filter((ch: any) =>
+    const upstream = projectChains.filter((ch: Record<string, unknown>) =>
       ch.sourceType === objectType && ch.sourceId === objectId
-    ).map((ch: any) => ({
+    ).map((ch: Record<string, unknown>) => ({
       targetType: ch.targetType,
       targetId: ch.targetId,
       relation: ch.relation,
     }));
 
-    const downstream = projectChains.filter((ch: any) =>
+    const downstream = projectChains.filter((ch: Record<string, unknown>) =>
       ch.targetType === objectType && ch.targetId === objectId
-    ).map((ch: any) => ({
+    ).map((ch: Record<string, unknown>) => ({
       sourceType: ch.sourceType,
       sourceId: ch.sourceId,
       relation: ch.relation,
@@ -117,9 +93,9 @@ export function createPhaseRoutes(
     }
 
     const runs = await Effect.runPromise(objectStore.list("PhaseRun"));
-    const run = runs.find((r: any) => r.phaseRunId === runId && r.projectId === id);
+    const run = runs.find((r: Record<string, unknown>) => r.phaseRunId === runId && r.projectId === id);
     if (!run) {
-      return c.json({ error: "Phase run not found" }, 404);
+      return c.json(apiError("NOT_FOUND", "Phase run not found"), 404);
     }
 
     const updated = {
@@ -130,7 +106,7 @@ export function createPhaseRoutes(
       updatedAt: new Date(),
     };
 
-    const samePhase = runs.filter((r: any) =>
+    const samePhase = runs.filter((r: Record<string, unknown>) =>
       r.projectId === id && r.phaseName === run.phaseName && r.phaseRunId !== runId
     );
     for (const other of samePhase) {
@@ -149,7 +125,7 @@ export function createPhaseRoutes(
     const { PHASE_CONTRACTS } = await import("@orchestration/phase-contracts");
     const contract = PHASE_CONTRACTS.find((p) => p.name === phaseName);
     if (!contract) {
-      return c.json({ error: `Unknown phase: ${phaseName}` }, 404);
+      return c.json(apiError("NOT_FOUND", `Unknown phase: ${phaseName}`), 404);
     }
 
     const toolDefinitions = buildToolDefs(toolRegistry);

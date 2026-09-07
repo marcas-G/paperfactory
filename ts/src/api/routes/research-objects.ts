@@ -1,7 +1,7 @@
 import * as Effect from "effect/Effect";
 import { Hono } from "hono";
 import { ObjectStore } from "@persistence/object-store";
-import { generateUuid } from "../utils";
+import { generateUuid, apiError } from "../utils";
 
 const RESEARCH_OBJECT_TYPES = [
   "ResearchQuestion",
@@ -54,7 +54,7 @@ export function createResearchObjectRoutes(objectStore: ObjectStore): Hono {
         return c.json(opt.value);
       }
     }
-    return c.json({ error: "Research object not found" }, 404);
+    return c.json(apiError("NOT_FOUND", "Research object not found"), 404);
   });
 
   router.put("/api/research/:objectId", async (c) => {
@@ -75,7 +75,7 @@ export function createResearchObjectRoutes(objectStore: ObjectStore): Hono {
         return c.json(updated);
       }
     }
-    return c.json({ error: "Research object not found" }, 404);
+    return c.json(apiError("NOT_FOUND", "Research object not found"), 404);
   });
 
   router.delete("/api/research/:objectId", async (c) => {
@@ -92,7 +92,7 @@ export function createResearchObjectRoutes(objectStore: ObjectStore): Hono {
         return c.json({ deleted: objectId, type });
       }
     }
-    return c.json({ error: "Object not found" }, 404);
+    return c.json(apiError("NOT_FOUND", "Object not found"), 404);
   });
 
   return router;

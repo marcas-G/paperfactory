@@ -4,6 +4,7 @@ import { Provider } from "@runtime/provider";
 import { ObjectStore } from "@persistence/object-store";
 import { ResearchController } from "@control/controller";
 import { ToolRegistry } from "@runtime/tools/registry";
+import { apiError } from "../utils";
 import { generateUuid, buildToolDefs } from "../utils";
 
 export interface ResearchRunState {
@@ -76,7 +77,7 @@ export function createResearchRunRoutes(
       projectId,
       questionId,
       status: "completed",
-      hypotheses: researchResult.hypotheses.map((h: any) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
+      hypotheses: researchResult.hypotheses.map((h: Record<string, unknown>) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
       researchGaps: researchResult.researchGaps,
       evidenceCount: researchResult.evidence.length,
       knowledgeCount: researchResult.knowledgeItems.length,
@@ -211,7 +212,7 @@ export function createResearchRunRoutes(
       run.setStopped(true);
       return c.json({ runId, stopped: true });
     }
-    return c.json({ runId, stopped: false, error: "Run not found" }, 404);
+    return c.json({ runId, ...apiError("NOT_FOUND", "Run not found") }, 404);
   });
 
   router.get("/api/research/:runId/status", async (c) => {
