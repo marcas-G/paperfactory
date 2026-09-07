@@ -12,6 +12,48 @@ import { createAgentRoutes } from "./routes/agent";
 import { createResearchRunRoutes, ResearchRunState } from "./routes/research-runs";
 import { createPhaseRoutes } from "./routes/phases";
 import { createPaperRoutes } from "./routes/papers";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const STATIC_DIR = path.join(__dirname, "static");
+
+function serveStaticFile(c: import("hono").Context, filePath: string): Response | undefined {
+  const extMap: Record<string, string> = {
+    ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
+    ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml",
+  };
+  const ext = path.extname(filePath);
+  const contentType = extMap[ext] ?? "application/octet-stream";
+  try {
+    const data = fs.readFileSync(filePath);
+    return new Response(data, { headers: { "Content-Type": contentType } });
+  } catch {
+    return undefined;
+  }
+}
+
+function getStaticMiddleware() {
+  return async (c: import("hono").Context, next: () => Promise<void>) => {
+    if (c.req.method !== "GET") {
+      return next();
+    }
+    const urlPath = c.req.url.replace(c.req.url.split("?")[0].split("/").slice(0, 3).join("/"), "");
+    if (urlPath === "" || urlPath === "/") {
+      const indexFile = path.join(STATIC_DIR, "index.html");
+      const resp = serveStaticFile(c, indexFile);
+      if (resp) return resp;
+    }
+    if (urlPath.startsWith("/js/") || urlPath.startsWith("/css/")) {
+      const filePath = path.join(STATIC_DIR, urlPath);
+      const resp = serveStaticFile(c, filePath);
+      if (resp) return resp;
+    }
+    return next();
+  };
+}
 
 export interface APIRoute {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -79,6 +121,7 @@ export function createHonoApp(
   const app = new Hono();
 
   app.use("/*", cors);
+  app.use("/*", getStaticMiddleware());
   app.onError(errorHandler);
   app.notFound(notFoundHandler);
 
