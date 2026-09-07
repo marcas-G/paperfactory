@@ -23,9 +23,9 @@ export const Experiment = Schema.Struct({
 export type Experiment = Schema.Schema.Type<typeof Experiment>;
 
 export const createExperiment = (override: Partial<Experiment> = {}): Experiment => ({
-  experimentId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
+  experimentId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
   protocolId: null,
   hypothesisId: null,
   title: "Experiment Title",

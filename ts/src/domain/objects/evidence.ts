@@ -25,9 +25,9 @@ export const Evidence = Schema.Struct({
 export type Evidence = Schema.Schema.Type<typeof Evidence>;
 
 export const createEvidence = (override: Partial<Evidence> = {}): Evidence => ({
-  evidenceId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
+  evidenceId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
   resultId: null,
   summary: "Evidence summary",
   direction: "SUPPORTING",

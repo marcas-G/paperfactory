@@ -32,8 +32,8 @@ export const PhaseRun = Schema.Struct({
 export type PhaseRun = Schema.Schema.Type<typeof PhaseRun>;
 
 export const createPhaseRun = (override: Partial<PhaseRun> = {}): PhaseRun => ({
-  phaseRunId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
+  phaseRunId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
   phaseName: "unknown",
   phaseVersion: 1,
   parentRunId: null,

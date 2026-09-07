@@ -21,10 +21,10 @@ export const ResearchGap = Schema.Struct({
 export type ResearchGap = Schema.Schema.Type<typeof ResearchGap>;
 
 export const createResearchGap = (override: Partial<ResearchGap> = {}): ResearchGap => ({
-  gapId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
-  questionId: "00000000-0000-4000-a000-000000000000",
+  gapId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
+  questionId: crypto.randomUUID(),
   description: "Research gap description",
   status: "IDENTIFIED",
   relatedKnowledgeIds: [],

@@ -14,12 +14,12 @@ export const EvidenceChain = Schema.Struct({
 export type EvidenceChain = Schema.Schema.Type<typeof EvidenceChain>;
 
 export const createEvidenceChain = (override: Partial<EvidenceChain> = {}): EvidenceChain => ({
-  evidenceChainId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
+  evidenceChainId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
   sourceType: "Hypothesis",
-  sourceId: "00000000-0000-4000-a000-000000000000",
+  sourceId: crypto.randomUUID(),
   targetType: "Citation",
-  targetId: "00000000-0000-4000-a000-000000000000",
+  targetId: crypto.randomUUID(),
   relation: "derives-from",
   createdAt: new Date(),
   ...override,

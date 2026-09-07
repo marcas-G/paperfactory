@@ -33,9 +33,9 @@ export const Hypothesis = Schema.Struct({
 export type Hypothesis = Schema.Schema.Type<typeof Hypothesis>;
 
 export const createHypothesis = (override: Partial<Hypothesis> = {}): Hypothesis => ({
-  hypothesisId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
+  hypothesisId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
   gapId: null,
   statement: "X causes Y under Z conditions",
   falsificationCondition: "If Y does not occur when X is applied under Z",

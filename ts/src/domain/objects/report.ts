@@ -21,9 +21,9 @@ export const Report = Schema.Struct({
 export type Report = Schema.Schema.Type<typeof Report>;
 
 export const createReport = (override: Partial<Report> = {}): Report => ({
-  reportId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
+  reportId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
   title: "Report Title",
   status: "DRAFT",
   sectionIds: [],

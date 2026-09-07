@@ -19,10 +19,10 @@ export const Result = Schema.Struct({
 export type Result = Schema.Schema.Type<typeof Result>;
 
 export const createResult = (override: Partial<Result> = {}): Result => ({
-  resultId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
-  experimentId: "00000000-0000-4000-a000-000000000000",
+  resultId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
+  experimentId: crypto.randomUUID(),
   summary: "Result summary",
   status: "RAW",
   data: {},

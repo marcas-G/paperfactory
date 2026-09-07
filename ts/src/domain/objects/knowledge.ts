@@ -23,9 +23,9 @@ export const KnowledgeItem = Schema.Struct({
 export type KnowledgeItem = Schema.Schema.Type<typeof KnowledgeItem>;
 
 export const createKnowledgeItem = (override: Partial<KnowledgeItem> = {}): KnowledgeItem => ({
-  knowledgeId: "00000000-0000-4000-a000-000000000000",
-  projectId: "00000000-0000-4000-a000-000000000000",
-  branchId: "00000000-0000-4000-a000-000000000000",
+  knowledgeId: crypto.randomUUID(),
+  projectId: crypto.randomUUID(),
+  branchId: crypto.randomUUID(),
   summary: "Knowledge summary",
   sourceType: "paper",
   sourceIds: [],

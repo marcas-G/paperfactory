@@ -11,7 +11,7 @@ describe("KnowledgeItem Schema", () => {
 
   it("accepts valid knowledge item", () => {
     const k = decode(base);
-    expect(k.knowledgeId).toBe(validUUID);
+    expect(k.knowledgeId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     expect(k.sourceType).toBe("paper");
     expect(k.certaintyLevel).toBe(0.5);
     expect(k.sourceIds).toEqual([]);
