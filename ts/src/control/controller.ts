@@ -1,5 +1,5 @@
 import * as Effect from "effect/Effect";
-import { ObjectStore } from "@persistence/object-store";
+import { ObjectStore, ResearchObject } from "@persistence/object-store";
 import { DomainEvent, createDomainEvent } from "@domain/events";
 import { EventStore } from "@persistence/event-store";
 import { ActionRegistry } from "./registry";
@@ -56,17 +56,17 @@ export class ResearchController {
       };
     }
 
-    const obj = opt.value!;
+    const obj = opt.value;
 
     const candidates = getActionsByTarget(request.objectType);
-    const scores = scoreCandidates(candidates, (obj as Record<string, unknown>).status as string);
+    const scores = scoreCandidates(candidates, (obj.status as string) ?? "");
 
     const gateResults: GateResult[] = [];
     if (action.requiresGate) {
       for (const gate of ALL_GATES) {
         const result = await Effect.runPromise(
           gate.evaluate({
-            objectState: obj as Record<string, unknown>,
+            objectState: obj,
             actionName: request.actionName,
           }),
         );
@@ -88,7 +88,7 @@ export class ResearchController {
     const transitionResult = await Effect.runPromise(
       this.transitionEngine.validateTransition({
         actionName: request.actionName,
-        currentObjectState: obj as Record<string, unknown>,
+        currentObjectState: obj,
         gateResults,
       }),
     );
