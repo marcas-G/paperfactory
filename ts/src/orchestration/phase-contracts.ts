@@ -18,13 +18,7 @@ import { beamSearch } from "@runtime/workflows/tot-engine";
 import { sampleConsensus } from "@runtime/workflows/self-consistency";
 import { debate } from "@runtime/workflows/debate";
 
-function generateUuid(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { generateUuid } from "./shared";
 
 // ===== LLM 输出 Schema =====
 
@@ -218,24 +212,24 @@ export async function buildPhaseContext(
 
   for (const objType of contract.readObjects) {
     const items = await Effect.runPromise(store.list(objType));
-    const relevant = items.filter((o: any) => o.projectId === projectId);
+    const relevant = items.filter((o: Record<string, unknown>) => (o as Record<string, unknown>).projectId === projectId);
     if (relevant.length > 0) {
       lines.push(`=== ${objType} (${relevant.length} 条) ===`);
       for (const item of relevant) {
         if (objType === "KnowledgeItem") {
-          lines.push(`  [${(item as any).knowledgeId?.substring(0, 8)}] ${item.summary ?? "未知"} (来源: ${item.sourceType ?? "未知"})`);
+          lines.push(`  [${((item as Record<string, unknown>).knowledgeId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).summary as string ?? "未知"} (来源: ${(item as Record<string, unknown>).sourceType as string ?? "未知"})`);
         } else if (objType === "ResearchGap") {
-          lines.push(`  [${(item as any).gapId?.substring(0, 8)}] ${item.description ?? "未知"}`);
+          lines.push(`  [${((item as Record<string, unknown>).gapId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).description as string ?? "未知"}`);
         } else if (objType === "Hypothesis") {
-          lines.push(`  [${(item as any).hypothesisId?.substring(0, 8)}] ${item.statement ?? "未知"} [${item.status ?? "PROPOSED"}]`);
+          lines.push(`  [${((item as Record<string, unknown>).hypothesisId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).statement as string ?? "未知"} [${(item as Record<string, unknown>).status as string ?? "PROPOSED"}]`);
         } else if (objType === "Evidence") {
-          lines.push(`  [${(item as any).evidenceId?.substring(0, 8)}] ${item.summary ?? "未知"} [${item.direction ?? "NEUTRAL"}] 强度: ${(item.strength ?? 0).toFixed(2)}`);
+          lines.push(`  [${((item as Record<string, unknown>).evidenceId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).summary as string ?? "未知"} [${(item as Record<string, unknown>).direction as string ?? "NEUTRAL"}] 强度: ${((item as Record<string, unknown>).strength as number ?? 0).toFixed(2)}`);
         } else if (objType === "Experiment") {
-          lines.push(`  [${(item as any).experimentId?.substring(0, 8)}] ${item.title ?? "未知"} [${item.status ?? "PLANNED"}]`);
+          lines.push(`  [${((item as Record<string, unknown>).experimentId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).title as string ?? "未知"} [${(item as Record<string, unknown>).status as string ?? "PLANNED"}]`);
         } else if (objType === "Result") {
-          lines.push(`  [${(item as any).resultId?.substring(0, 8)}] ${item.summary ?? "未知"}`);
+          lines.push(`  [${((item as Record<string, unknown>).resultId as string)?.substring(0, 8)}] ${(item as Record<string, unknown>).summary as string ?? "未知"}`);
         } else if (objType === "Citation") {
-          lines.push(`  [${(item as any).citationId?.substring(0, 8)}] "${item.sourceTitle ?? "Unknown"}" (${item.sourceUrl ?? ""})`);
+          lines.push(`  [${((item as Record<string, unknown>).citationId as string)?.substring(0, 8)}] "${(item as Record<string, unknown>).sourceTitle as string ?? "Unknown"}" (${(item as Record<string, unknown>).sourceUrl as string ?? ""})`);
         }
       }
       lines.push("");
@@ -489,8 +483,8 @@ export async function runPhase(
         rawOutput = selfReviewResult.finalOutput;
       }
     }
-  } catch (err: any) {
-    onEvent({ type: "error", content: String(err), phase: contract.name, timestamp: new Date().toISOString() });
+  } catch (err: unknown) {
+    onEvent({ type: "phase:error", content: String(err), phase: contract.name, timestamp: new Date().toISOString() });
     return {
       phaseName: contract.name, status: "ERROR", output: null, rawOutput: "",
       savedIds: {}, toolCalls, selfReview: null,
@@ -539,7 +533,7 @@ export async function runPhase(
   if (contract.name === "evidence_assessment" && rawOutput && rawOutput.trim().length > 0) {
     try {
       const parsedTemp = tryParseLLMOutput(rawOutput, contract.name);
-      const evidenceItems = ((parsedTemp as any)?.assessments as any[]) ?? [];
+      const evidenceItems = ((parsedTemp as Record<string, unknown>).assessments as Array<Record<string, unknown>>) ?? [];
       const enhancedAssessments = [];
       for (const ev of evidenceItems) {
         const summary = ev.reasoning ?? ev.evidenceId ?? "";
@@ -591,10 +585,10 @@ export async function runPhase(
 
   if (parsed && contract.name === "literature_search") {
     // First: extract papers from search tool results
-    const searchToolCall = toolCalls.find((tc: any) =>
+    const searchToolCall = toolCalls.find((tc: Record<string, unknown>) =>
       tc.toolName === "search" || tc.toolName === "literatureSearch" || tc.toolName === "web_search"
     );
-    let searchPapers: any[] = [];
+    let searchPapers: Array<Record<string, unknown>> = [];
     if (searchToolCall) {
       try {
         const outputData = JSON.parse(searchToolCall.output);
@@ -616,15 +610,15 @@ export async function runPhase(
         relevanceScore: paper.relevanceScore ?? 0.5,
         localPdfPath: paper.localPdfPath ?? null,
         metadata: { openAccessPdf: paper.openAccessPdf, citationCount: paper.citationCount } ?? {},
-      } as any));
+      } as Record<string, unknown>));
       savedCitationIds.push(citationId);
     }
 
     // Also save LLM-extracted keyFindings as Citations if not already in search results
-    const findings = (parsed.keyFindings as any[]) ?? [];
-    const searchTitles = new Set(searchPapers.map((p: any) => (p.title ?? "").toLowerCase()));
+    const findings = (parsed.keyFindings as Array<Record<string, unknown>>) ?? [];
+    const searchTitles = new Set(searchPapers.map((p: Record<string, unknown>) => ((p.title as string) ?? "").toLowerCase()));
     for (const f of findings) {
-      if (searchTitles.has((f.sourceTitle ?? "").toLowerCase())) continue;
+      if (searchTitles.has((f.sourceTitle as string ?? "").toLowerCase())) continue;
       const citationId = generateUuid();
       await Effect.runPromise(store.save({
         citationId, projectId,
@@ -632,7 +626,7 @@ export async function runPhase(
         sourceUrl: f.sourceUrl ?? "",
         sourceAuthors: [],
         relevanceScore: 0.8,
-      } as any));
+      } as Record<string, unknown>));
       savedCitationIds.push(citationId);
     }
     savedIds.citationIds = savedCitationIds;
@@ -649,7 +643,7 @@ export async function runPhase(
   }
 
   if (parsed && contract.name === "gap_identification") {
-    const gaps = ((parsed.gaps as any[]) ?? []).slice(0, 3);
+    const gaps = ((parsed.gaps as Array<Record<string, unknown>>) ?? []).slice(0, 3);
     for (const g of gaps) {
       const gapId = generateUuid();
       const questionId = generateUuid();
@@ -657,15 +651,15 @@ export async function runPhase(
         gapId, projectId, branchId: generateUuid(), questionId,
         description: g.description ?? g.gap ?? "未识别",
         status: "IDENTIFIED",
-      } as any)));
+      } as Record<string, unknown>)));
       savedIds.gapIds = [...(savedIds.gapIds ?? []), gapId];
     }
   }
 
   if (parsed && contract.name === "hypothesis_generation") {
-    const hyps = ((parsed.hypotheses as any[]) ?? []);
+    const hyps = ((parsed.hypotheses as Array<Record<string, unknown>>) ?? []);
     const existingGaps = await Effect.runPromise(store.list("ResearchGap"));
-    const projectGaps = existingGaps.filter((g: any) => g.projectId === projectId);
+    const projectGaps = existingGaps.filter((g: Record<string, unknown>) => (g as Record<string, unknown>).projectId === projectId);
     for (let i = 0; i < hyps.length; i++) {
       const h = hyps[i];
       const hypothesisId = generateUuid();
@@ -683,10 +677,10 @@ export async function runPhase(
   if (parsed && contract.name === "experiment_design") {
     const experimentId = generateUuid();
     const existingHyps = await Effect.runPromise(store.list("Hypothesis"));
-    const projectHyps = existingHyps.filter((h: any) => h.projectId === projectId);
+    const projectHyps = existingHyps.filter((h: Record<string, unknown>) => (h as Record<string, unknown>).projectId === projectId);
     await Effect.runPromise(store.save(createExperiment({
       experimentId, projectId, branchId: generateUuid(),
-      title: `验证实验: ${(parsed.design as any)?.objective ?? question}`,
+      title: `验证实验: ${((parsed as Record<string, unknown>).design as Record<string, unknown>)?.objective as string ?? question}`,
       status: "PLANNED",
     })));
     savedIds.experimentIds = [experimentId];
@@ -694,7 +688,7 @@ export async function runPhase(
 
   if (parsed && contract.name === "experiment_execution") {
     const existingExps = await Effect.runPromise(store.list("Experiment"));
-    const projectExps = existingExps.filter((e: any) => e.projectId === projectId);
+    const projectExps = existingExps.filter((e: Record<string, unknown>) => (e as Record<string, unknown>).projectId === projectId);
     const lastExp = projectExps[projectExps.length - 1];
 
     try {
@@ -709,7 +703,7 @@ export async function runPhase(
       const resultId = generateUuid();
       await Effect.runPromise(store.save(createResult({
         resultId, projectId, branchId: generateUuid(),
-        experimentId: (lastExp as any)?.experimentId ?? generateUuid(),
+        experimentId: ((lastExp as Record<string, unknown>).experimentId as string) ?? generateUuid(),
         summary: `实验输出: ${sandboxOutput.output}`,
         status: "RAW",
       })));
@@ -720,9 +714,9 @@ export async function runPhase(
         evidenceId, projectId, branchId: generateUuid(),
         resultId,
         summary: sandboxOutput.output.substring(0, 500),
-        direction: (parsed as any).direction ?? (sandboxOutput.isError ? "NEUTRAL" : "SUPPORTING"),
+        direction: (parsed as Record<string, unknown>).direction as string ?? (sandboxOutput.isError ? "NEUTRAL" : "SUPPORTING"),
         status: "VALIDATED",
-        strength: (parsed as any).strength ?? (sandboxOutput.isError ? 0.3 : 0.85),
+        strength: (parsed as Record<string, unknown>).strength as number ?? (sandboxOutput.isError ? 0.3 : 0.85),
       })));
       savedIds.evidenceIds = [evidenceId];
     } catch (err) {
@@ -732,12 +726,12 @@ export async function runPhase(
 
   if (parsed && (contract.name === "evidence_assessment" || contract.name === "confirmation")) {
     const existingHyps = await Effect.runPromise(store.list("Hypothesis"));
-    const projectHyps = existingHyps.filter((h: any) => h.projectId === projectId);
+    const projectHyps = existingHyps.filter((h: Record<string, unknown>) => (h as Record<string, unknown>).projectId === projectId);
     for (const hyp of projectHyps) {
       const newStatus =
         contract.name === "confirmation"
-          ? (parsed as any).status ?? "ASSESSED"
-          : (parsed as any)?.conclusion?.status ?? "ASSESSED";
+          ? ((parsed as Record<string, unknown>).status as string) ?? "ASSESSED"
+          : (((parsed as Record<string, unknown>).conclusion as Record<string, unknown>)?.status as string) ?? "ASSESSED";
       await Effect.runPromise(store.save({
         ...hyp,
         status: newStatus,
@@ -748,7 +742,7 @@ export async function runPhase(
 
   if (parsed && contract.name === "report_generation") {
     const reportId = generateUuid();
-    const content = `${(parsed as any).abstract ?? ""}\n\n${((parsed as any).sections ?? []).map((s: any) => `## ${s.title}\n${s.content}`).join('\n\n')}`;
+    const content = `${(parsed as Record<string, unknown>).abstract as string ?? ""}\n\n${(((parsed as Record<string, unknown>).sections as Array<Record<string, unknown>>) ?? []).map((s: Record<string, unknown>) => `## ${s.title as string}\n${s.content as string}`).join('\n\n')}`;
     await Effect.runPromise(store.save(createReport({
       reportId, projectId, branchId: generateUuid(),
       title: `研究报告: ${question}`,
@@ -789,7 +783,7 @@ export async function runPhase(
     objectId,
     rawOutput,
     toolCalls,
-  } as any);
+  } as AgentEvent);
 
   return {
     phaseName: contract.name,

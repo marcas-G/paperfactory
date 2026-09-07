@@ -27,17 +27,11 @@ export interface ResearchRunContext {
   onApprovalNeeded?: (runId: string, phaseName: string, summary: string) => Promise<"approve" | "modify" | "reject">;
 }
 
-function generateUuid(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { generateUuid } from "./shared";
 
 function buildPhaseSummary(phaseName: string, result: { output?: Record<string, unknown> | null }): string {
   if (!result?.output) return "阶段完成";
-  const o = result.output as any;
+  const o = result.output as Record<string, unknown>;
   if (phaseName === "literature_search") {
     const findings = o.keyFindings ?? [];
     const gaps = o.researchGaps ?? [];
@@ -129,6 +123,7 @@ export async function runAgentDrivenResearch(
       projectId: ctx.projectId,
       phaseName: contract.name,
       phaseVersion: version,
+      parentRunId: version > 1 ? (phaseRunIds[contract.name] ?? null) : null,
       status: result.status,
       artifacts: result.savedIds,
       agentOutput: result.rawOutput,
@@ -136,7 +131,7 @@ export async function runAgentDrivenResearch(
       selfReview: result.selfReview,
       active: true,
     });
-    await Effect.runPromise(objectStore.save(phaseRun as any));
+    await Effect.runPromise(objectStore.save(phaseRun as Record<string, unknown>));
     phaseRunIds[contract.name] = phaseRunId;
 
     await buildEvidenceChain(objectStore, ctx.projectId, {
@@ -166,7 +161,7 @@ export async function runAgentDrivenResearch(
       runId: phaseRunId,
       objectType,
       objectId,
-    } as any);
+    } as AgentEvent);
 
     // Approval gate (manual mode)
     if (ctx.mode === "manual" && ctx.onApprovalNeeded) {
@@ -182,14 +177,21 @@ export async function runAgentDrivenResearch(
 
       if (decision === "approve") {
         onEvent({
-          type: "phase:progress",
+          type: "phase:approved",
           content: `用户已批准: ${contract.label}`,
           phase: contract.name,
           timestamp: new Date().toISOString(),
         });
-      } else if (decision === "reject" || decision === "modify") {
+      } else if (decision === "reject") {
         onEvent({
-          type: "phase:progress",
+          type: "phase:rejected",
+          content: `用户已拒绝: ${contract.label}`,
+          phase: contract.name,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (decision === "modify") {
+        onEvent({
+          type: "phase:modified",
           content: `用户请求修改: ${contract.label}`,
           phase: contract.name,
           timestamp: new Date().toISOString(),
@@ -207,7 +209,7 @@ export async function runAgentDrivenResearch(
     });
 
     // Collect saved objects
-    const collect = async (ids: string[], type: string, arr: Array<Record<string, unknown>>, extra?: (item: any) => void) => {
+    const collect = async (ids: string[], type: string, arr: Array<Record<string, unknown>>, extra?: (item: Record<string, unknown>) => void) => {
       for (const id of ids) {
         const item = await Effect.runPromise(objectStore.get(id, type));
         if (item.isSome()) {
@@ -217,7 +219,7 @@ export async function runAgentDrivenResearch(
       }
     };
     if (result.savedIds.knowledgeIds) collect(result.savedIds.knowledgeIds, "KnowledgeItem", allKnowledge);
-    if (result.savedIds.hypothesisIds) collect(result.savedIds.hypothesisIds, "Hypothesis", allHypotheses, (v) => hypothesisStatements.push((v as any).statement ?? ""));
+    if (result.savedIds.hypothesisIds) collect(result.savedIds.hypothesisIds, "Hypothesis", allHypotheses, (v) => hypothesisStatements.push((v as Record<string, unknown>).statement as string ?? ""));
     if (result.savedIds.evidenceIds) collect(result.savedIds.evidenceIds, "Evidence", allEvidence);
     if (result.savedIds.experimentIds) collect(result.savedIds.experimentIds, "Experiment", allExperiments);
     if (result.savedIds.resultIds) collect(result.savedIds.resultIds, "Result", allResults);
@@ -226,13 +228,13 @@ export async function runAgentDrivenResearch(
 
     // Extract research gaps
     if (contract.name === "gap_identification" && result.output) {
-      const gaps = (result.output as any).gaps ?? [];
-      researchGaps = gaps.map((g: any) => g.description ?? g.gap ?? "").join("\n");
+      const gaps = (result.output as Record<string, unknown>).gaps as Array<Record<string, unknown>> ?? [];
+      researchGaps = gaps.map((g: Record<string, unknown>) => (g.description as string) ?? (g.gap as string) ?? "").join("\n");
     }
     if (contract.name === "literature_search" && result.output) {
-      const gaps = (result.output as any).researchGaps ?? [];
+      const gaps = (result.output as Record<string, unknown>).researchGaps as Array<Record<string, unknown>> ?? [];
       if (gaps.length > 0) {
-        researchGaps = gaps.map((g: any) => g.gap ?? "").join("\n");
+        researchGaps = gaps.map((g: Record<string, unknown>) => (g.gap as string) ?? "").join("\n");
       }
     }
   }
@@ -242,12 +244,12 @@ export async function runAgentDrivenResearch(
     try {
       await controller.execute({
         actionName: "assess_hypothesis",
-        objectId: (hyp as any).hypothesisId,
+        objectId: (hyp as Record<string, unknown>).hypothesisId as string,
         objectType: "Hypothesis",
       });
       await controller.execute({
         actionName: "activate_hypothesis",
-        objectId: (hyp as any).hypothesisId,
+        objectId: (hyp as Record<string, unknown>).hypothesisId as string,
         objectType: "Hypothesis",
       });
     } catch { /* ignore */ }
