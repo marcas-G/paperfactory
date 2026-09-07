@@ -43,6 +43,7 @@ import AgentLog from '../components/AgentLog.vue';
 import DetailPanel from '../components/DetailPanel.vue';
 import InputBar from '../components/InputBar.vue';
 import { useSSE, type SSEMessage } from '../composables/useSSE';
+import { useResearchStatus } from '../composables/useResearchStatus';
 import client from '../api/client';
 import type { PhaseRun, Paper } from '../api/types';
 
@@ -62,6 +63,7 @@ const approvalPhase = ref('');
 const approvalRunId = ref('');
 
 const { connected, connect, disconnect, setHandlers } = useSSE();
+const { setStatus } = useResearchStatus();
 
 watch(connected, (val) => {
   if (!val && isRunning.value) {
@@ -134,6 +136,7 @@ function handleSSEMessage(msg: SSEMessage) {
   const evt = msg.event;
 
   if (evt === 'run:start') {
+    setStatus('running');
     logMessages.value.push({
       type: 'phase:start',
       label: 'Research',
@@ -223,6 +226,7 @@ function handleSSEMessage(msg: SSEMessage) {
     showApproval.value = false;
     loadPhases();
   } else if (evt === 'run:complete') {
+    setStatus('done');
     logMessages.value.push({
       type: 'phase:complete',
       label: 'Research',
@@ -233,6 +237,7 @@ function handleSSEMessage(msg: SSEMessage) {
     loadPhases();
     loadPapers();
   } else if (evt === 'run:error') {
+    setStatus('error');
     logMessages.value.push({
       type: 'error',
       label: 'Research',
@@ -259,6 +264,7 @@ function handleSSEMessage(msg: SSEMessage) {
 function onStartResearch(question: string) {
   if (!question.trim()) return;
   isRunning.value = true;
+  setStatus('running');
   logMessages.value = [];
   disconnect();
 

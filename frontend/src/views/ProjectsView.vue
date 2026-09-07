@@ -57,7 +57,7 @@
     </div>
 
     <div v-if="!loading && projects.length === 0" class="empty-state">
-      <p>No projects yet. Create one to get started.</p>
+      <p>{{ t('common.noProjects') }}</p>
     </div>
   </div>
 </template>

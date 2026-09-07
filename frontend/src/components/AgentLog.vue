@@ -6,7 +6,7 @@
         v-if="messages.length > 5"
         v-model="searchQuery"
         size="small"
-        placeholder="Filter..."
+        :placeholder="t('common.filter')"
         style="width: 160px; margin-left: auto"
         clearable
       />
@@ -58,7 +58,7 @@
       </div>
 
       <div v-if="filteredMessages.length === 0" class="empty-log">
-        No messages yet. Start a research to see agent activity.
+        {{ t('common.noMessages') }}
       </div>
     </div>
   </div>

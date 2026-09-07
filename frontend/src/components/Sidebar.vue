@@ -25,7 +25,7 @@
         </el-button>
       </div>
       <div v-if="projects.length === 0" class="empty-sidebar">
-        <span>No projects</span>
+        <span>{{ t('common.noProjects') }}</span>
       </div>
     </div>
   </div>

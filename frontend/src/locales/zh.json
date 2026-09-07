@@ -1,7 +1,8 @@
 {
   "nav": {
     "research": "研究",
-    "projects": "项目"
+    "projects": "项目",
+    "papers": "论文"
   },
   "status": {
     "ready": "就绪",
@@ -38,6 +39,13 @@
     "rounds": "轮数",
     "approval": "审批",
     "summary": "摘要",
-    "papers": "论文"
+    "papers": "论文",
+    "search": "搜索论文",
+    "noProjects": "暂无项目",
+    "noEvidence": "暂无证据链",
+    "noMessages": "暂无消息",
+    "selectPhase": "选择阶段查看详情",
+    "filter": "过滤",
+    "researchPipeline": "研究流程"
   }
 }

@@ -2,11 +2,14 @@
   <div class="topbar">
     <div class="logo">PaperFactory</div>
     <div class="nav-tabs">
-      <router-link to="/research/current" :class="{ active: currentRoute === 'research' }">
+      <router-link :to="researchLink" :class="{ active: currentRoute === 'research' }">
         {{ t('nav.research') }}
       </router-link>
       <router-link to="/projects" :class="{ active: currentRoute === 'projects' }">
         {{ t('nav.projects') }}
+      </router-link>
+      <router-link to="/papers" :class="{ active: currentRoute === 'papers' }">
+        {{ t('nav.papers') }}
       </router-link>
     </div>
     <div class="right-section">
@@ -24,26 +27,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useResearchStatus } from '../composables/useResearchStatus';
 
 const route = useRoute();
-const router = useRouter();
 const { t, locale } = useI18n();
+const { status } = useResearchStatus();
 
-const currentRoute = computed(() =>
-  route.path.includes('research') ? 'research' : 'projects'
-);
+const currentRoute = computed(() => {
+  if (route.path.startsWith('/research')) return 'research';
+  if (route.path === '/papers') return 'papers';
+  return 'projects';
+});
 
-const status = ref<'ready' | 'running' | 'done' | 'error'>('ready');
+const researchLink = computed(() => {
+  const projectId = route.params.projectId;
+  if (projectId) {
+    return `/research/${projectId}`;
+  }
+  return '/projects';
+});
+
 const statusLabel = computed(() => t(`status.${status.value}`));
 
 function switchLang() {
   locale.value = locale.value === 'zh' ? 'en' : 'zh';
 }
 
-defineExpose({ status });
+defineExpose({ researchLink });
 </script>
 
 <style scoped>

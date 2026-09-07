@@ -1,7 +1,8 @@
 {
   "nav": {
     "research": "Research",
-    "projects": "Projects"
+    "projects": "Projects",
+    "papers": "Papers"
   },
   "status": {
     "ready": "Ready",
@@ -38,6 +39,13 @@
     "rounds": "Rounds",
     "approval": "Approval",
     "summary": "Summary",
-    "papers": "Papers"
+    "papers": "Papers",
+    "search": "Search papers",
+    "noProjects": "No projects yet",
+    "noEvidence": "No evidence chains",
+    "noMessages": "No messages yet",
+    "selectPhase": "Select a phase to view details",
+    "filter": "Filter",
+    "researchPipeline": "Research Pipeline"
   }
 }

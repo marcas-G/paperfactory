@@ -8,11 +8,19 @@
       clearable
     />
     <el-button
+      v-if="!isRunning"
       type="primary"
       :disabled="disabled || !localQuestion.trim()"
       @click="onSend"
     >
       {{ t('btn.startResearch') }}
+    </el-button>
+    <el-button
+      v-else
+      type="danger"
+      @click="$emit('stop')"
+    >
+      {{ t('btn.stop') }}
     </el-button>
   </div>
 </template>
@@ -26,6 +34,7 @@ const { t } = useI18n();
 const props = defineProps<{
   question?: string;
   disabled?: boolean;
+  isRunning?: boolean;
 }>();
 
 const emit = defineEmits<{

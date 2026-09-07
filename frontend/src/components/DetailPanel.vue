@@ -94,6 +94,10 @@
               />
             </el-tab-pane>
 
+            <el-tab-pane label="Evidence" name="evidence">
+              <EvidenceChain :chains="evidenceChains" />
+            </el-tab-pane>
+
             <el-tab-pane label="Papers" name="papers">
               <PaperLibrary
                 :papers="papers"
@@ -118,7 +122,7 @@
     <template v-else>
       <div class="empty-detail">
         <div class="empty-icon">📋</div>
-        <p>Select a phase to view details</p>
+        <p>{{ t('common.selectPhase') }}</p>
       </div>
     </template>
   </div>
@@ -131,6 +135,7 @@ import type { PhaseRun, Paper, SelfReview } from '../api/types';
 import ApprovalPanel from './ApprovalPanel.vue';
 import VersionCards from './VersionCards.vue';
 import PaperLibrary from './PaperLibrary.vue';
+import EvidenceChain from './EvidenceChain.vue';
 import client from '../api/client';
 
 const { t } = useI18n();
@@ -156,6 +161,13 @@ const emit = defineEmits<{
 }>();
 
 const activeTab = ref('output');
+const evidenceChains = ref<Array<{
+  title?: string;
+  content: string;
+  relation: string;
+  upstream: Array<{ targetType: string; targetId: string; relation: string }>;
+  downstream: Array<{ sourceType: string; sourceId: string; relation: string }>;
+}>>([]);
 const versionData = ref<Array<{
   runId: string;
   version: number;
@@ -179,6 +191,14 @@ watch(
         }
       } catch {
         versionData.value = [];
+      }
+      try {
+        const { data } = await client.get(`/projects/${props.projectId}/evidence`);
+        if (data && data.chains) {
+          evidenceChains.value = data.chains;
+        }
+      } catch {
+        evidenceChains.value = [];
       }
     }
   }

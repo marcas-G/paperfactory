@@ -1,6 +1,6 @@
 <template>
   <div class="phase-timeline">
-    <div class="timeline-header">Research Pipeline</div>
+    <div class="timeline-header">{{ t('common.researchPipeline') }}</div>
     <div class="timeline-body">
       <div
         v-for="phase in orderedPhases"

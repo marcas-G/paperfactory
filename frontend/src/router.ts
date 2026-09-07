@@ -14,6 +14,11 @@ const router = createRouter({
       component: () => import('./views/ProjectsView.vue'),
     },
     {
+      path: '/papers',
+      name: 'Papers',
+      component: () => import('./views/PapersView.vue'),
+    },
+    {
       path: '/',
       redirect: '/projects',
     },
