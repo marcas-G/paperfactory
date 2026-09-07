@@ -232,7 +232,7 @@ Format as a structured report with abstract, introduction, methods, results, and
             );
 
             const updatedReport = { ...report, content: response.content };
-            await Effect.runPromise(ctx.objectStore.save(updatedReport as unknown as import("@persistence/object-store").ResearchObject));
+            await Effect.runPromise(ctx.objectStore.save(updatedReport as Record<string, unknown>));
             manifest.reports = [updatedReport];
           } else {
             manifest.reports = [report];

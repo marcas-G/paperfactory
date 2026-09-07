@@ -38,7 +38,7 @@ export class PgEventStore implements EventStore {
         return database
           .select()
           .from(Schema.events)
-          .where(eq(Schema.events.objectId, objectId as unknown as string))
+          .where(eq(Schema.events.objectId, objectId))
           .orderBy(asc(Schema.events.revision))
           .then((rows) => rows.map(mapRowToEvent));
       },

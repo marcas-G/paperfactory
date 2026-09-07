@@ -10,27 +10,41 @@ export interface ObjectStore {
 }
 
 export class Option<T> {
-  constructor(readonly value: T | null) {}
+  private readonly _value: T | null;
+
+  private constructor(value: T | null) {
+    this._value = value;
+  }
+
   static some<T>(value: T): Option<T> {
     return new Option(value);
   }
+
   static none<T>(): Option<T> {
-    return new Option(null as unknown as T);
+    return new Option<T>(null!);
   }
+
   isSome(): boolean {
-    return this.value !== null;
+    return this._value !== null;
   }
+
   isNone(): boolean {
-    return this.value === null;
+    return this._value === null;
   }
+
+  get value(): T {
+    return this._value as T;
+  }
+
   map<U>(fn: (value: T) => U): Option<U> {
-    return this.value !== null ? Option.some(fn(this.value)) : Option.none();
+    return this._value !== null ? Option.some(fn(this._value as T)) : Option.none();
   }
+
   getOrThrow(message?: string): T {
-    if (this.value === null) {
+    if (this._value === null) {
       throw new Error(message ?? "Value not present");
     }
-    return this.value;
+    return this._value as T;
   }
 }
 

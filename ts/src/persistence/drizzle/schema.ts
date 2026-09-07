@@ -48,6 +48,7 @@ export const knowledgeItems = pgTable("knowledge_items", {
   tags: jsonb("tags").$type<string[]>().default([]),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const researchGaps = pgTable("research_gaps", {
@@ -116,6 +117,7 @@ export const results = pgTable("results", {
   data: jsonb("data").$type<Record<string, unknown>>().default({}),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const evidence = pgTable("evidence", {
@@ -129,6 +131,7 @@ export const evidence = pgTable("evidence", {
   strength: doublePrecision("strength").notNull().default(0.5),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const claims = pgTable("claims", {
@@ -157,6 +160,7 @@ export const researchFailures = pgTable("research_failures", {
   retryCondition: text("retry_condition"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const reports = pgTable("reports", {
@@ -223,6 +227,7 @@ export const citations = pgTable("citations", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   localPdfPath: varchar("local_pdf_path", { length: 1024 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const phaseRuns = pgTable("phase_runs", {
@@ -259,4 +264,5 @@ export const evidenceChain = pgTable("evidence_chain", {
   targetId: uuid("target_id").notNull(),
   relation: varchar("relation", { length: 32 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

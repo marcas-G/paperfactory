@@ -1,14 +1,11 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyTable = any;
-
 import * as Effect from "effect/Effect";
 import { eq } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
 import { ObjectStore, Option, ResearchObject } from "@persistence/object-store";
 import { getDb } from "@persistence/drizzle/db";
 import * as Schema from "@persistence/drizzle/schema";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const TABLE_MAP: Record<string, any> = {
+const TABLE_MAP: Record<string, PgTable> = {
   Project: Schema.projects,
   ResearchQuestion: Schema.researchQuestions,
   KnowledgeItem: Schema.knowledgeItems,
@@ -25,6 +22,7 @@ const TABLE_MAP: Record<string, any> = {
   PhaseRun: Schema.phaseRuns,
   EvidenceChain: Schema.evidenceChain,
   Citation: Schema.citations,
+  ResearchPhase: Schema.researchPhases,
 };
 
 const ID_KEY_MAP: Record<string, string> = {
@@ -44,9 +42,11 @@ const ID_KEY_MAP: Record<string, string> = {
   PhaseRun: "phaseRunId",
   EvidenceChain: "evidenceChainId",
   Citation: "citationId",
+  ResearchPhase: "phaseId",
 };
 
 function detectType(obj: ResearchObject): string {
+  if ("phaseId" in obj) return "ResearchPhase";
   if ("phaseRunId" in obj) return "PhaseRun";
   if ("evidenceChainId" in obj) return "EvidenceChain";
   if ("citationId" in obj) return "Citation";
@@ -94,7 +94,7 @@ export class PgObjectStore implements ObjectStore {
     return Effect.tryPromise({
       try: async () => {
         const database = getDb();
-        const table = TABLE_MAP[type] as AnyTable;
+        const table = TABLE_MAP[type];
         if (!table) {
           return Option.none<T>();
         }
@@ -125,7 +125,7 @@ export class PgObjectStore implements ObjectStore {
     return Effect.tryPromise({
       try: async () => {
         const database = getDb();
-        const table = TABLE_MAP[type] as AnyTable;
+        const table = TABLE_MAP[type];
         if (!table) {
           return [] as ReadonlyArray<T>;
         }
@@ -145,7 +145,7 @@ export class PgObjectStore implements ObjectStore {
       try: async () => {
         const type = detectType(obj);
         const database = getDb();
-        const table = TABLE_MAP[type] as AnyTable;
+        const table = TABLE_MAP[type];
         if (!table) {
           throw new Error(`Unknown object type: ${type}`);
         }
@@ -160,19 +160,17 @@ export class PgObjectStore implements ObjectStore {
           .limit(1);
 
         if (existing.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const r = (await database.insert(table).values(row).returning()) as Record<string, unknown>[];
-          return mapToDomainObj(r[0], type) as T;
+          const r = await database.insert(table).values(row).returning();
+          return mapToDomainObj(r[0] as Record<string, unknown>, type) as T;
         }
         const updateRow = { ...row };
         delete (updateRow as Record<string, unknown>).id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = (await database
+        const r = await database
           .update(table)
           .set(updateRow)
           .where(eq(table.id, existingId))
-          .returning()) as Record<string, unknown>[];
-        return mapToDomainObj(r[0], type) as T;
+          .returning();
+        return mapToDomainObj(r[0] as Record<string, unknown>, type) as T;
       },
       catch: (error) =>
         error instanceof Error ? error : new Error(String(error)),
@@ -183,16 +181,14 @@ export class PgObjectStore implements ObjectStore {
     return Effect.tryPromise({
       try: async () => {
         const database = getDb();
-        const table = TABLE_MAP[type] as AnyTable;
+        const table = TABLE_MAP[type];
         if (!table) {
           return false;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res = (await database
+        const res = await database
           .delete(table)
-          .where(eq(table.id, id))
-          .returning()) as any[];
-        return res.length > 0;
+          .where(eq(table.id, id));
+        return Number(res.rowCount) > 0;
       },
       catch: (error) =>
         error instanceof Error ? error : new Error(String(error)),
