@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import client from '../api/client';
 
 export interface Project {
@@ -16,14 +16,16 @@ export function useProjects() {
     loading.value = true;
     try {
       const { data } = await client.get('/projects');
-      projects.value = data;
+      projects.value = Array.isArray(data) ? data : [];
+    } catch {
+      projects.value = [];
     } finally {
       loading.value = false;
     }
   }
 
   async function createProject(question: string) {
-    const { data } = await client.post('/projects', { question });
+    const { data } = await client.post('/projects', { name: question, question });
     projects.value.unshift(data);
     return data;
   }
@@ -32,6 +34,10 @@ export function useProjects() {
     await client.delete(`/projects/${id}`);
     projects.value = projects.value.filter((p) => p.id !== id);
   }
+
+  onMounted(() => {
+    fetchProjects();
+  });
 
   return { projects, loading, fetchProjects, createProject, deleteProject };
 }

@@ -7,14 +7,12 @@
         <router-view />
       </div>
     </div>
-    <InputBar />
   </div>
 </template>
 
 <script setup lang="ts">
 import TopBar from './components/TopBar.vue';
 import Sidebar from './components/Sidebar.vue';
-import InputBar from './components/InputBar.vue';
 </script>
 
 <style>

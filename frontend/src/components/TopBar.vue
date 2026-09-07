@@ -11,33 +11,39 @@
     </div>
     <div class="right-section">
       <div class="status-indicator" :class="status">
+        <span class="status-dot" />
         {{ statusLabel }}
       </div>
       <div class="lang-switch">
-        <button @click="switchLang">{{ locale === 'zh' ? 'EN' : '中' }}</button>
+        <el-button size="small" text @click="switchLang">
+          {{ locale === 'zh' ? 'EN' : '中' }}
+        </el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 
 const route = useRoute();
+const router = useRouter();
 const { t, locale } = useI18n();
 
 const currentRoute = computed(() =>
   route.path.includes('research') ? 'research' : 'projects'
 );
 
-const status = 'ready';
-const statusLabel = computed(() => t(`status.${status}`));
+const status = ref<'ready' | 'running' | 'done' | 'error'>('ready');
+const statusLabel = computed(() => t(`status.${status.value}`));
 
 function switchLang() {
   locale.value = locale.value === 'zh' ? 'en' : 'zh';
 }
+
+defineExpose({ status });
 </script>
 
 <style scoped>
@@ -49,11 +55,13 @@ function switchLang() {
   background: #1da57a;
   color: #fff;
   gap: 24px;
+  flex-shrink: 0;
 }
 
 .logo {
   font-weight: bold;
   font-size: 18px;
+  letter-spacing: 1px;
 }
 
 .nav-tabs {
@@ -64,8 +72,10 @@ function switchLang() {
 .nav-tabs a {
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
-  padding: 4px 8px;
+  padding: 4px 12px;
   border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
 .nav-tabs a.active,
@@ -82,13 +92,28 @@ function switchLang() {
 }
 
 .status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 2px 10px;
   border-radius: 10px;
   font-size: 12px;
 }
 
-.status-indicator.ready { background: #67c23a; }
-.status-indicator.running { background: #e6a23c; }
-.status-indicator.done { background: #409eff; }
-.status-indicator.error { background: #f56c6c; }
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-indicator.ready { background: rgba(103, 194, 58, 0.2); color: #67c23a; }
+.status-indicator.running { background: rgba(230, 162, 60, 0.2); color: #e6a23c; }
+.status-indicator.done { background: rgba(64, 158, 255, 0.2); color: #409eff; }
+.status-indicator.error { background: rgba(245, 108, 108, 0.2); color: #f56c6c; }
+
+.lang-switch :deep(.el-button) {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+}
 </style>

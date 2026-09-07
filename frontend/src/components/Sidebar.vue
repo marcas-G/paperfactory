@@ -2,9 +2,9 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <span>{{ t('common.projects') }}</span>
-      <el-button size="small" @click="$router.push('/projects')">{{
-        t('common.new')
-      }}</el-button>
+      <el-button size="small" text @click="$router.push('/projects')">
+        {{ t('common.new') }}
+      </el-button>
     </div>
     <div class="project-list">
       <div
@@ -14,7 +14,7 @@
         :class="{ active: project.id === activeId }"
         @click="selectProject(project.id)"
       >
-        <span class="project-name">{{ project.name }}</span>
+        <span class="project-name" :title="project.name">{{ project.name }}</span>
         <el-button
           text
           size="small"
@@ -24,25 +24,45 @@
           ×
         </el-button>
       </div>
+      <div v-if="projects.length === 0" class="empty-sidebar">
+        <span>No projects</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useProjects } from '../composables/useProjects';
 
+const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
-const { projects, deleteProject } = useProjects();
+const { projects, fetchProjects, deleteProject } = useProjects();
 
-const activeId = '';
+const activeId = computed(() => {
+  const match = route.path.match(/\/research\/(.+)/);
+  return match ? match[1] : '';
+});
+
+watch(
+  () => route.path,
+  () => {
+    fetchProjects();
+  }
+);
 
 function selectProject(id: string) {
-  window.location.hash = `/research/${id}`;
+  router.push(`/research/${id}`);
 }
 
-function onDelete(id: string) {
-  deleteProject(id);
+async function onDelete(id: string) {
+  await deleteProject(id);
+  if (activeId.value === id) {
+    router.push('/projects');
+  }
 }
 </script>
 
@@ -54,6 +74,7 @@ function onDelete(id: string) {
   display: flex;
   flex-direction: column;
   background: #fafafa;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -62,6 +83,8 @@ function onDelete(id: string) {
   align-items: center;
   padding: 12px;
   border-bottom: 1px solid #e4e7ed;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .project-list {
@@ -78,6 +101,7 @@ function onDelete(id: string) {
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 4px;
+  transition: background 0.15s;
 }
 
 .project-item:hover {
@@ -86,6 +110,7 @@ function onDelete(id: string) {
 
 .project-item.active {
   background: #d9ecff;
+  font-weight: 500;
 }
 
 .project-name {
@@ -93,13 +118,24 @@ function onDelete(id: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
+  flex: 1;
 }
 
 .delete-btn {
-  color: #909399;
+  color: #c0c4cc;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
 }
 
 .delete-btn:hover {
   color: #f56c6c;
+}
+
+.empty-sidebar {
+  padding: 16px;
+  text-align: center;
+  color: #c0c4cc;
+  font-size: 13px;
 }
 </style>
