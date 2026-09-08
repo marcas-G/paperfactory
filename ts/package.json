@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "generate": "tsx packages/client/script/generate.ts",
     "tui": "tsx packages/tui/src/index.ts",
     "lint": "eslint src/ test/ packages/",
     "typecheck": "tsc --noEmit",

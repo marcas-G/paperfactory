@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { createTestContext } from "../fixtures/test-context";
+import { createTestContext } from "../../fixtures/test-context";
 import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
 import {
   createHypothesisVerificationWorkflow,

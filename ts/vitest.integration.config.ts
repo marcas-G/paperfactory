@@ -4,8 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     include: [
-      "test/integration/**/*.test.ts",
-      "test/persistence/pg-*.test.ts",
+      "test/core/integration/**/*.test.ts",
+      "test/core/persistence/pg-*.test.ts",
     ],
     testTimeout: 30000,
     coverage: {

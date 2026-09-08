@@ -5,9 +5,9 @@ export default defineConfig({
     globals: true,
     include: ["test/**/*.test.ts"],
     exclude: [
-      "test/persistence/pg-object-store.test.ts",
-      "test/persistence/pg-event-store.test.ts",
-      "test/integration/database.test.ts",
+      "test/core/persistence/pg-object-store.test.ts",
+      "test/core/persistence/pg-event-store.test.ts",
+      "test/core/integration/database.test.ts",
     ],
     coverage: {
       provider: "v8",
