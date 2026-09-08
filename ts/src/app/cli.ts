@@ -1,5 +1,7 @@
 import { createApp, loadConfig, AppDependencies } from "./index";
 import * as Effect from "effect/Effect";
+import { OpenAIProvider } from "@runtime/provider";
+import { createHypothesis } from "@domain/objects/hypothesis";
 import { createHypothesisVerificationWorkflow, runWorkflow } from "@orchestration/hypothesis-verification";
 import type { HypothesisVerificationContext } from "@orchestration/hypothesis-verification";
 
@@ -96,10 +98,32 @@ export async function researchCommand(
   console.log(`  ProjectId: ${projectId}`);
   console.log(`  QuestionId: ${questionId}`);
 
-  const workflowCtx: HypothesisVerificationContext = {
+  const config = loadConfig();
+  const provider = config.llmApiKey
+    ? new OpenAIProvider({
+        baseUrl: config.llmBaseUrl,
+        apiKey: config.llmApiKey,
+        model: config.llmModel,
+      })
+    : undefined;
+
+  // 先真建 hypothesis（原先传悬空 ID，报告里出现 "Unknown"）
+  const hypothesis = createHypothesis({
     hypothesisId: generateUuid(),
     projectId,
     branchId,
+    statement: `The research question is answerable with current evidence: ${questionText}`,
+    falsificationCondition: "If no credible evidence either way can be found in the literature",
+    status: "PROPOSED",
+  });
+  await Effect.runPromise(app.objectStore.save(hypothesis as unknown as Record<string, unknown> & { [key: string]: unknown }));
+
+  const workflowCtx: HypothesisVerificationContext = {
+    hypothesisId: hypothesis.hypothesisId,
+    projectId,
+    branchId,
+    researchQuery: questionText,
+    provider,
     objectStore: app.objectStore,
     eventStore: app.eventStore,
     controller: app.controller,
@@ -110,6 +134,24 @@ export async function researchCommand(
 
   console.log(`  Workflow status: ${result.status}`);
   console.log(`  Phases completed: ${result.phaseIndex}`);
+
+  const litResult = result.phaseResults.find((r) => r.phase === "literature_search") as
+    | { knowledgeItems?: Array<{ summary?: string; sourceIds?: string[] }> }
+    | undefined;
+  if (litResult?.knowledgeItems?.length) {
+    console.log(`\nKnowledge items (${litResult.knowledgeItems.length}):`);
+    for (const item of litResult.knowledgeItems) {
+      console.log(`  - ${item.summary?.slice(0, 100)}`);
+      console.log(`    source: ${item.sourceIds?.[0] ?? "n/a"}`);
+    }
+  }
+
+  const reportResult = result.phaseResults.find((r) => r.phase === "report_generation") as
+    | { report?: { content?: string } }
+    | undefined;
+  if (reportResult?.report?.content) {
+    console.log(`\n=== REPORT ===\n${reportResult.report.content}`);
+  }
 
   return {
     status: result.status,

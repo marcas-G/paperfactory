@@ -13,6 +13,7 @@ import { DefaultEvalFramework } from "@evals/framework";
 import { HookSystem } from "@runtime/hooks/system";
 import { searchTool } from "@runtime/tools/builtins/search";
 import { codeTool } from "@runtime/tools/builtins/code";
+import { literatureSearchTool } from "@runtime/tools/builtins/literature";
 import {
   InMemoryFilesystem,
   createFilesystemTool,
@@ -93,20 +94,56 @@ export function createApp(
   toolRegistry.register(searchTool, {
     name: "search",
     description: "Search for papers",
-    schema: {},
+    schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query for academic papers" },
+      },
+      required: ["query"],
+    },
     writeOnly: false,
   });
   toolRegistry.register(codeTool, {
     name: "code",
     description: "Execute code",
-    schema: {},
+    schema: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "The source code to execute" },
+        language: { type: "string", enum: ["python", "javascript"], description: "Execution language" },
+      },
+      required: ["code", "language"],
+    },
     writeOnly: false,
   });
   toolRegistry.register(createFilesystemTool(fs), {
     name: "filesystem",
     description: "Filesystem operations",
-    schema: {},
+    schema: {
+      type: "object",
+      properties: {
+        operation: { type: "string", enum: ["read", "write", "list", "delete"], description: "The operation to perform" },
+        path: { type: "string", description: "Target file path" },
+        content: { type: "string", description: "Content to write (write only)" },
+      },
+      required: ["operation", "path"],
+    },
     writeOnly: true,
+  });
+  toolRegistry.register(literatureSearchTool, {
+    name: "literature_search",
+    description:
+      "Search real academic papers on arXiv (with Semantic Scholar as first choice). " +
+      "Returns structured results with real, citable sources (titles, authors, abstracts, URLs).",
+    schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Academic search query, 3-6 core concept words" },
+        maxResults: { type: "number", description: "Max papers to return (1-10, default 5)" },
+      },
+      required: ["query"],
+    },
+    writeOnly: false,
   });
 
   const tracer = new NoOpTracer();

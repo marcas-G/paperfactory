@@ -112,7 +112,7 @@ export const PHASE_CONTRACTS: ReadonlyArray<PhaseIOContract> = [
     readObjects: [],
     writeObjects: ["KnowledgeItem", "Citation"],
     cognitiveMode: "EXPLORE",
-    tools: ["search"],
+    tools: ["literature_search", "search"],
   },
   {
     name: "gap_identification",

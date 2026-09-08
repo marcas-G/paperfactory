@@ -26,7 +26,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '^/api/': {
-        target: 'http://host.docker.internal:3001',
+        target: process.env.API_TARGET ?? 'http://host.docker.internal:3001',
         changeOrigin: true,
       },
     },

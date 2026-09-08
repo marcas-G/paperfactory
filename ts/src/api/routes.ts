@@ -10,6 +10,7 @@ import { createProjectRoutes } from "./routes/projects";
 import { createResearchObjectRoutes } from "./routes/research-objects";
 import { createAgentRoutes } from "./routes/agent";
 import { createResearchRunRoutes, ResearchRunState } from "./routes/research-runs";
+import { createEventRoutes } from "./events";
 import { createPhaseRoutes } from "./routes/phases";
 import { createPaperRoutes } from "./routes/papers";
 import * as fs from "node:fs";
@@ -150,6 +151,7 @@ export function createHonoApp(
   app.onError(errorHandler);
   app.notFound(notFoundHandler);
 
+  app.route("", createEventRoutes()); // 统一事件流：GET /api/events（多端契约核心）
   app.route("", createHealthRoutes());
   app.route("", createProjectRoutes(objectStore));
   app.route("", createResearchRunRoutes(objectStore, controller, provider, researchToolRegistry, researchRuns));

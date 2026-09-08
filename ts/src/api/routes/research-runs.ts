@@ -5,6 +5,7 @@ import { ObjectStore } from "@persistence/object-store";
 import { ResearchController } from "@control/controller";
 import { ToolRegistry } from "@runtime/tools/registry";
 import { apiError, generateUuid, buildToolDefs, validateString } from "../utils";
+import { eventBus } from "../events";
 import type { AgentEvent } from "@runtime/agent/loop";
 
 export type PhaseDecision = "approve" | "modify" | "reject";
@@ -32,6 +33,7 @@ export function createResearchRunRoutes(
     if (!question) {
       return c.json(apiError("VALIDATION_ERROR", "question is required (max 2048 chars)"), 400);
     }
+    const runId = generateUuid();
     const projectId = generateUuid();
     const questionId = generateUuid();
     const branchId = generateUuid();
@@ -59,39 +61,86 @@ export function createResearchRunRoutes(
       createdAt: now,
     }));
 
-    const { runAgentDrivenResearch } = await import("@orchestration/agent-research");
-    const toolDefinitions = buildToolDefs(toolRegistry);
-    const events: AgentEvent[] = [];
-    // 非流式端点不支持中途 stop:保持 false(researchRuns 注册只在 stream 端点)
-    const stopped = false;
-
-    const researchResult = await runAgentDrivenResearch({
-      projectId,
-      branchId,
-      question,
-      provider,
-      objectStore,
-      eventStore: controller.eventStore,
-      controller,
-      toolRegistry,
-      toolDefinitions,
-      onEvent: (event) => events.push(event),
-      shouldStop: () => stopped,
+    let stopped = false;
+    researchRuns.set(runId, {
+      stopped: () => stopped,
+      setStopped: (v: boolean) => { stopped = v; },
+      approvalResolve: null,
+      approvalPhase: null,
+      approvalRunId: null,
     });
 
-    return c.json({
-      runId: generateUuid(),
-      projectId,
-      questionId,
-      status: "completed",
-      hypotheses: researchResult.hypotheses.map((h: Record<string, unknown>) => ({ id: h.hypothesisId, statement: h.statement, status: h.status })),
-      researchGaps: researchResult.researchGaps,
-      evidenceCount: researchResult.evidence.length,
-      knowledgeCount: researchResult.knowledgeItems.length,
-      reportCount: researchResult.reports.length,
-      events,
-      completedAt: new Date().toISOString(),
-    });
+    // ★ 命令/事件分离（OpenCode admit 模式）：立即返回 runId，
+    // 研究后台执行，全部进度经 /api/events 统一事件流广播给所有客户端。
+    eventBus.emit("run:start", { runId, projectId, data: { question } });
+
+    void (async () => {
+      try {
+        const { runAgentDrivenResearch } = await import("@orchestration/agent-research");
+        const toolDefinitions = buildToolDefs(toolRegistry);
+        const researchResult = await runAgentDrivenResearch({
+          projectId,
+          branchId,
+          question,
+          provider,
+          objectStore,
+          eventStore: controller.eventStore,
+          controller,
+          toolRegistry,
+          toolDefinitions,
+          mode: body?.mode === "manual" ? "manual" : "auto",
+          onEvent: (event) => {
+            eventBus.emit(event.type, {
+              runId,
+              projectId,
+              phase: event.phase,
+              data: {
+                content: event.content,
+                toolName: event.toolName,
+                toolArgs: event.toolArgs,
+                toolResult: event.toolResult,
+                iteration: event.iteration,
+                passed: event.passed,
+              },
+            });
+          },
+          onApprovalNeeded: async (rid: string, phaseName: string, summary: string) => {
+            if (body?.mode === "manual") {
+              eventBus.emit("phase:awaiting_approval", { runId: rid, projectId, phase: phaseName, data: { summary } });
+              return new Promise<PhaseDecision>((resolve) => {
+                const runState = researchRuns.get(runId);
+                if (runState) {
+                  runState.approvalPhase = phaseName;
+                  runState.approvalRunId = rid;
+                  runState.approvalResolve = resolve;
+                } else {
+                  resolve("approve");
+                }
+              });
+            }
+            return "approve";
+          },
+          shouldStop: () => stopped,
+        });
+
+        eventBus.emit("run:complete", {
+          runId,
+          projectId,
+          data: {
+            hypothesisStatements: researchResult.hypothesisStatements,
+            evidenceCount: researchResult.evidence.length,
+            knowledgeCount: researchResult.knowledgeItems.length,
+            reportCount: researchResult.reports.length,
+          },
+        });
+      } catch (err: unknown) {
+        eventBus.emit("run:error", { runId, projectId, data: { error: String(err) } });
+      } finally {
+        researchRuns.delete(runId);
+      }
+    })();
+
+    return c.json({ runId, projectId, questionId, status: "started" }, 202);
   });
 
   const startResearchStream = (question: string, mode: "manual" | "auto") => {
@@ -122,7 +171,10 @@ export function createResearchRunRoutes(
         const sendEvent = (eventType: string, data: unknown) => {
           if (closed) return;
           try {
-            const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+            // 注意：不发送 SSE 的 `event:` 行 —— 带 event 名的消息不会触发浏览器
+            // EventSource.onmessage（只触发 addEventListener）。统一只发 data 行，
+            // 事件类型放在 JSON 的 type 字段里，由前端按 parsed.type 分发。
+            const line = `data: ${JSON.stringify({ type: eventType, ...((typeof data === "object" && data !== null) ? data : { content: data }) })}\n\n`;
             ctrl.enqueue(encoder.encode(line));
           } catch {
             closed = true;

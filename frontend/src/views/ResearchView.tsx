@@ -7,6 +7,7 @@ import ChatArea from '@/components/chat/ChatArea';
 import PhaseDetailDrawer from '@/components/layout/PhaseDetailDrawer';
 import { useStore } from '@/store/useStore';
 import client from '@/api/client';
+import { subscribeEvents, type BusEvent } from '@/api/events';
 import type { ChatMessage } from '@/components/chat/types';
 import type { PhaseRun } from '@/api/types';
 
@@ -51,6 +52,7 @@ export default function ResearchView() {
     loadPhases();
   }, [projectId]);
 
+
   const loadPhases = async () => {
     if (!projectId) return;
     try {
@@ -77,100 +79,114 @@ export default function ResearchView() {
   const handleSSE = useCallback((event: string, data: Record<string, unknown>) => {
     setMessages((prev) => {
       const next = [...prev];
-      const phaseLabel = (name: string) => t(`phases.${name}`) as string;
+      const phaseLabel = (name: string) => (t(`phases.${name}`, { defaultValue: name }) as string) || name;
+      // 当前阶段消息 = 最后一条含 activities 的 assistant 消息
+      const lastStage = [...next].reverse().find((m) => m.role === 'assistant' && m.activities?.length);
+      const touch = () => { if (lastStage) lastStage.activities = [...(lastStage.activities ?? [])]; };
 
       if (event === 'run:start') {
-        const rid = String(data.runId ?? '');
-        if (rid) setCurrentRunId(rid);
-        next.push({ id: msgId++, role: 'assistant', content: 'Research started.' });
+        setCurrentRunId(String(data.runId ?? ''));
       } else if (event === 'phase:start') {
-        loadPhases();
-        const phase = String(data.phaseName ?? '');
-        next.push({ id: msgId++, role: 'assistant', content: `${phaseLabel(phase)}...` });
-      } else if (event === 'phase:progress') {
-        const phase = String(data.phaseName ?? '');
-        const last = [...next].reverse().find((m) => m.content === `${phaseLabel(phase)}...`);
-        if (last) last.content = `${phaseLabel(phase)}: ${String(data.progress ?? 'in progress')}`;
+        const phase = String(data.phase ?? '');
+        next.push({ id: msgId++, role: 'assistant', activities: [{ kind: 'phase', label: phaseLabel(phase), status: 'active', timestamp: String(data.timestamp ?? '') }] });
+      } else if (event === 'thinking' || event === 'message') {
+        if (lastStage) { touch(); lastStage.activities!.push({ kind: 'thinking', label: String(data.content ?? ''), status: 'done' }); }
+      } else if (event === 'tool:calling') {
+        if (lastStage) {
+          touch();
+          lastStage.activities!.push({
+            kind: 'tool', label: '调用工具', status: 'active',
+            toolName: String(data.toolName ?? 'tool'),
+            toolArgs: (data.toolArgs ?? {}) as Record<string, unknown>,
+          });
+        }
+      } else if (event === 'tool:result') {
+        const toolName = String(data.toolName ?? '');
+        const raw = (data.toolResult ?? {}) as { papers?: unknown[]; content?: string };
+        if (lastStage) {
+          touch();
+          const active = [...(lastStage.activities ?? [])].reverse().find((a) => a.kind === 'tool' && a.status === 'active');
+          if (active) {
+            active.status = 'done';
+            if (toolName === 'literature_search' || toolName === 'search') {
+              active.resultSummary = `${raw.papers?.length ?? 0} papers`;
+            } else if (toolName === 'code') {
+              active.resultSummary = 'executed';
+            }
+            active.detail = (raw.content ?? JSON.stringify(raw)).slice(0, 2000);
+          }
+        }
+        // 文献独立卡片
+        const papers = (raw.papers ?? []) as Array<{ title?: string; authors?: string[]; summary?: string; url?: string; published?: string }>;
+        if ((toolName === 'literature_search' || toolName === 'search') && papers.length > 0) {
+          next.push({
+            id: msgId++, role: 'assistant',
+            papers: papers.slice(0, 5).map((p) => ({
+              title: p.title ?? '', url: p.url, summary: p.summary?.slice(0, 240),
+              authors: Array.isArray(p.authors) ? p.authors.slice(0, 3).join(', ') : String(p.authors ?? ''),
+              year: String(p.published ?? '').slice(0, 4),
+            })),
+          });
+        }
       } else if (event === 'phase:complete') {
-        loadPhases();
-        const phase = String(data.phaseName ?? '');
-        const last = [...next].reverse().find((m) => m.content?.startsWith(phaseLabel(phase)));
-        if (last) last.content = `${phaseLabel(phase)} ✓`;
+        if (lastStage) { touch(); const ph = lastStage.activities!.find((a) => a.kind === 'phase'); if (ph) ph.status = 'done'; }
       } else if (event === 'phase:error') {
-        loadPhases();
-        const phase = String(data.phaseName ?? '');
-        next.push({ id: msgId++, role: 'assistant', content: `${phaseLabel(phase)} ✗ ${String(data.error ?? '')}` });
-      } else if (event === 'phase:approved') {
-        const phase = String(data.phaseName ?? '');
-        next.push({ id: msgId++, role: 'assistant', content: `${phaseLabel(phase)} approved ✓` });
-      } else if (event === 'phase:rejected') {
-        const phase = String(data.phaseName ?? '');
-        next.push({ id: msgId++, role: 'assistant', content: `${phaseLabel(phase)} rejected ✗` });
-      } else if (event === 'phase:modified') {
-        const phase = String(data.phaseName ?? '');
-        next.push({ id: msgId++, role: 'assistant', content: `${phaseLabel(phase)} modified` });
+        if (lastStage) { touch(); const ph = lastStage.activities!.find((a) => a.kind === 'phase'); if (ph) { ph.status = 'error'; ph.resultSummary = 'failed'; } }
       } else if (event === 'phase:awaiting_approval') {
         next.push({ id: msgId++, role: 'assistant', needsApproval: true, approvalSummary: String(data.summary ?? ''), approvalRunId: String(data.runId ?? '') });
-      } else if (event === 'thinking' || event === 'message') {
-        const text = String(data.content ?? String(data));
-        const last = next[next.length - 1];
-        if (last?.isThinking) { last.thinkingText = text; }
-        else { next.push({ id: msgId++, role: 'assistant', isThinking: true, thinkingText: text }); }
-      } else if (event === 'tool:calling') {
-        const last = next[next.length - 1];
-        if (last?.isThinking) { last.thinkingText = `${String(data.toolName ?? 'tool')}...`; }
-      } else if (event === 'tool:result') {
-        // Silent — tool result is internal
-      } else if (event === 'self:review') {
-        const passed = (data as Record<string, unknown>).passed as boolean;
-        next.push({ id: msgId++, role: 'assistant', content: `Self-review: ${passed ? 'passed ✓' : 'issues found !'}` });
-      } else if (event === 'search:result' || event === 'paper:found') {
-        const last = next[next.length - 1];
-        if (last?.papers) {
-          last.papers.push({ title: String(data.sourceTitle ?? data.title ?? ''), authors: String(data.authors ?? data.sourceAuthors ?? ''), year: String(data.year ?? data.sourceYear ?? '') });
-        } else {
-          next.push({ id: msgId++, role: 'assistant', papers: [{ title: String(data.sourceTitle ?? data.title ?? ''), authors: String(data.authors ?? data.sourceAuthors ?? ''), year: String(data.year ?? data.sourceYear ?? '') }] });
-        }
       } else if (event === 'hypothesis:proposed') {
         next.push({ id: msgId++, role: 'assistant', hypothesis: String(data.statement ?? '') });
+      } else if (event === 'self:review') {
+        if (lastStage) { touch(); lastStage.activities!.push({ kind: 'review', label: `Self-review ${data.passed ? 'passed' : 'found issues'}`, status: data.passed ? 'done' : 'error' }); }
       } else if (event === 'run:complete') {
-        setIsRunning(false);
-        setStatus('done');
-        loadPhases();
+        setIsRunning(false); setStatus('done'); loadPhases();
         eventSourceRef.current?.close();
-        next.push({ id: msgId++, role: 'assistant', content: t('common.complete') as string });
+        next.push({ id: msgId++, role: 'assistant', content: t('common.complete', { defaultValue: 'Research complete' }) as string });
+        const pid = String(data.projectId ?? '');
+        if (pid) {
+          client.get<unknown[]>(`/projects/${pid}/reports`).then(({ data: reports }) => {
+            const arr = Array.isArray(reports) ? reports : [];
+            const latest = arr[arr.length - 1] as { content?: string; title?: string } | undefined;
+            if (latest?.content) {
+              setMessages((p2) => [...p2, { id: (p2.length ? Math.max(...p2.map((m) => m.id)) : 0) + 1, role: 'assistant' as const, isReport: true, reportTitle: latest.title ?? 'Research Report', content: latest.content }]);
+            }
+          }).catch(() => {});
+        }
       } else if (event === 'run:error') {
-        setIsRunning(false);
-        setStatus('error');
-        loadPhases();
+        setIsRunning(false); setStatus('error'); loadPhases();
         eventSourceRef.current?.close();
-        next.push({ id: msgId++, role: 'assistant', content: `Error: ${String(data.error ?? '')}` });
+        next.push({ id: msgId++, role: 'assistant', content: `**Error**\n\n${String(data.error ?? data.content ?? 'unknown')}` });
       }
       return next;
     });
   }, [t, setStatus]);
 
-  const startResearch = (question: string) => {
+// 统一事件流订阅（OpenCode 式：命令与事件分离，一条流驱动所有 UI 更新）
+  useEffect(() => {
+    if (!projectId) return;
+    const unsubscribe = subscribeEvents((e: BusEvent) => {
+      if (e.type === 'stream:ready') return;
+      if (e.projectId && projectId && e.projectId !== projectId) return;
+      handleSSE(e.type, { ...(e.data ?? {}), phase: e.phase, runId: e.runId });
+    }, { projectId });
+    return unsubscribe;
+  }, [projectId, handleSSE]);
+
+  const startResearch = async (question: string) => {
     setMessages((prev) => [...prev, { id: msgId++, role: 'user', content: question }]);
     setInput('');
     setIsRunning(true);
     setStatus('running');
     setCurrentRunId(null);
-
-    const es = new EventSource(`/api/research/stream?q=${encodeURIComponent(question)}`);
-    eventSourceRef.current = es;
-    es.onmessage = (e) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        handleSSE(parsed.type ?? parsed.event ?? e.type, parsed);
-      } catch {
-        handleSSE('message', { content: e.data });
-      }
-    };
-    es.onerror = () => {
-      es.close();
-      eventSourceRef.current = null;
-    };
+    // 命令通道：POST 发起，秒回 runId；全部进度经 /api/events 统一事件流到达
+    try {
+      const { data } = await client.post<{ runId: string; projectId: string }>('/research/run', { question, mode: 'auto' });
+      setCurrentRunId(data.runId);
+    } catch {
+      setIsRunning(false);
+      setStatus('error');
+      setMessages((prev) => [...prev, { id: msgId++, role: 'assistant', content: '**Error**\n\nFailed to start research run.' }]);
+    }
   };
 
   const stopResearch = async () => {
