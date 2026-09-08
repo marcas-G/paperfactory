@@ -1,4 +1,5 @@
 """RUN-083..089 — store semantics."""
+
 from datetime import UTC, datetime
 
 import pytest
@@ -23,24 +24,35 @@ _TZ = datetime(2026, 1, 1, tzinfo=UTC)
 
 def _make_session():
     return RuntimeSession(
-        session_id=RuntimeSessionId("s1"), project_id=PROJECT, branch_id=BRANCH,
-        status=RuntimeSessionStatus.OPEN, created_by=ActorType.SYSTEM, created_at=_TZ,
+        session_id=RuntimeSessionId("s1"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        status=RuntimeSessionStatus.OPEN,
+        created_by=ActorType.SYSTEM,
+        created_at=_TZ,
     )
 
 
 def _make_run(session_id=RuntimeSessionId("s1")):
     return RuntimeRun(
-        run_id=RuntimeRunId("r1"), session_id=session_id,
-        project_id=PROJECT, branch_id=BRANCH,
-        status=RunStatus.CREATED, input_ref=INPUT_REF,
-        created_by=ActorType.SYSTEM, created_at=_TZ,
+        run_id=RuntimeRunId("r1"),
+        session_id=session_id,
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        status=RunStatus.CREATED,
+        input_ref=INPUT_REF,
+        created_by=ActorType.SYSTEM,
+        created_at=_TZ,
     )
 
 
 def _make_attempt(run_id=RuntimeRunId("r1")):
     return ExecutionAttempt(
-        attempt_id=ExecutionAttemptId("a1"), run_id=run_id,
-        attempt_number=1, status=AttemptStatus.RUNNING, started_at=_TZ,
+        attempt_id=ExecutionAttemptId("a1"),
+        run_id=run_id,
+        attempt_number=1,
+        status=AttemptStatus.RUNNING,
+        started_at=_TZ,
     )
 
 

@@ -22,7 +22,10 @@ def _g(status: GateStatus, gate_id: str = "g1") -> GateResult:
 
 # WAIT-001 ----------------------------------------------------------------
 def test_wait_001_uncertain_creates_pending_and_leaves_state(
-    controller, advance_action, advance_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     proposal = controller.propose_transition(
         advance_action,
@@ -56,7 +59,10 @@ def test_wait_001_uncertain_creates_pending_and_leaves_state(
 
 # WAIT-002 ----------------------------------------------------------------
 def test_wait_002_blocked_creates_pending(
-    controller, advance_action, advance_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     proposal = controller.propose_transition(
         advance_action,
@@ -76,7 +82,9 @@ def test_wait_002_blocked_creates_pending(
 
 # WAIT-003 ----------------------------------------------------------------
 def test_wait_003_not_expressed_as_exception(
-    controller, advance_action, advance_definition  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,  # type: ignore[no-untyped-def]
 ) -> None:
     """WAIT is a normal typed result, never a raised exception."""
     proposal = controller.propose_transition(
@@ -93,7 +101,9 @@ def test_wait_003_not_expressed_as_exception(
 
 
 def test_wait_with_task_marks_task_waiting(
-    controller, advance_action, advance_definition  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.control.tasks import TaskStatus
 
@@ -124,7 +134,10 @@ def test_wait_with_task_marks_task_waiting(
 
 # CTRL-016 ----------------------------------------------------------------
 def test_ctrl_016_normal_action_still_commits(
-    controller, advance_action, advance_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     """A legal, no-approval, all-PASS action still commits (STEP-002 behavior)."""
     proposal = controller.propose_transition(

@@ -217,9 +217,7 @@ def test_pol_013_score_components_sum_to_total() -> None:
     s = signals(ig=0.3, br=0.4, sv=0.5, ur=0.6, cost=0.2, risk=0.1)
     w = weights()
     comp = score_candidate(s, w)
-    expected = (
-        1.0 * 0.3 + 1.0 * 0.4 + 1.0 * 0.5 + 1.0 * 0.6 - 1.0 * 0.2 - 1.0 * 0.1
-    )
+    expected = 1.0 * 0.3 + 1.0 * 0.4 + 1.0 * 0.5 + 1.0 * 0.6 - 1.0 * 0.2 - 1.0 * 0.1
     assert math.isclose(comp.total_score, expected)
     # recomputable
     recomputed = (
@@ -349,7 +347,10 @@ def test_pol_021_approval_required_can_rank_first(controller) -> None:  # type: 
 
 
 def test_pol_022_recommendation_creates_no_approval_no_task_no_state(
-    controller, approval_store, task_store, store  # type: ignore[no-untyped-def]
+    controller,
+    approval_store,
+    task_store,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     rev_before = store.get_snapshot(PROJECT, BRANCH).revision
     controller.recommend_next_action(
@@ -377,13 +378,11 @@ def test_pol_023_repeat_evaluation_same_ranking(controller) -> None:  # type: ig
     r2 = controller.recommend_next_action(
         branch_id=BRANCH, candidates=cands, policy_config=config()
     )
-    assert [r.action_id for r in r1.ranked_actions] == [
-        r.action_id for r in r2.ranked_actions
-    ]
+    assert [r.action_id for r in r1.ranked_actions] == [r.action_id for r in r2.ranked_actions]
     assert r1.selected_action_id == r2.selected_action_id
-    assert [
-        (r.action_id, round(r.score, 9)) for r in r1.ranked_actions
-    ] == [(r.action_id, round(r.score, 9)) for r in r2.ranked_actions]
+    assert [(r.action_id, round(r.score, 9)) for r in r1.ranked_actions] == [
+        (r.action_id, round(r.score, 9)) for r in r2.ranked_actions
+    ]
 
 
 def test_pol_024_equal_score_tiebreak(controller) -> None:  # type: ignore[no-untyped-def]
@@ -433,9 +432,7 @@ def test_pol_026_recommended_status(controller) -> None:  # type: ignore[no-unty
 
 
 def test_pol_027_zero_candidates_no_action(controller) -> None:  # type: ignore[no-untyped-def]
-    rec = controller.recommend_next_action(
-        branch_id=BRANCH, candidates=[], policy_config=config()
-    )
+    rec = controller.recommend_next_action(branch_id=BRANCH, candidates=[], policy_config=config())
     assert rec.status is PolicyStatus.NO_ACTION
     assert rec.selected_action_id is None
 
@@ -510,9 +507,7 @@ def test_pol_034_event_records_selected(controller, event_sink) -> None:  # type
 
 
 def test_pol_035_no_action_also_emits_event(controller, event_sink) -> None:  # type: ignore[no-untyped-def]
-    controller.recommend_next_action(
-        branch_id=BRANCH, candidates=[], policy_config=config()
-    )
+    controller.recommend_next_action(branch_id=BRANCH, candidates=[], policy_config=config())
     types = [e.event_type for e in event_sink.list_for_project(PROJECT)]
     assert ControlEventType.POLICY_EVALUATED in types
 
@@ -581,9 +576,7 @@ def test_pol_041_ranking_does_not_mutate_action(controller) -> None:  # type: ig
     a = action("a")
     original_type = a.action_type
     cand = PolicyCandidate(action=a, signals=signals())
-    controller.recommend_next_action(
-        branch_id=BRANCH, candidates=[cand], policy_config=config()
-    )
+    controller.recommend_next_action(branch_id=BRANCH, candidates=[cand], policy_config=config())
     assert a.action_type == original_type
 
 

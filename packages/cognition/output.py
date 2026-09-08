@@ -139,8 +139,7 @@ class StructuredOutputValidator(Protocol):
         self,
         payload: object,
         contract: OutputContract,
-    ) -> SchemaValidationOutcome:
-        ...
+    ) -> SchemaValidationOutcome: ...
 
 
 @dataclass(frozen=True)
@@ -159,13 +158,9 @@ class SchemaValidationOutcome:
     def __post_init__(self) -> None:
         if self.valid:
             if self.normalized_payload is None:
-                raise InvalidSchemaValidationOutcomeError(
-                    "valid=True requires normalized_payload"
-                )
+                raise InvalidSchemaValidationOutcomeError("valid=True requires normalized_payload")
             if self.issues:
-                raise InvalidSchemaValidationOutcomeError(
-                    "valid=True must have no issues"
-                )
+                raise InvalidSchemaValidationOutcomeError("valid=True must have no issues")
         else:
             if self.normalized_payload is not None:
                 raise InvalidSchemaValidationOutcomeError(

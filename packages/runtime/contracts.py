@@ -86,9 +86,12 @@ class RuntimeFailureCategory(StrEnum):
 # Transition maps
 # =========================================================================
 SESSION_TRANSITIONS: dict[RuntimeSessionStatus, frozenset[RuntimeSessionStatus]] = {
-    RuntimeSessionStatus.OPEN: frozenset({
-        RuntimeSessionStatus.CLOSED, RuntimeSessionStatus.CANCELLED,
-    }),
+    RuntimeSessionStatus.OPEN: frozenset(
+        {
+            RuntimeSessionStatus.CLOSED,
+            RuntimeSessionStatus.CANCELLED,
+        }
+    ),
     RuntimeSessionStatus.CLOSED: frozenset(),
     RuntimeSessionStatus.CANCELLED: frozenset(),
 }
@@ -96,13 +99,22 @@ SESSION_TRANSITIONS: dict[RuntimeSessionStatus, frozenset[RuntimeSessionStatus]]
 RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
     RunStatus.CREATED: frozenset({RunStatus.READY}),
     RunStatus.READY: frozenset({RunStatus.RUNNING, RunStatus.CANCELLED}),
-    RunStatus.RUNNING: frozenset({
-        RunStatus.WAITING, RunStatus.SUCCEEDED, RunStatus.FAILED,
-        RunStatus.CANCELLED, RunStatus.TIMED_OUT,
-    }),
-    RunStatus.WAITING: frozenset({
-        RunStatus.RUNNING, RunStatus.CANCELLED, RunStatus.TIMED_OUT,
-    }),
+    RunStatus.RUNNING: frozenset(
+        {
+            RunStatus.WAITING,
+            RunStatus.SUCCEEDED,
+            RunStatus.FAILED,
+            RunStatus.CANCELLED,
+            RunStatus.TIMED_OUT,
+        }
+    ),
+    RunStatus.WAITING: frozenset(
+        {
+            RunStatus.RUNNING,
+            RunStatus.CANCELLED,
+            RunStatus.TIMED_OUT,
+        }
+    ),
     RunStatus.SUCCEEDED: frozenset(),
     RunStatus.FAILED: frozenset(),
     RunStatus.CANCELLED: frozenset(),
@@ -110,10 +122,14 @@ RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
 }
 
 ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
-    AttemptStatus.RUNNING: frozenset({
-        AttemptStatus.SUCCEEDED, AttemptStatus.FAILED,
-        AttemptStatus.CANCELLED, AttemptStatus.TIMED_OUT,
-    }),
+    AttemptStatus.RUNNING: frozenset(
+        {
+            AttemptStatus.SUCCEEDED,
+            AttemptStatus.FAILED,
+            AttemptStatus.CANCELLED,
+            AttemptStatus.TIMED_OUT,
+        }
+    ),
     AttemptStatus.SUCCEEDED: frozenset(),
     AttemptStatus.FAILED: frozenset(),
     AttemptStatus.CANCELLED: frozenset(),
@@ -121,16 +137,30 @@ ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
 }
 
 SESSION_TERMINAL = frozenset({RuntimeSessionStatus.CLOSED, RuntimeSessionStatus.CANCELLED})
-RUN_TERMINAL = frozenset({
-    RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.TIMED_OUT,
-})
-RUN_NON_TERMINAL = frozenset({
-    RunStatus.CREATED, RunStatus.READY, RunStatus.RUNNING, RunStatus.WAITING,
-})
-ATTEMPT_TERMINAL = frozenset({
-    AttemptStatus.SUCCEEDED, AttemptStatus.FAILED,
-    AttemptStatus.CANCELLED, AttemptStatus.TIMED_OUT,
-})
+RUN_TERMINAL = frozenset(
+    {
+        RunStatus.SUCCEEDED,
+        RunStatus.FAILED,
+        RunStatus.CANCELLED,
+        RunStatus.TIMED_OUT,
+    }
+)
+RUN_NON_TERMINAL = frozenset(
+    {
+        RunStatus.CREATED,
+        RunStatus.READY,
+        RunStatus.RUNNING,
+        RunStatus.WAITING,
+    }
+)
+ATTEMPT_TERMINAL = frozenset(
+    {
+        AttemptStatus.SUCCEEDED,
+        AttemptStatus.FAILED,
+        AttemptStatus.CANCELLED,
+        AttemptStatus.TIMED_OUT,
+    }
+)
 
 
 # =========================================================================
@@ -145,9 +175,11 @@ class RuntimeInputRef:
     version: str
 
     def __post_init__(self) -> None:
-        for name, val in (("source_type", self.source_type),
-                          ("source_id", self.source_id),
-                          ("version", self.version)):
+        for name, val in (
+            ("source_type", self.source_type),
+            ("source_id", self.source_id),
+            ("version", self.version),
+        ):
             if not val:
                 raise ValueError(f"RuntimeInputRef {name} must be non-empty")
 
@@ -161,9 +193,11 @@ class RuntimeOutputRef:
     version: str
 
     def __post_init__(self) -> None:
-        for name, val in (("artifact_type", self.artifact_type),
-                          ("artifact_id", self.artifact_id),
-                          ("version", self.version)):
+        for name, val in (
+            ("artifact_type", self.artifact_type),
+            ("artifact_id", self.artifact_id),
+            ("version", self.version),
+        ):
             if not val:
                 raise ValueError(f"RuntimeOutputRef {name} must be non-empty")
 
@@ -236,8 +270,9 @@ class RuntimeSession:
         closed_by: ActorType,
         closed_at: datetime,
     ) -> RuntimeSession:
-        _assert_transition("session", SESSION_TRANSITIONS, self.status, new_status,
-                           IllegalSessionTransitionError)
+        _assert_transition(
+            "session", SESSION_TRANSITIONS, self.status, new_status, IllegalSessionTransitionError
+        )
         return replace(self, status=new_status, closed_by=closed_by, closed_at=closed_at)
 
     def is_terminal(self) -> bool:
@@ -289,8 +324,9 @@ class RuntimeRun:
         output_ref: RuntimeOutputRef | None = None,
         failure: RuntimeFailure | None = None,
     ) -> RuntimeRun:
-        _assert_transition("run", RUN_TRANSITIONS, self.status, new_status,
-                           IllegalRunTransitionError)
+        _assert_transition(
+            "run", RUN_TRANSITIONS, self.status, new_status, IllegalRunTransitionError
+        )
         started_at = self.started_at
         completed_at = self.completed_at
         new_wait_reason = wait_reason
@@ -355,8 +391,9 @@ class ExecutionAttempt:
         output_ref: RuntimeOutputRef | None = None,
         failure: RuntimeFailure | None = None,
     ) -> ExecutionAttempt:
-        _assert_transition("attempt", ATTEMPT_TRANSITIONS, self.status, new_status,
-                           IllegalAttemptTransitionError)
+        _assert_transition(
+            "attempt", ATTEMPT_TRANSITIONS, self.status, new_status, IllegalAttemptTransitionError
+        )
         completed = self.completed_at
         if new_status in ATTEMPT_TERMINAL:
             completed = now
@@ -383,9 +420,7 @@ def _check_tz(dt: datetime, name: str) -> None:
 def _assert_transition(label, table, current, target, exc_cls) -> None:  # type: ignore[no-untyped-def]
     allowed = table.get(current, frozenset())
     if target not in allowed:
-        raise exc_cls(
-            f"illegal {label} transition: {current.value} -> {target.value}"
-        )
+        raise exc_cls(f"illegal {label} transition: {current.value} -> {target.value}")
 
 
 def _validate_run_invariants(run: RuntimeRun) -> None:
@@ -398,19 +433,22 @@ def _validate_run_invariants(run: RuntimeRun) -> None:
     elif s is RunStatus.RUNNING:
         if run.started_at is None or run.completed_at is not None:
             raise RuntimeInvariantViolationError(
-                "RUNNING run: started_at required, completed_at=None")
+                "RUNNING run: started_at required, completed_at=None"
+            )
         if run.failure is not None:
             raise RuntimeInvariantViolationError("RUNNING run must not have failure")
     elif s is RunStatus.WAITING:
         if run.started_at is None or run.completed_at is not None:
             raise RuntimeInvariantViolationError(
-                "WAITING run: started_at required, completed_at=None")
+                "WAITING run: started_at required, completed_at=None"
+            )
         if run.wait_reason is None:
             raise RuntimeInvariantViolationError("WAITING run requires wait_reason")
     elif s is RunStatus.SUCCEEDED:
         if run.completed_at is None or run.failure is not None:
             raise RuntimeInvariantViolationError(
-                "SUCCEEDED run: completed_at required, failure=None")
+                "SUCCEEDED run: completed_at required, failure=None"
+            )
     elif s is RunStatus.FAILED:
         if run.completed_at is None or run.failure is None:
             raise RuntimeInvariantViolationError("FAILED run: completed_at and failure required")
@@ -429,11 +467,13 @@ def _validate_attempt_invariants(att: ExecutionAttempt) -> None:
     elif s is AttemptStatus.SUCCEEDED:
         if att.completed_at is None or att.failure is not None:
             raise RuntimeInvariantViolationError(
-                "SUCCEEDED attempt: completed_at required, failure=None")
+                "SUCCEEDED attempt: completed_at required, failure=None"
+            )
     elif s is AttemptStatus.FAILED:
         if att.completed_at is None or att.failure is None:
             raise RuntimeInvariantViolationError(
-                "FAILED attempt: completed_at and failure required")
+                "FAILED attempt: completed_at and failure required"
+            )
     elif s in (AttemptStatus.CANCELLED, AttemptStatus.TIMED_OUT):
         if att.completed_at is None:
             raise RuntimeInvariantViolationError(f"{s.value} attempt: completed_at required")

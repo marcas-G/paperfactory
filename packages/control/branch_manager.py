@@ -79,9 +79,7 @@ class BranchManager:
     ) -> ResearchBranch:
         """Create the single main branch for a project (BR-INV-01)."""
         if self._branches.get_main(project_id) is not None:
-            raise DuplicateBranchError(
-                f"project {project_id} already has a main branch"
-            )
+            raise DuplicateBranchError(f"project {project_id} already has a main branch")
         ts = self._now()
         branch = ResearchBranch(
             branch_id=branch_id,
@@ -240,9 +238,7 @@ class BranchManager:
                 f"source branch status {source.status.value} is not forkable/mergeable"
             )
         if target.status is not BranchStatus.ACTIVE:
-            raise BranchMergeError(
-                f"target branch status {target.status.value} is not ACTIVE"
-            )
+            raise BranchMergeError(f"target branch status {target.status.value} is not ACTIVE")
 
         # Fork base must be traceable (the source was forked from target, or
         # shares a common base). We require the source to have a recorded fork
@@ -325,8 +321,7 @@ class BranchManager:
         for task in self._tasks.list_for_project(branch.project_id, branch_id):
             if task.status is TaskStatus.RUNNING:
                 raise BranchBusyError(
-                    f"cannot {operation} branch {branch_id}: "
-                    f"task {task.task_id} is RUNNING"
+                    f"cannot {operation} branch {branch_id}: task {task.task_id} is RUNNING"
                 )
 
     def _transition(

@@ -91,9 +91,7 @@ class TaskStore(Protocol):
         """Return the task or raise ``KeyError``."""
         ...
 
-    def list_for_project(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[ResearchTask]:
+    def list_for_project(self, project_id: ProjectId, branch_id: BranchId) -> list[ResearchTask]:
         """Return all tasks in a (project, branch)."""
         ...
 
@@ -106,15 +104,11 @@ class TaskStore(Protocol):
 class PendingTransitionStore(Protocol):
     """Abstract store of PendingTransition records (STEP-003 §15)."""
 
-    def save(self, pending: PendingTransition) -> None:
-        ...
+    def save(self, pending: PendingTransition) -> None: ...
 
-    def get(self, proposal_id: ProposalId) -> PendingTransition:
-        ...
+    def get(self, proposal_id: ProposalId) -> PendingTransition: ...
 
-    def list_pending(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[PendingTransition]:
+    def list_pending(self, project_id: ProjectId, branch_id: BranchId) -> list[PendingTransition]:
         """Return pending transitions still awaiting resolution."""
         ...
 
@@ -127,19 +121,13 @@ class PendingTransitionStore(Protocol):
 class ApprovalStore(Protocol):
     """Abstract store of ApprovalRequest records (STEP-003 §20)."""
 
-    def save(self, approval: ApprovalRequest) -> None:
-        ...
+    def save(self, approval: ApprovalRequest) -> None: ...
 
-    def get(self, approval_id: ApprovalId) -> ApprovalRequest:
-        ...
+    def get(self, approval_id: ApprovalId) -> ApprovalRequest: ...
 
-    def list_pending(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[ApprovalRequest]:
-        ...
+    def list_pending(self, project_id: ProjectId, branch_id: BranchId) -> list[ApprovalRequest]: ...
 
-    def update(self, approval: ApprovalRequest) -> None:
-        ...
+    def update(self, approval: ApprovalRequest) -> None: ...
 
 
 @runtime_checkable
@@ -150,11 +138,9 @@ class ControlEventSink(Protocol):
     event-sourcing framework.
     """
 
-    def append(self, event: ControlEvent) -> None:
-        ...
+    def append(self, event: ControlEvent) -> None: ...
 
-    def list_for_project(self, project_id: ProjectId) -> list[ControlEvent]:
-        ...
+    def list_for_project(self, project_id: ProjectId) -> list[ControlEvent]: ...
 
 
 @runtime_checkable
@@ -175,11 +161,9 @@ class BranchStore(Protocol):
         """Return the branch or raise ``BranchNotFoundError``."""
         ...
 
-    def list_for_project(self, project_id: ProjectId) -> list[ResearchBranch]:
-        ...
+    def list_for_project(self, project_id: ProjectId) -> list[ResearchBranch]: ...
 
-    def exists(self, branch_id: BranchId) -> bool:
-        ...
+    def exists(self, branch_id: BranchId) -> bool: ...
 
     def get_main(self, project_id: ProjectId) -> ResearchBranch | None:
         """Return the main branch for a project, or None if none exists."""
@@ -194,8 +178,7 @@ class ForkPointStore(Protocol):
     not keep historical revisions.
     """
 
-    def save(self, fork_point: BranchForkPoint) -> None:
-        ...
+    def save(self, fork_point: BranchForkPoint) -> None: ...
 
     def get(self, branch_id: BranchId) -> BranchForkPoint:
         """Return the fork point for a branch or raise ``KeyError``."""
@@ -206,27 +189,22 @@ class ForkPointStore(Protocol):
 class MergeStore(Protocol):
     """Abstract store of BranchMergeProposal records (STEP-004 §24)."""
 
-    def save(self, proposal: BranchMergeProposal) -> None:
-        ...
+    def save(self, proposal: BranchMergeProposal) -> None: ...
 
-    def get(self, merge_id: MergeId) -> BranchMergeProposal:
-        ...
+    def get(self, merge_id: MergeId) -> BranchMergeProposal: ...
 
 
 @runtime_checkable
 class PolicyRecommendationStore(Protocol):
     """Abstract store of PolicyRecommendation records (STEP-005 §25)."""
 
-    def save(self, recommendation: PolicyRecommendation) -> None:
-        ...
+    def save(self, recommendation: PolicyRecommendation) -> None: ...
 
-    def get(self, evaluation_id: PolicyEvaluationId) -> PolicyRecommendation:
-        ...
+    def get(self, evaluation_id: PolicyEvaluationId) -> PolicyRecommendation: ...
 
     def list_for_project(
         self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[PolicyRecommendation]:
-        ...
+    ) -> list[PolicyRecommendation]: ...
 
 
 __all__ = [

@@ -1,4 +1,5 @@
 """RUN-001..013, RUN-061..066 — Session contract, scope, busy."""
+
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
@@ -16,6 +17,7 @@ from .conftest import BRANCH, INPUT_REF, PROJECT
 
 def _tz(s: int = 0):
     from datetime import UTC, datetime
+
     return datetime(2026, 1, 1, 12, 0, s, tzinfo=UTC)
 
 
@@ -73,7 +75,8 @@ def test_run_009_cancelled_not_reopen(session_mgr):
 
 def test_run_010_run_same_scope_legal(run_mgr, open_session):
     run = run_mgr.create_run(
-        session_id=open_session.session_id, input_ref=INPUT_REF,
+        session_id=open_session.session_id,
+        input_ref=INPUT_REF,
     )
     assert run.project_id == open_session.project_id
 

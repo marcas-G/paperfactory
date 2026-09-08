@@ -105,18 +105,14 @@ def _validate_parameter_value(parameter: ModelParameter, value: object) -> None:
     """Strict per-parameter validation (STEP-014 §8). No clamp, no coercion."""
     if parameter is ModelParameter.TEMPERATURE:
         if not _is_real_number(value):
-            raise ValueError(
-                f"TEMPERATURE value must be int|float, got {type(value).__name__}"
-            )
+            raise ValueError(f"TEMPERATURE value must be int|float, got {type(value).__name__}")
         assert isinstance(value, (int, float))
         v = float(value)
         if v < 0.0 or v > 2.0:
             raise ValueError(f"TEMPERATURE must be in [0.0, 2.0], got {value}")
     elif parameter is ModelParameter.TOP_P:
         if not _is_real_number(value):
-            raise ValueError(
-                f"TOP_P value must be int|float, got {type(value).__name__}"
-            )
+            raise ValueError(f"TOP_P value must be int|float, got {type(value).__name__}")
         assert isinstance(value, (int, float))
         v = float(value)
         if v < 0.0 or v > 1.0:
@@ -124,17 +120,14 @@ def _validate_parameter_value(parameter: ModelParameter, value: object) -> None:
     elif parameter is ModelParameter.MAX_OUTPUT_UNITS:
         if not _is_real_int(value):
             raise ValueError(
-                f"MAX_OUTPUT_UNITS value must be int (not bool), "
-                f"got {type(value).__name__}"
+                f"MAX_OUTPUT_UNITS value must be int (not bool), got {type(value).__name__}"
             )
         assert isinstance(value, int) and not isinstance(value, bool)
         if value <= 0:
             raise ValueError(f"MAX_OUTPUT_UNITS must be > 0, got {value}")
     elif parameter is ModelParameter.SEED:
         if not _is_real_int(value):
-            raise ValueError(
-                f"SEED value must be int (not bool), got {type(value).__name__}"
-            )
+            raise ValueError(f"SEED value must be int (not bool), got {type(value).__name__}")
         assert isinstance(value, int) and not isinstance(value, bool)
         if value < 0:
             raise ValueError(f"SEED must be >= 0, got {value}")
@@ -188,9 +181,7 @@ class ModelExecutionConfig:
         seen: set[ModelParameter] = set()
         for setting in self.parameter_settings:
             if setting.parameter in seen:
-                raise ValueError(
-                    f"duplicate parameter: {setting.parameter}"
-                )
+                raise ValueError(f"duplicate parameter: {setting.parameter}")
             seen.add(setting.parameter)
 
 
@@ -209,13 +200,14 @@ class ModelExecutionConfigRegistry(Protocol):
         ...
 
     def get(
-        self, config_id: ModelExecutionConfigId, version: str,
+        self,
+        config_id: ModelExecutionConfigId,
+        version: str,
     ) -> ModelExecutionConfig:
         """Resolve by EXACT version. Raise if not found (no fallback)."""
         ...
 
-    def list_versions(self, config_id: ModelExecutionConfigId) -> list[str]:
-        ...
+    def list_versions(self, config_id: ModelExecutionConfigId) -> list[str]: ...
 
 
 # =========================================================================

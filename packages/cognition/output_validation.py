@@ -78,8 +78,7 @@ class OutputValidationEngine:
         # 2. staleness
         if candidate.state_revision != current_state_revision:
             raise StaleOutputCandidateError(
-                f"candidate revision {candidate.state_revision} != "
-                f"current {current_state_revision}"
+                f"candidate revision {candidate.state_revision} != current {current_state_revision}"
             )
         # 3. resolve contract
         try:
@@ -172,9 +171,7 @@ class OutputValidationEngine:
         return validation
 
     @staticmethod
-    def _check_consistency(
-        candidate: StructuredOutputCandidate, package: PromptPackage
-    ) -> None:
+    def _check_consistency(candidate: StructuredOutputCandidate, package: PromptPackage) -> None:
         if candidate.project_id != package.project_id:
             raise OutputCandidateMismatchError("project mismatch")
         if candidate.branch_id != package.branch_id:

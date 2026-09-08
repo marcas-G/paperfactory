@@ -38,15 +38,13 @@ def test_merge_002_target_only_change_no_conflict() -> None:
 
 def test_merge_003_same_change_no_conflict() -> None:
     assert (
-        classify_object(base="DRAFT", source="READY", target="READY")
-        is MergeChangeKind.SAME_CHANGE
+        classify_object(base="DRAFT", source="READY", target="READY") is MergeChangeKind.SAME_CHANGE
     )
 
 
 def test_merge_004_different_change_conflict() -> None:
     assert (
-        classify_object(base="DRAFT", source="READY", target="COMPLETE")
-        is MergeChangeKind.CONFLICT
+        classify_object(base="DRAFT", source="READY", target="COMPLETE") is MergeChangeKind.CONFLICT
     )
 
 
@@ -81,9 +79,7 @@ def _set_branch_object(controller, branch_id: BranchId, to_state: str) -> None: 
 def test_merge_005_same_branch_rejected(controller) -> None:  # type: ignore[no-untyped-def]
     _fork(controller)
     with pytest.raises(BranchMergeError):
-        controller.prepare_branch_merge(
-            source_branch_id=H1, target_branch_id=H1
-        )
+        controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=H1)
 
 
 def test_merge_006_different_project_rejected(controller) -> None:  # type: ignore[no-untyped-def]
@@ -97,9 +93,7 @@ def test_merge_006_different_project_rejected(controller) -> None:  # type: igno
     )
     _fork(controller)  # H1 under PROJECT
     with pytest.raises(BranchMergeError):
-        controller.prepare_branch_merge(
-            source_branch_id=H1, target_branch_id=other_main
-        )
+        controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=other_main)
 
 
 def test_merge_007_preparation_does_not_mutate_state(controller, store) -> None:  # type: ignore[no-untyped-def]
@@ -126,9 +120,7 @@ def test_merge_009_proposal_records_revisions(controller) -> None:  # type: igno
     _fork(controller)
     # advance H1 so its head revision differs from base
     _set_branch_object(controller, H1, STATE_READY)  # H1 rev 1
-    proposal = controller.prepare_branch_merge(
-        source_branch_id=H1, target_branch_id=BRANCH
-    )
+    proposal = controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=BRANCH)
     assert proposal.source_head_revision == 1
     assert proposal.target_head_revision == 0
     assert proposal.fork_base_branch_id == BRANCH
@@ -138,9 +130,7 @@ def test_merge_009_proposal_records_revisions(controller) -> None:  # type: igno
 def test_merge_integration_source_only_ready_no_conflict(controller) -> None:  # type: ignore[no-untyped-def]
     _fork(controller)
     _set_branch_object(controller, H1, STATE_READY)  # source changed, target unchanged
-    proposal = controller.prepare_branch_merge(
-        source_branch_id=H1, target_branch_id=BRANCH
-    )
+    proposal = controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=BRANCH)
     assert proposal.status is MergeStatus.READY
     assert proposal.conflicts == ()
 
@@ -150,9 +140,7 @@ def test_merge_integration_conflict_when_both_changed(controller) -> None:  # ty
     _set_branch_object(controller, H1, STATE_READY)  # source -> READY
     _set_branch_object(controller, BRANCH, STATE_READY)  # target -> READY too
     # both changed identically -> SAME_CHANGE, no conflict
-    proposal = controller.prepare_branch_merge(
-        source_branch_id=H1, target_branch_id=BRANCH
-    )
+    proposal = controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=BRANCH)
     assert proposal.status is MergeStatus.READY
 
     # now make them genuinely conflict: target must differ from source.
@@ -171,13 +159,13 @@ def test_merge_integration_conflict_when_both_changed(controller) -> None:  # ty
     )
     proposal_t = controller.propose_transition(action, definition, to_state="COMPLETE")
     controller.execute_transition(
-        proposal_t, definition, actor_type=ActorType.SYSTEM,
+        proposal_t,
+        definition,
+        actor_type=ActorType.SYSTEM,
         approval_state=APPROVAL_NOT_REQUIRED,
     )
     # source=READY, target=COMPLETE, base=DRAFT -> CONFLICT
-    proposal2 = controller.prepare_branch_merge(
-        source_branch_id=H1, target_branch_id=BRANCH
-    )
+    proposal2 = controller.prepare_branch_merge(source_branch_id=H1, target_branch_id=BRANCH)
     assert proposal2.status is MergeStatus.CONFLICTED
     conflict_ids = [c.object_id for c in proposal2.conflicts]
     assert OBJ in conflict_ids

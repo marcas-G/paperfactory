@@ -1,4 +1,5 @@
 """EXE-001..087 + M3-EXE-001/002 — provider execution."""
+
 from __future__ import annotations
 
 import asyncio
@@ -109,10 +110,15 @@ def test_exe_009_naive_dt_rejected(running_run):
     with pytest.raises(ValueError):
         ProviderExecutionRequest(
             request_id=ProviderExecutionRequestId("r"),
-            session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-            project_id=run.project_id, branch_id=run.branch_id,
-            provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
-            input_ref=run.input_ref, projected_input={},
+            session_id=run.session_id,
+            run_id=run.run_id,
+            attempt_id=att.attempt_id,
+            project_id=run.project_id,
+            branch_id=run.branch_id,
+            provider=ProviderIdentifier(name="x"),
+            model=ModelIdentifier(name="y"),
+            input_ref=run.input_ref,
+            projected_input={},
             created_at=datetime(2026, 1, 1),  # naive
         )
 
@@ -128,10 +134,13 @@ def test_exe_018_succeeded_with_response():
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("at"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
     )
     o = ProviderExecutionOutcome(status=ProviderExecutionOutcomeStatus.SUCCEEDED, response=resp)
     assert o.status is ProviderExecutionOutcomeStatus.SUCCEEDED
@@ -163,9 +172,9 @@ def test_exe_022_failed_no_failure_rejected():
 def test_exe_029_run_not_running_rejected(coordinator, run_mgr, open_session):
     """CREATED run cannot execute provider."""
     from packages.runtime.testing import FakeProviderExecutor
+
     run = run_mgr.create_run(session_id=open_session.session_id, input_ref=INPUT_REF)
-    req = _req((run, type("A", (), {"attempt_id": ExecutionAttemptId("a")})()),
-               run_id=run.run_id)
+    req = _req((run, type("A", (), {"attempt_id": ExecutionAttemptId("a")})()), run_id=run.run_id)
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     with pytest.raises(ProviderExecutionScopeError):
         asyncio.run(coordinator.execute(req, executor))
@@ -174,16 +183,16 @@ def test_exe_029_run_not_running_rejected(coordinator, run_mgr, open_session):
 # --- EXE-033..038 fake executor ---
 def test_exe_038_fake_no_network():
     from packages.runtime.testing import FakeProviderExecutor
+
     src = inspect.getsource(FakeProviderExecutor)
     for f in ("requests", "httpx", "socket", "openai", "anthropic"):
         assert f not in src
 
 
 # --- EXE-039..047 success coordinator ---
-def test_exe_039_047_success(
-    coordinator, running_run, request_store, response_store, event_sink
-):
+def test_exe_039_047_success(coordinator, running_run, request_store, response_store, event_sink):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     raw = {"judgement": "SUPPORT", "confidence": 0.88, "reason_codes": ["E1"]}
     executor = FakeProviderExecutor([FakeProviderExecutor.success(raw)])
@@ -205,10 +214,13 @@ def test_exe_048_054_failure(
     coordinator, running_run, request_store, response_store, event_sink, run_mgr
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     failure = RuntimeFailure(
-        category=RuntimeFailureCategory.RATE_LIMIT, code="RATE_LIMITED",
-        message="rate limited", transient=True,
+        category=RuntimeFailureCategory.RATE_LIMIT,
+        code="RATE_LIMITED",
+        message="rate limited",
+        transient=True,
     )
     executor = FakeProviderExecutor([FakeProviderExecutor.failure(failure)])
     req = _req(running_run)
@@ -222,9 +234,7 @@ def test_exe_048_054_failure(
 
 
 # --- EXE-055..060 unexpected exception ---
-def test_exe_055_060_exception(
-    coordinator, running_run, event_sink, run_mgr
-):
+def test_exe_055_060_exception(coordinator, running_run, event_sink, run_mgr):
     class BoomExecutor:
         async def execute(self, request):  # type: ignore[no-untyped-def]
             raise RuntimeError("unexpected boom")
@@ -241,13 +251,14 @@ def test_exe_055_060_exception(
 
 
 # --- EXE-072..075 no retry ---
-def test_exe_072_075_no_retry(
-    coordinator, running_run, run_mgr
-):
+def test_exe_072_075_no_retry(coordinator, running_run, run_mgr):
     from packages.runtime.testing import FakeProviderExecutor
+
     failure = RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="X",
-        message="m", transient=True,
+        category=RuntimeFailureCategory.NETWORK,
+        code="X",
+        message="m",
+        transient=True,
     )
     executor = FakeProviderExecutor([FakeProviderExecutor.failure(failure)])
     req = _req(running_run)
@@ -260,13 +271,18 @@ def test_exe_072_075_no_retry(
 # --- EXE-076..080 stores ---
 def test_exe_076_080_stores(request_store, response_store):
     from packages.runtime import ProviderExecutionRequest
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("t1"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("r"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("r"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     request_store.save(req)
@@ -286,6 +302,7 @@ def test_exe_066_provider_event_types():
 # --- EXE-071 raw_output not in event ---
 def test_exe_071_no_raw_in_event(coordinator, running_run, event_sink):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     raw = {"secret": "value"}
     executor = FakeProviderExecutor([FakeProviderExecutor.success(raw)])
@@ -300,6 +317,7 @@ def test_m3_exe_001_success_e2e(
     coordinator, running_run, request_store, response_store, event_sink
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     raw = {"judgement": "SUPPORT", "confidence": 0.88, "reason_codes": ["E1"]}
     executor = FakeProviderExecutor([FakeProviderExecutor.success(raw)])
@@ -312,23 +330,24 @@ def test_m3_exe_001_success_e2e(
     assert len(executor.calls) == 1
 
     types = [e.event_type for e in event_sink.list_for_run(run.run_id)]
-    assert types.index(
-        RuntimeEventType.PROVIDER_EXECUTION_STARTED
-    ) < types.index(RuntimeEventType.PROVIDER_EXECUTION_SUCCEEDED)
-    assert types.index(
+    assert types.index(RuntimeEventType.PROVIDER_EXECUTION_STARTED) < types.index(
         RuntimeEventType.PROVIDER_EXECUTION_SUCCEEDED
-    ) < types.index(RuntimeEventType.RUN_SUCCEEDED)
+    )
+    assert types.index(RuntimeEventType.PROVIDER_EXECUTION_SUCCEEDED) < types.index(
+        RuntimeEventType.RUN_SUCCEEDED
+    )
 
 
 # --- M3-EXE-002 failure e2e ---
-def test_m3_exe_002_failure_e2e(
-    coordinator, running_run, event_sink, run_mgr
-):
+def test_m3_exe_002_failure_e2e(coordinator, running_run, event_sink, run_mgr):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     failure = RuntimeFailure(
-        category=RuntimeFailureCategory.RATE_LIMIT, code="RATE_LIMITED",
-        message="rate limited", transient=True,
+        category=RuntimeFailureCategory.RATE_LIMIT,
+        code="RATE_LIMITED",
+        message="rate limited",
+        transient=True,
     )
     executor = FakeProviderExecutor([FakeProviderExecutor.failure(failure)])
     req = _req(running_run)
@@ -351,14 +370,19 @@ def test_exe_012_response_immutable(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     resp = ProviderExecutionResponse(
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-        project_id=run.project_id, branch_id=run.branch_id,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+        session_id=run.session_id,
+        run_id=run.run_id,
+        attempt_id=att.attempt_id,
+        project_id=run.project_id,
+        branch_id=run.branch_id,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
     )
     with pytest.raises(FrozenInstanceError):
         resp.raw_output = {}  # type: ignore[misc]
@@ -371,15 +395,20 @@ def test_exe_013_response_naive_dt_rejected(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     with pytest.raises(ValueError):
         ProviderExecutionResponse(
             response_id=ProviderExecutionResponseId("r"),
             artifact_id=RuntimeArtifactId("a"),
             request_id=ProviderExecutionRequestId("rq"),
-            session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-            project_id=run.project_id, branch_id=run.branch_id,
-            provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+            session_id=run.session_id,
+            run_id=run.run_id,
+            attempt_id=att.attempt_id,
+            project_id=run.project_id,
+            branch_id=run.branch_id,
+            provider=ProviderIdentifier(name="x"),
+            model=ModelIdentifier(name="y"),
             created_at=datetime(2026, 1, 1),  # naive
         )
 
@@ -391,14 +420,19 @@ def test_exe_014_raw_output_can_be_mapping(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     resp = ProviderExecutionResponse(
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-        project_id=run.project_id, branch_id=run.branch_id,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+        session_id=run.session_id,
+        run_id=run.run_id,
+        attempt_id=att.attempt_id,
+        project_id=run.project_id,
+        branch_id=run.branch_id,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
         raw_output={"key": "val"},
     )
     assert resp.raw_output == {"key": "val"}
@@ -411,13 +445,17 @@ def test_exe_015_response_saves_provider_model(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     resp = ProviderExecutionResponse(
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-        project_id=run.project_id, branch_id=run.branch_id,
+        session_id=run.session_id,
+        run_id=run.run_id,
+        attempt_id=att.attempt_id,
+        project_id=run.project_id,
+        branch_id=run.branch_id,
         provider=ProviderIdentifier(name="openai"),
         model=ModelIdentifier(name="gpt-4"),
     )
@@ -432,15 +470,20 @@ def test_exe_016_response_saves_usage(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     usage = ProviderUsage(input_units=100, output_units=200)
     resp = ProviderExecutionResponse(
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-        project_id=run.project_id, branch_id=run.branch_id,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+        session_id=run.session_id,
+        run_id=run.run_id,
+        attempt_id=att.attempt_id,
+        project_id=run.project_id,
+        branch_id=run.branch_id,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
         usage=usage,
     )
     assert resp.usage.input_units == 100
@@ -455,15 +498,20 @@ def test_exe_017_runtime_does_not_validate_raw_output(running_run):
         RuntimeArtifactId,
     )
     from packages.runtime import ProviderExecutionResponse
+
     run, att = running_run
     # Passing completely arbitrary data - should NOT raise
     resp = ProviderExecutionResponse(
         response_id=ProviderExecutionResponseId("r"),
         artifact_id=RuntimeArtifactId("a"),
         request_id=ProviderExecutionRequestId("rq"),
-        session_id=run.session_id, run_id=run.run_id, attempt_id=att.attempt_id,
-        project_id=run.project_id, branch_id=run.branch_id,
-        provider=ProviderIdentifier(name="x"), model=ModelIdentifier(name="y"),
+        session_id=run.session_id,
+        run_id=run.run_id,
+        attempt_id=att.attempt_id,
+        project_id=run.project_id,
+        branch_id=run.branch_id,
+        provider=ProviderIdentifier(name="x"),
+        model=ModelIdentifier(name="y"),
         raw_output={"judgement": "COMPLETELY_INVALID", "confidence": 999},
     )
     assert resp.raw_output["judgement"] == "COMPLETELY_INVALID"
@@ -474,6 +522,7 @@ def test_exe_017_runtime_does_not_validate_raw_output(running_run):
 # =========================================================================
 def test_exe_024_session_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     req = _req(running_run, session_id=RuntimeSessionId("WRONG"))
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
@@ -484,6 +533,7 @@ def test_exe_024_session_mismatch_rejected(coordinator, running_run):
 
 def test_exe_025_run_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     req = _req(running_run, run_id=RuntimeRunId("WRONG"))
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     with pytest.raises(Exception):
@@ -493,6 +543,7 @@ def test_exe_025_run_mismatch_rejected(coordinator, running_run):
 
 def test_exe_027_project_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     req = _req(running_run, project_id=ProjectId("WRONG"))
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     with pytest.raises(ProviderExecutionScopeError):
@@ -502,6 +553,7 @@ def test_exe_027_project_mismatch_rejected(coordinator, running_run):
 
 def test_exe_028_branch_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     req = _req(running_run, branch_id=BranchId("WRONG"))
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     with pytest.raises(ProviderExecutionScopeError):
@@ -511,6 +563,7 @@ def test_exe_028_branch_mismatch_rejected(coordinator, running_run):
 
 def test_exe_026_attempt_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     req = _req(running_run, attempt_id=ExecutionAttemptId("WRONG"))
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     with pytest.raises(ProviderExecutionScopeError):
@@ -523,8 +576,11 @@ def test_exe_026_attempt_mismatch_rejected(coordinator, running_run):
 # =========================================================================
 def test_exe_032_input_ref_mismatch_rejected(coordinator, running_run):
     from packages.runtime.testing import FakeProviderExecutor
+
     wrong_ref = RuntimeInputRef(
-        source_type="other", source_id="other", version="0",
+        source_type="other",
+        source_id="other",
+        version="0",
     )
     req = _req(running_run, input_ref=wrong_ref)
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
@@ -539,15 +595,21 @@ def test_exe_032_input_ref_mismatch_rejected(coordinator, running_run):
 def test_exe_033_scripted_success_returns_success():
     from packages.runtime import ProviderExecutionOutcomeStatus
     from packages.runtime.testing import FakeProviderExecutor
+
     fake = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     from packages.domain.ids import ProviderExecutionRequestId
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="fake"), model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="fake"),
+        model=ModelIdentifier(name="m"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     outcome = asyncio.run(fake.execute(req))
@@ -557,18 +619,26 @@ def test_exe_033_scripted_success_returns_success():
 def test_exe_034_scripted_failure_returns_failure():
     from packages.runtime import ProviderExecutionOutcomeStatus
     from packages.runtime.testing import FakeProviderExecutor
+
     failure = RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="X", message="m",
+        category=RuntimeFailureCategory.NETWORK,
+        code="X",
+        message="m",
     )
     fake = FakeProviderExecutor([FakeProviderExecutor.failure(failure)])
     from packages.domain.ids import ProviderExecutionRequestId
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="fake"), model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="fake"),
+        model=ModelIdentifier(name="m"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     outcome = asyncio.run(fake.execute(req))
@@ -577,20 +647,32 @@ def test_exe_034_scripted_failure_returns_failure():
 
 def test_exe_035_calls_recorded():
     from packages.runtime.testing import FakeProviderExecutor
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success({"x": 1}),
-        FakeProviderExecutor.failure(RuntimeFailure(
-            category=RuntimeFailureCategory.NETWORK, code="X", message="m",
-        )),
-    ])
+
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success({"x": 1}),
+            FakeProviderExecutor.failure(
+                RuntimeFailure(
+                    category=RuntimeFailureCategory.NETWORK,
+                    code="X",
+                    message="m",
+                )
+            ),
+        ]
+    )
     from packages.domain.ids import ProviderExecutionRequestId
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="fake"), model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="fake"),
+        model=ModelIdentifier(name="m"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     asyncio.run(fake.execute(req))
@@ -600,18 +682,26 @@ def test_exe_035_calls_recorded():
 
 def test_exe_036_outcomes_consumed_in_order():
     from packages.runtime.testing import FakeProviderExecutor
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success({"first": True}),
-        FakeProviderExecutor.success({"second": True}),
-    ])
+
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success({"first": True}),
+            FakeProviderExecutor.success({"second": True}),
+        ]
+    )
     from packages.domain.ids import ProviderExecutionRequestId
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="fake"), model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="fake"),
+        model=ModelIdentifier(name="m"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     o1 = asyncio.run(fake.execute(req))
@@ -622,15 +712,21 @@ def test_exe_036_outcomes_consumed_in_order():
 
 def test_exe_037_exhaustion_raises():
     from packages.runtime.testing import FakeProviderExecutor
+
     fake = FakeProviderExecutor([])
     from packages.domain.ids import ProviderExecutionRequestId
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=RuntimeSessionId("s"), run_id=RuntimeRunId("ru"),
+        session_id=RuntimeSessionId("s"),
+        run_id=RuntimeRunId("ru"),
         attempt_id=ExecutionAttemptId("a"),
-        project_id=PROJECT, branch_id=BRANCH,
-        provider=ProviderIdentifier(name="fake"), model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input={},
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        provider=ProviderIdentifier(name="fake"),
+        model=ModelIdentifier(name="m"),
+        input_ref=INPUT_REF,
+        projected_input={},
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     with pytest.raises(RuntimeError, match="exhausted"):
@@ -641,9 +737,12 @@ def test_exe_037_exhaustion_raises():
 # EXE-040 — Request saved before provider call
 # =========================================================================
 def test_exe_040_request_saved_before_provider_call(
-    coordinator, running_run, request_store,
+    coordinator,
+    running_run,
+    request_store,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     req = _req(running_run)
@@ -658,7 +757,11 @@ def test_exe_040_request_saved_before_provider_call(
 # EXE-061..065 — Persistence failure injection
 # =========================================================================
 def test_exe_061_062_request_store_failure(
-    run_mgr, running_run, response_store, event_sink, clock,
+    run_mgr,
+    running_run,
+    response_store,
+    event_sink,
+    clock,
 ):
     """Request store save failure → no provider call, no STARTED event."""
     from packages.runtime import RuntimeExecutionCoordinator
@@ -667,13 +770,18 @@ def test_exe_061_062_request_store_failure(
     class FailingRequestStore:
         def save(self, req):  # type: ignore[no-untyped-def]
             raise RuntimeError("request store boom")
+
         def get(self, rid):  # type: ignore[no-untyped-def]
             raise KeyError
+
         def list_for_run(self, rid):  # type: ignore[no-untyped-def]
             return []
 
     coord = RuntimeExecutionCoordinator(
-        run_mgr, FailingRequestStore(), response_store, event_sink,
+        run_mgr,
+        FailingRequestStore(),
+        response_store,
+        event_sink,
         now=clock,
     )
     run, att = running_run
@@ -685,7 +793,11 @@ def test_exe_061_062_request_store_failure(
 
 
 def test_exe_063_065_response_store_failure(
-    run_mgr, running_run, request_store, event_sink, clock,
+    run_mgr,
+    running_run,
+    request_store,
+    event_sink,
+    clock,
 ):
     """Response store save failure → Run FAILED, not SUCCEEDED."""
     from packages.runtime import RuntimeExecutionCoordinator
@@ -694,13 +806,18 @@ def test_exe_063_065_response_store_failure(
     class FailingResponseStore:
         def save(self, resp):  # type: ignore[no-untyped-def]
             raise RuntimeError("response store boom")
+
         def get(self, rid):  # type: ignore[no-untyped-def]
             raise KeyError
+
         def list_for_run(self, rid):  # type: ignore[no-untyped-def]
             return []
 
     coord = RuntimeExecutionCoordinator(
-        run_mgr, request_store, FailingResponseStore(), event_sink,
+        run_mgr,
+        request_store,
+        FailingResponseStore(),
+        event_sink,
         now=clock,
     )
     run, att = running_run
@@ -717,9 +834,12 @@ def test_exe_063_065_response_store_failure(
 # EXE-067..069 — Event ordering
 # =========================================================================
 def test_exe_067_success_event_ordering(
-    coordinator, running_run, event_sink,
+    coordinator,
+    running_run,
+    event_sink,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     req = _req(running_run)
@@ -728,9 +848,9 @@ def test_exe_067_success_event_ordering(
     types = [e.event_type for e in event_sink.list_for_run(run.run_id)]
     # Filter to provider + run terminal events
     relevant = [
-        t for t in types
-        if t.value.startswith("PROVIDER_")
-        or t.value in ("ATTEMPT_SUCCEEDED", "RUN_SUCCEEDED")
+        t
+        for t in types
+        if t.value.startswith("PROVIDER_") or t.value in ("ATTEMPT_SUCCEEDED", "RUN_SUCCEEDED")
     ]
     assert relevant == [
         RuntimeEventType.PROVIDER_EXECUTION_STARTED,
@@ -741,13 +861,17 @@ def test_exe_067_success_event_ordering(
 
 
 def test_exe_068_failure_event_ordering(
-    coordinator, running_run, event_sink,
+    coordinator,
+    running_run,
+    event_sink,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     failure = RuntimeFailure(
         category=RuntimeFailureCategory.RATE_LIMIT,
-        code="RATE_LIMITED", message="rate limited",
+        code="RATE_LIMITED",
+        message="rate limited",
     )
     executor = FakeProviderExecutor([FakeProviderExecutor.failure(failure)])
     req = _req(running_run)
@@ -755,9 +879,9 @@ def test_exe_068_failure_event_ordering(
 
     types = [e.event_type for e in event_sink.list_for_run(run.run_id)]
     relevant = [
-        t for t in types
-        if t.value.startswith("PROVIDER_")
-        or t.value in ("ATTEMPT_FAILED", "RUN_FAILED")
+        t
+        for t in types
+        if t.value.startswith("PROVIDER_") or t.value in ("ATTEMPT_FAILED", "RUN_FAILED")
     ]
     assert relevant == [
         RuntimeEventType.PROVIDER_EXECUTION_STARTED,
@@ -768,7 +892,9 @@ def test_exe_068_failure_event_ordering(
 
 
 def test_exe_069_exception_event_ordering(
-    coordinator, running_run, event_sink,
+    coordinator,
+    running_run,
+    event_sink,
 ):
     class BoomExecutor:
         async def execute(self, request):  # type: ignore[no-untyped-def]
@@ -780,9 +906,9 @@ def test_exe_069_exception_event_ordering(
 
     types = [e.event_type for e in event_sink.list_for_run(run.run_id)]
     relevant = [
-        t for t in types
-        if t.value.startswith("PROVIDER_")
-        or t.value in ("ATTEMPT_FAILED", "RUN_FAILED")
+        t
+        for t in types
+        if t.value.startswith("PROVIDER_") or t.value in ("ATTEMPT_FAILED", "RUN_FAILED")
     ]
     assert relevant == [
         RuntimeEventType.PROVIDER_EXECUTION_STARTED,
@@ -796,16 +922,20 @@ def test_exe_069_exception_event_ordering(
 # EXE-070 — Event metadata has provider/model/request_id
 # =========================================================================
 def test_exe_070_event_metadata_has_provider_model_request(
-    coordinator, running_run, event_sink,
+    coordinator,
+    running_run,
+    event_sink,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     req = _req(running_run)
     asyncio.run(coordinator.execute(req, executor))
 
     started = next(
-        e for e in event_sink.list_for_run(run.run_id)
+        e
+        for e in event_sink.list_for_run(run.run_id)
         if e.event_type is RuntimeEventType.PROVIDER_EXECUTION_STARTED
     )
     assert started.metadata["provider"] == "fake"
@@ -817,9 +947,13 @@ def test_exe_070_event_metadata_has_provider_model_request(
 # EXE-046..047 — OutputRef points to response artifact
 # =========================================================================
 def test_exe_046_047_output_ref_points_to_response(
-    coordinator, running_run, response_store, run_mgr,
+    coordinator,
+    running_run,
+    response_store,
+    run_mgr,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     req = _req(running_run)
@@ -842,9 +976,13 @@ def test_exe_046_047_output_ref_points_to_response(
 # EXE-080 — list_for_run on stores
 # =========================================================================
 def test_exe_080_list_for_run(
-    coordinator, running_run, request_store, response_store,
+    coordinator,
+    running_run,
+    request_store,
+    response_store,
 ):
     from packages.runtime.testing import FakeProviderExecutor
+
     run, att = running_run
     executor = FakeProviderExecutor([FakeProviderExecutor.success({"x": 1})])
     req = _req(running_run)
@@ -865,8 +1003,14 @@ def test_exe_081_087_runtime_no_forbidden_imports():
 
     runtime_root = Path(_prov.__file__).parent
     forbidden = {
-        "cognition", "control", "openai", "anthropic",
-        "pydantic_ai", "temporalio", "requests", "httpx",
+        "cognition",
+        "control",
+        "openai",
+        "anthropic",
+        "pydantic_ai",
+        "temporalio",
+        "requests",
+        "httpx",
     }
     violations = []
     for py in sorted(runtime_root.rglob("*.py")):

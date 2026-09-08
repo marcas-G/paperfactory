@@ -120,8 +120,7 @@ def test_cand_004_deterministic_order() -> None:
     ids1 = [(str(c.action.target_object_id), c.action.action_type) for c in cands1]
     ids2 = [(str(c.action.target_object_id), c.action.action_type) for c in cands2]
     assert ids1 == ids2
-    assert ids1 == [("o-a", "ADVANCE"), ("o-a", "REVIEW"),
-                    ("o-b", "ADVANCE"), ("o-b", "REVIEW")]
+    assert ids1 == [("o-a", "ADVANCE"), ("o-a", "REVIEW"), ("o-b", "ADVANCE"), ("o-b", "REVIEW")]
 
 
 def test_cand_005_fresh_action_ids_no_duplicates() -> None:

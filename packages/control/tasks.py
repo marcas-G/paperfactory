@@ -47,18 +47,14 @@ class TaskStatus(StrEnum):
     CANCELLED = "CANCELLED"
 
 
-TERMINAL_TASK_STATUSES = frozenset(
-    {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}
-)
+TERMINAL_TASK_STATUSES = frozenset({TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED})
 
 # Legal forward transitions (STEP-003 §8). Terminal states never appear as a
 # source — they cannot be revived.
 _LEGAL_TASK_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
     TaskStatus.PENDING: frozenset({TaskStatus.READY, TaskStatus.CANCELLED}),
     TaskStatus.READY: frozenset({TaskStatus.RUNNING, TaskStatus.CANCELLED}),
-    TaskStatus.RUNNING: frozenset(
-        {TaskStatus.WAITING, TaskStatus.SUCCEEDED, TaskStatus.FAILED}
-    ),
+    TaskStatus.RUNNING: frozenset({TaskStatus.WAITING, TaskStatus.SUCCEEDED, TaskStatus.FAILED}),
     # WAITING may resolve to READY (resume), succeed/fail directly on resume,
     # or be cancelled. Direct SUCCEEDED/FAILED from WAITING covers the
     # approval-resume and approval-rejected paths (STEP-003 §25/§26).
@@ -108,9 +104,7 @@ class ResearchTask:
 def _assert_task_transition(current: TaskStatus, target: TaskStatus) -> None:
     allowed = _LEGAL_TASK_TRANSITIONS.get(current, frozenset())
     if target not in allowed:
-        raise InvariantViolationError(
-            f"illegal task transition: {current.value} -> {target.value}"
-        )
+        raise InvariantViolationError(f"illegal task transition: {current.value} -> {target.value}")
 
 
 def initial_task_status(dependencies: tuple[TaskId, ...]) -> TaskStatus:

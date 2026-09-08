@@ -1,4 +1,5 @@
 """M3-RUN-001 / M3-RUN-002 — end-to-end runtime lifecycle."""
+
 from packages.runtime import (
     AttemptStatus,
     RunStatus,
@@ -14,7 +15,8 @@ from .conftest import INPUT_REF
 
 def test_m3_run_001_full_lifecycle(session_mgr, run_mgr, event_sink, open_session):
     run = run_mgr.create_run(
-        session_id=open_session.session_id, input_ref=INPUT_REF,
+        session_id=open_session.session_id,
+        input_ref=INPUT_REF,
     )
     run_mgr.mark_ready(run.run_id)
     run, att1 = run_mgr.start_run(run.run_id)
@@ -35,7 +37,9 @@ def test_m3_run_001_full_lifecycle(session_mgr, run_mgr, event_sink, open_sessio
     assert run_mgr.list_attempts(run.run_id)[0].attempt_id == att1.attempt_id
 
     out_ref = RuntimeOutputRef(
-        artifact_type="cognitive_result", artifact_id="result-1", version="1",
+        artifact_type="cognitive_result",
+        artifact_id="result-1",
+        version="1",
     )
     final_run, final_att = run_mgr.succeed_run(run.run_id, output_ref=out_ref)
     assert final_run.status is RunStatus.SUCCEEDED
@@ -59,14 +63,16 @@ def test_m3_run_001_full_lifecycle(session_mgr, run_mgr, event_sink, open_sessio
 
 def test_m3_run_002_failure(session_mgr, run_mgr, event_sink, open_session):
     run = run_mgr.create_run(
-        session_id=open_session.session_id, input_ref=INPUT_REF,
+        session_id=open_session.session_id,
+        input_ref=INPUT_REF,
     )
     run_mgr.mark_ready(run.run_id)
     run, _ = run_mgr.start_run(run.run_id)
 
     failure = RuntimeFailure(
         category=RuntimeFailureCategory.NETWORK,
-        code="CONNECTION_RESET", transient=True,
+        code="CONNECTION_RESET",
+        transient=True,
         message="connection reset",
     )
     final_run, final_att = run_mgr.fail_run(run.run_id, failure=failure)

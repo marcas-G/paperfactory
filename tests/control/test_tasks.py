@@ -80,7 +80,8 @@ def test_task_005_terminal_task_not_revived(controller) -> None:  # type: ignore
 
 # TASK-006 ----------------------------------------------------------------
 def test_task_006_state_change_emits_event(
-    controller, event_sink  # type: ignore[no-untyped-def]
+    controller,
+    event_sink,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _make_task(controller, action_id="a")
     controller._tasks.mark_running(task.task_id)

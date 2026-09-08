@@ -181,15 +181,11 @@ class ContextItem:
             )
         # priority
         if self.priority < 0 or self.priority > 100:
-            raise InvalidContextItemError(
-                f"priority must be in [0,100], got {self.priority}"
-            )
+            raise InvalidContextItemError(f"priority must be in [0,100], got {self.priority}")
         # labels: explicit metadata, no empty strings (STEP-007 §7)
         for label in self.labels:
             if not isinstance(label, str) or not label:
-                raise InvalidContextItemError(
-                    f"label must be a non-empty string, got {label!r}"
-                )
+                raise InvalidContextItemError(f"label must be a non-empty string, got {label!r}")
         # scope invariants (STEP-006 §7)
         if self.scope is ContextScope.SYSTEM:
             if self.project_id is not None or self.branch_id is not None:
@@ -203,15 +199,11 @@ class ContextItem:
                 )
         else:  # BRANCH
             if self.project_id is None or self.branch_id is None:
-                raise InvalidContextItemError(
-                    "BRANCH scope requires both project_id and branch_id"
-                )
+                raise InvalidContextItemError("BRANCH scope requires both project_id and branch_id")
         # instruction authority invariants (STEP-008 §7/§8)
         if self.item_type is ContextItemType.INSTRUCTION:
             if self.instruction_authority is None:
-                raise InvalidContextItemError(
-                    "INSTRUCTION item requires instruction_authority"
-                )
+                raise InvalidContextItemError("INSTRUCTION item requires instruction_authority")
             if self.instruction_authority not in CONTEXT_ITEM_AUTHORITIES:
                 raise InvalidContextItemError(
                     f"INSTRUCTION item authority must be one of "
@@ -245,9 +237,7 @@ class ContextBudget:
 
     def __post_init__(self) -> None:
         if self.max_tokens <= 0:
-            raise InvalidContextItemError(
-                f"max_tokens must be > 0, got {self.max_tokens}"
-            )
+            raise InvalidContextItemError(f"max_tokens must be > 0, got {self.max_tokens}")
 
 
 @dataclass(frozen=True)
@@ -321,9 +311,7 @@ class ContextRequest:
     optional_item_ids: tuple[ContextItemId, ...] = ()
     forbidden_item_ids: tuple[ContextItemId, ...] = ()
 
-    budget: ContextBudget = field(
-        default_factory=lambda: ContextBudget(max_tokens=8192)
-    )
+    budget: ContextBudget = field(default_factory=lambda: ContextBudget(max_tokens=8192))
     context_policy_id: str = "default"
     context_policy_version: int = 1
     created_at: datetime = field(default_factory=lambda: _EPOCH)

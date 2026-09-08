@@ -111,9 +111,7 @@ class TaskManager:
         task = self._store.get(task_id)
         if task.status is not TaskStatus.PENDING:
             return task
-        dep_statuses = {
-            dep: self._store.get_status(dep) for dep in task.dependencies
-        }
+        dep_statuses = {dep: self._store.get_status(dep) for dep in task.dependencies}
         if dependencies_satisfied(dep_statuses, task.dependencies):
             return self._transition(task_id, TaskStatus.READY)
         return task

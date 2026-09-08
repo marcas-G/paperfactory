@@ -119,6 +119,7 @@ def _parse(path: Path) -> ast.AST:
 
 # --- DOMAIN boundaries --------------------------------------------------
 
+
 def test_domain_does_not_import_upper_layers() -> None:
     domain_root = REPO_ROOT / "packages" / "domain"
     violations: list[str] = []
@@ -151,6 +152,7 @@ def test_domain_does_not_import_frameworks() -> None:
 
 
 # --- CONTROL boundaries -------------------------------------------------
+
 
 def test_control_does_not_import_upper_layers() -> None:
     control_root = REPO_ROOT / "packages" / "control"
@@ -199,12 +201,11 @@ def test_control_does_not_import_frameworks() -> None:
         hit = names & CONTROL_FRAMEWORK_BLACKLIST
         for name in hit:
             violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "control imports forbidden framework(s):\n" + "\n".join(violations)
-    )
+    assert not violations, "control imports forbidden framework(s):\n" + "\n".join(violations)
 
 
 # --- COGNITION boundaries (STEP-006 §57) --------------------------------
+
 
 def test_cognition_does_not_import_forbidden_layers() -> None:
     cognition_root = REPO_ROOT / "packages" / "cognition"
@@ -221,9 +222,7 @@ def test_cognition_does_not_import_forbidden_layers() -> None:
             for forbidden in COGNITION_FORBIDDEN_MODULES:
                 if name == forbidden or name.startswith(forbidden + "."):
                     violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "cognition imports forbidden layer(s):\n" + "\n".join(violations)
-    )
+    assert not violations, "cognition imports forbidden layer(s):\n" + "\n".join(violations)
 
 
 def test_cognition_does_not_import_frameworks() -> None:
@@ -235,9 +234,7 @@ def test_cognition_does_not_import_frameworks() -> None:
         hit = names & COGNITION_FORBIDDEN_FRAMEWORKS
         for name in hit:
             violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "cognition imports forbidden framework(s):\n" + "\n".join(violations)
-    )
+    assert not violations, "cognition imports forbidden framework(s):\n" + "\n".join(violations)
 
 
 def test_cognition_only_domain_and_stdlib() -> None:
@@ -255,9 +252,7 @@ def test_cognition_only_domain_and_stdlib() -> None:
             elif name == "packages":
                 if name not in allowed_first_party:
                     violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "cognition imports non-domain first-party:\n" + "\n".join(violations)
-    )
+    assert not violations, "cognition imports non-domain first-party:\n" + "\n".join(violations)
 
 
 def test_store_ports_are_protocols() -> None:
@@ -282,9 +277,7 @@ def test_store_ports_are_protocols() -> None:
         assert obj is not None, f"missing port: {name}"
         # runtime_checkable Protocol classes expose _is_protocol = True.
         bases = [getattr(c, "__name__", "") for c in getattr(obj, "__bases__", ())]
-        assert getattr(obj, "_is_protocol", False), (
-            f"{name} is not a Protocol (bases={bases})"
-        )
+        assert getattr(obj, "_is_protocol", False), f"{name} is not a Protocol (bases={bases})"
 
 
 def test_inmemory_adapters_live_in_testing_module() -> None:
@@ -294,11 +287,7 @@ def test_inmemory_adapters_live_in_testing_module() -> None:
     import packages.control.testing as testing
 
     # public surface should not leak in-memory adapter classes
-    leaked = [
-        n
-        for n in dir(public)
-        if n.startswith("InMemory")
-    ]
+    leaked = [n for n in dir(public) if n.startswith("InMemory")]
     assert not leaked, f"in-memory adapters leaked into public API: {leaked}"
     # they should exist in the testing module instead
     for adapter in [
@@ -315,7 +304,6 @@ def test_inmemory_adapters_live_in_testing_module() -> None:
         assert hasattr(testing, adapter), f"missing in testing module: {adapter}"
 
 
-
 # --- RUNTIME boundaries (STEP-011 §77) ---------------------------------
 
 RUNTIME_FORBIDDEN_MODULES = {
@@ -327,8 +315,14 @@ RUNTIME_FORBIDDEN_MODULES = {
 }
 
 RUNTIME_FORBIDDEN_FRAMEWORKS = {
-    "openai", "anthropic", "pydantic_ai", "temporalio",
-    "fastapi", "sqlalchemy", "requests", "httpx",
+    "openai",
+    "anthropic",
+    "pydantic_ai",
+    "temporalio",
+    "fastapi",
+    "sqlalchemy",
+    "requests",
+    "httpx",
 }
 
 
@@ -347,9 +341,7 @@ def test_runtime_does_not_import_forbidden_layers() -> None:
             for forbidden in RUNTIME_FORBIDDEN_MODULES:
                 if name == forbidden or name.startswith(forbidden + "."):
                     violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "runtime imports forbidden layer(s):\n" + "\n".join(violations)
-    )
+    assert not violations, "runtime imports forbidden layer(s):\n" + "\n".join(violations)
 
 
 def test_runtime_does_not_import_frameworks() -> None:
@@ -361,9 +353,7 @@ def test_runtime_does_not_import_frameworks() -> None:
         hit = names & RUNTIME_FORBIDDEN_FRAMEWORKS
         for name in hit:
             violations.append(f"{path}: imports {name}")
-    assert not violations, (
-        "runtime imports forbidden framework(s):\n" + "\n".join(violations)
-    )
+    assert not violations, "runtime imports forbidden framework(s):\n" + "\n".join(violations)
 
 
 # --- Composition-root boundaries (STEP-015) ----------------------------
@@ -387,8 +377,7 @@ def test_packages_do_not_import_apps() -> None:
         for name in hit:
             violations.append(f"{path}: imports {name}")
     assert not violations, (
-        "packages import the application edge (reverse dependency):\n"
-        + "\n".join(violations)
+        "packages import the application edge (reverse dependency):\n" + "\n".join(violations)
     )
 
 
@@ -402,7 +391,6 @@ def test_composition_root_does_not_import_testing_adapters() -> None:
         for mod in resolved | absolute:
             if ".testing" in f".{mod}":
                 violations.append(f"{path}: imports {mod}")
-    assert not violations, (
-        "apps imports test/dev adapters (packages.*.testing):\n"
-        + "\n".join(violations)
+    assert not violations, "apps imports test/dev adapters (packages.*.testing):\n" + "\n".join(
+        violations
     )

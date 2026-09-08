@@ -1,4 +1,5 @@
 """RUN-014..031, RUN-034..046, RUN-053..060 — run lifecycle, attempts, waiting."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,7 +24,8 @@ def _ready_and_start(run_mgr, created_run):
 
 def test_run_014_create_created(run_mgr, open_session):
     run = run_mgr.create_run(
-        session_id=open_session.session_id, input_ref=INPUT_REF,
+        session_id=open_session.session_id,
+        input_ref=INPUT_REF,
     )
     assert run.status is RunStatus.CREATED
 
@@ -43,7 +45,8 @@ def test_run_017_running_to_waiting(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
     updated = run_mgr.pause_run(
-        run.run_id, reason=RunWaitReason.EXTERNAL_DEPENDENCY,
+        run.run_id,
+        reason=RunWaitReason.EXTERNAL_DEPENDENCY,
     )
     assert updated.status is RunStatus.WAITING
 
@@ -60,7 +63,9 @@ def test_run_019_running_to_succeeded(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
     out_ref = RuntimeOutputRef(
-        artifact_type="cognitive_result", artifact_id="r1", version="1",
+        artifact_type="cognitive_result",
+        artifact_id="r1",
+        version="1",
     )
     updated_run, att = run_mgr.succeed_run(run.run_id, output_ref=out_ref)
     assert updated_run.status is RunStatus.SUCCEEDED
@@ -70,8 +75,10 @@ def test_run_020_running_to_failed(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
     failure = RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="CONN_RESET",
-        message="connection reset", transient=True,
+        category=RuntimeFailureCategory.NETWORK,
+        code="CONN_RESET",
+        message="connection reset",
+        transient=True,
     )
     updated_run, att = run_mgr.fail_run(run.run_id, failure=failure)
     assert updated_run.status is RunStatus.FAILED
@@ -170,9 +177,14 @@ def test_run_038_success_attempt_succeeded(run_mgr, created_run):
 def test_run_039_fail_attempt_failed(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
-    _, att = run_mgr.fail_run(run.run_id, failure=RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="X", message="m",
-    ))
+    _, att = run_mgr.fail_run(
+        run.run_id,
+        failure=RuntimeFailure(
+            category=RuntimeFailureCategory.NETWORK,
+            code="X",
+            message="m",
+        ),
+    )
     assert att.status is AttemptStatus.FAILED
 
 
@@ -208,7 +220,8 @@ def test_run_054_waiting_has_reason(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
     updated = run_mgr.pause_run(
-        run.run_id, reason=RunWaitReason.EXTERNAL_DEPENDENCY,
+        run.run_id,
+        reason=RunWaitReason.EXTERNAL_DEPENDENCY,
     )
     assert updated.wait_reason is RunWaitReason.EXTERNAL_DEPENDENCY
 
@@ -225,7 +238,9 @@ def test_run_057_success_output_ref(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
     out = RuntimeOutputRef(
-        artifact_type="result", artifact_id="r1", version="1",
+        artifact_type="result",
+        artifact_id="r1",
+        version="1",
     )
     updated_run, updated_att = run_mgr.succeed_run(run.run_id, output_ref=out)
     assert updated_run.output_ref == out
@@ -245,10 +260,15 @@ def test_run_095_ready_no_auto_running(run_mgr, created_run):
 def test_run_096_transient_no_retry(run_mgr, created_run):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
-    run_mgr.fail_run(run.run_id, failure=RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="X",
-        message="m", transient=True,
-    ))
+    run_mgr.fail_run(
+        run.run_id,
+        failure=RuntimeFailure(
+            category=RuntimeFailureCategory.NETWORK,
+            code="X",
+            message="m",
+            transient=True,
+        ),
+    )
     # Only 1 attempt exists
     assert len(run_mgr.list_attempts(run.run_id)) == 1
     assert run_mgr.get_run(run.run_id).status is RunStatus.FAILED

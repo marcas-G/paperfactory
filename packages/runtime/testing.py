@@ -26,7 +26,8 @@ class InMemoryRuntimeSessionStore:
 
     def list_for_project(self, project_id, branch_id):  # type: ignore[no-untyped-def]
         return [
-            s for s in self._sessions.values()
+            s
+            for s in self._sessions.values()
             if s.project_id == project_id and s.branch_id == branch_id
         ]
 
@@ -135,9 +136,8 @@ class InMemoryModelExecutionProfileRegistry:
         key = (str(profile_id), version)
         if key not in self._profiles:
             from .errors import ModelExecutionProfileNotFoundError
-            raise ModelExecutionProfileNotFoundError(
-                f"profile not found: {profile_id}/{version}"
-            )
+
+            raise ModelExecutionProfileNotFoundError(f"profile not found: {profile_id}/{version}")
         return self._profiles[key]
 
     def list_versions(self, profile_id):  # type: ignore[no-untyped-def]
@@ -163,9 +163,8 @@ class InMemoryAgentDefinitionRegistry:
         key = (str(agent_id), version)
         if key not in self._agents:
             from .errors import AgentDefinitionNotFoundError
-            raise AgentDefinitionNotFoundError(
-                f"agent not found: {agent_id}/{version}"
-            )
+
+            raise AgentDefinitionNotFoundError(f"agent not found: {agent_id}/{version}")
         return self._agents[key]
 
     def list_versions(self, agent_id):  # type: ignore[no-untyped-def]
@@ -188,13 +187,9 @@ class InMemoryAgentExecutionBindingStore:
         bid = str(binding.binding_id)
         rid = str(binding.run_id)
         if bid in self._by_id:
-            raise DuplicateRuntimeObjectError(
-                f"binding already saved: {binding.binding_id}"
-            )
+            raise DuplicateRuntimeObjectError(f"binding already saved: {binding.binding_id}")
         if rid in self._by_run:
-            raise AgentAlreadyBoundError(
-                f"run {binding.run_id} already has a binding"
-            )
+            raise AgentAlreadyBoundError(f"run {binding.run_id} already has a binding")
         self._by_id[bid] = binding
         self._by_run[rid] = binding
 
@@ -211,9 +206,7 @@ class InMemoryAgentExecutionBindingStore:
     def discard(self, binding_id) -> None:  # type: ignore[no-untyped-def]
         bid = str(binding_id)
         if bid not in self._by_id:
-            raise RuntimeObjectNotFoundError(
-                f"binding not found for discard: {binding_id}"
-            )
+            raise RuntimeObjectNotFoundError(f"binding not found for discard: {binding_id}")
         binding = self._by_id.pop(bid)
         self._by_run.pop(str(binding.run_id), None)
 
@@ -243,9 +236,8 @@ class InMemoryModelExecutionConfigRegistry:
         key = (str(config_id), version)
         if key not in self._configs:
             from .errors import ModelExecutionConfigNotFoundError
-            raise ModelExecutionConfigNotFoundError(
-                f"config not found: {config_id}/{version}"
-            )
+
+            raise ModelExecutionConfigNotFoundError(f"config not found: {config_id}/{version}")
         return self._configs[key]
 
     def list_versions(self, config_id):  # type: ignore[no-untyped-def]
@@ -344,18 +336,13 @@ class FakeProviderExecutor:
 
         self.calls.append(request)
         if self._index >= len(self._outcomes):
-            raise RuntimeError(
-                f"FakeProviderExecutor: outcomes exhausted "
-                f"(consumed {self._index})"
-            )
+            raise RuntimeError(f"FakeProviderExecutor: outcomes exhausted (consumed {self._index})")
         item = self._outcomes[self._index]
         self._index += 1
 
         if isinstance(item, _FakeSuccess):
             resp = ProviderExecutionResponse(
-                response_id=ProviderExecutionResponseId(
-                    f"resp-{self._index}"
-                ),
+                response_id=ProviderExecutionResponseId(f"resp-{self._index}"),
                 artifact_id=RuntimeArtifactId(f"art-{self._index}"),
                 request_id=request.request_id,
                 session_id=request.session_id,
@@ -387,6 +374,7 @@ class FakeProviderExecutor:
             ProviderExecutionOutcome,
             ProviderExecutionOutcomeStatus,
         )
+
         return ProviderExecutionOutcome(
             status=ProviderExecutionOutcomeStatus.FAILED,
             failure=failure,

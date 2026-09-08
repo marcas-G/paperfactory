@@ -109,8 +109,7 @@ class RetrievalRequirement:
             )
         if self.minimum_count > self.maximum_count:
             raise InvalidRetrievalRequirementError(
-                f"minimum_count {self.minimum_count} > maximum_count "
-                f"{self.maximum_count}"
+                f"minimum_count {self.minimum_count} > maximum_count {self.maximum_count}"
             )
         if self.priority < 0 or self.priority > 100:
             raise InvalidRetrievalRequirementError(
@@ -209,9 +208,7 @@ class RetrievalResolution:
             required_item_ids=self.required_item_ids,
             optional_item_ids=self.optional_item_ids,
             forbidden_item_ids=(
-                forbidden_item_ids
-                if forbidden_item_ids is not None
-                else self.forbidden_item_ids
+                forbidden_item_ids if forbidden_item_ids is not None else self.forbidden_item_ids
             ),
             budget=budget,
             context_policy_id=context_policy.policy_id,

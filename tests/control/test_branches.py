@@ -41,23 +41,17 @@ def test_br_001_create_main_branch(controller) -> None:  # type: ignore[no-untyp
 
 def test_br_002_second_main_rejected(controller) -> None:  # type: ignore[no-untyped-def]
     with pytest.raises(DuplicateBranchError):
-        controller.create_main_branch(
-            project_id=PROJECT, branch_id=BranchId("main-2")
-        )
+        controller.create_main_branch(project_id=PROJECT, branch_id=BranchId("main-2"))
 
 
 def test_br_003_fork_active_source(controller) -> None:  # type: ignore[no-untyped-def]
-    h1 = controller.fork_branch(
-        source_branch_id=BRANCH, new_branch_id=H1, name="H1"
-    )
+    h1 = controller.fork_branch(source_branch_id=BRANCH, new_branch_id=H1, name="H1")
     assert h1.status is BranchStatus.ACTIVE
     assert h1.parent_branch_id == BRANCH
 
 
 def test_br_004_fork_provenance(controller) -> None:  # type: ignore[no-untyped-def]
-    h1 = controller.fork_branch(
-        source_branch_id=BRANCH, new_branch_id=H1, name="H1"
-    )
+    h1 = controller.fork_branch(source_branch_id=BRANCH, new_branch_id=H1, name="H1")
     assert h1.parent_branch_id == BRANCH
     assert h1.forked_from_revision == 0  # main is at revision 0
 
@@ -204,9 +198,7 @@ def test_iso_004_approval_branch_mismatch_rejected(controller) -> None:  # type:
         target_object_id=OBJ,
     )
     controller._tasks.mark_running(task.task_id)
-    proposal = controller.propose_transition(
-        approval_action, approval_def, to_state=STATE_READY
-    )
+    proposal = controller.propose_transition(approval_action, approval_def, to_state=STATE_READY)
     controller.execute_transition(
         proposal, approval_def, actor_type=ActorType.SYSTEM, task_id=task.task_id
     )
@@ -230,9 +222,7 @@ def test_iso_005_pending_cannot_resume_on_other_branch(controller) -> None:  # t
         target_object_id=OBJ,
     )
     controller._tasks.mark_running(task.task_id)
-    proposal = controller.propose_transition(
-        approval_action, approval_def, to_state=STATE_READY
-    )
+    proposal = controller.propose_transition(approval_action, approval_def, to_state=STATE_READY)
     controller.execute_transition(
         proposal, approval_def, actor_type=ActorType.SYSTEM, task_id=task.task_id
     )

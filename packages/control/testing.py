@@ -63,8 +63,7 @@ class InMemoryStateStore:
         key = (snapshot.project_id, snapshot.branch_id)
         if key in self._snapshots:
             raise InvariantViolationError(
-                f"snapshot already initialized for "
-                f"{snapshot.project_id}/{snapshot.branch_id}"
+                f"snapshot already initialized for {snapshot.project_id}/{snapshot.branch_id}"
             )
         # Store a deep copy so callers cannot mutate branch state through an
         # alias to the source snapshot (STEP-004 §13 state isolation).
@@ -80,9 +79,7 @@ class InMemoryStateStore:
         key = (project_id, branch_id)
         if key not in self._snapshots:
             # Empty branch — revision 0, no objects.
-            return ResearchStateSnapshot(
-                project_id=project_id, branch_id=branch_id, revision=0
-            )
+            return ResearchStateSnapshot(project_id=project_id, branch_id=branch_id, revision=0)
         return self._snapshots[key]
 
     def commit_transition(
@@ -95,16 +92,14 @@ class InMemoryStateStore:
         # 1. optimistic-concurrency guard
         if proposal.expected_revision != current.revision:
             raise StaleStateError(
-                f"stale revision: expected={proposal.expected_revision} "
-                f"actual={current.revision}"
+                f"stale revision: expected={proposal.expected_revision} actual={current.revision}"
             )
 
         # 2. from_state invariant
         actual_state = current.object_states.get(proposal.target_object_id)
         if actual_state != proposal.from_state:
             raise InvariantViolationError(
-                f"from_state mismatch: proposal={proposal.from_state!r} "
-                f"actual={actual_state!r}"
+                f"from_state mismatch: proposal={proposal.from_state!r} actual={actual_state!r}"
             )
 
         # 3. build new immutable snapshot: copy states, update target, +1 rev
@@ -157,9 +152,7 @@ class InMemoryTaskStore:
     def get(self, task_id: TaskId) -> ResearchTask:
         return self._tasks[task_id]
 
-    def list_for_project(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[ResearchTask]:
+    def list_for_project(self, project_id: ProjectId, branch_id: BranchId) -> list[ResearchTask]:
         return [
             t
             for t in self._tasks.values()
@@ -185,15 +178,11 @@ class InMemoryPendingTransitionStore:
     def get(self, proposal_id: ProposalId) -> PendingTransition:
         return self._records[proposal_id]
 
-    def list_pending(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[PendingTransition]:
+    def list_pending(self, project_id: ProjectId, branch_id: BranchId) -> list[PendingTransition]:
         return [
             p
             for p in self._records.values()
-            if p.project_id == project_id
-            and p.branch_id == branch_id
-            and not p.is_terminal()
+            if p.project_id == project_id and p.branch_id == branch_id and not p.is_terminal()
         ]
 
     def update(self, pending: PendingTransition) -> None:
@@ -219,9 +208,7 @@ class InMemoryApprovalStore:
     def get(self, approval_id: ApprovalId) -> ApprovalRequest:
         return self._records[approval_id]
 
-    def list_pending(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> list[ApprovalRequest]:
+    def list_pending(self, project_id: ProjectId, branch_id: BranchId) -> list[ApprovalRequest]:
         return [
             a
             for a in self._records.values()
@@ -232,9 +219,7 @@ class InMemoryApprovalStore:
 
     def update(self, approval: ApprovalRequest) -> None:
         if approval.approval_id not in self._records:
-            raise InvariantViolationError(
-                f"cannot update unknown approval: {approval.approval_id}"
-            )
+            raise InvariantViolationError(f"cannot update unknown approval: {approval.approval_id}")
         self._records[approval.approval_id] = approval
 
 
@@ -318,9 +303,7 @@ class InMemoryForkPointStore:
     def save(self, fork_point: BranchForkPoint) -> None:
         # Fork provenance is immutable (BR-INV-05): write once.
         if fork_point.branch_id in self._points:
-            raise InvariantViolationError(
-                f"fork point already recorded for {fork_point.branch_id}"
-            )
+            raise InvariantViolationError(f"fork point already recorded for {fork_point.branch_id}")
         self._points[fork_point.branch_id] = fork_point
 
     def get(self, branch_id: BranchId) -> BranchForkPoint:

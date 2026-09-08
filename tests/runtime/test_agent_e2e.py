@@ -11,6 +11,7 @@ These compose the entire STEP-013 chain:
 
 plus version-pinning proof (M3-AGT-002).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -85,13 +86,23 @@ def _build_stack():
         return TZ
 
     sm = RuntimeSessionManager(
-        sess_store, run_store, sink,
-        session_id_factory=_Counter("sess"), event_id_factory=_Counter("evt"),
-        now=clock)
+        sess_store,
+        run_store,
+        sink,
+        session_id_factory=_Counter("sess"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
     rm = RuntimeRunManager(
-        sess_store, run_store, att_store, sink,
-        run_id_factory=_Counter("run"), attempt_id_factory=_Counter("att"),
-        event_id_factory=_Counter("evt"), now=clock)
+        sess_store,
+        run_store,
+        att_store,
+        sink,
+        run_id_factory=_Counter("run"),
+        attempt_id_factory=_Counter("att"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
     return sm, rm, sink, sess_store, run_store, att_store, clock
 
 
@@ -103,26 +114,48 @@ def _m3_agt_001_stack():
     binding_store = InMemoryAgentExecutionBindingStore()
 
     profile = ModelExecutionProfile(
-        profile_id=ModelExecutionProfileId("profile-A"), version="v1",
-        name="profile-A v1", description="d",
-        provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-        capabilities=CAPS)
+        profile_id=ModelExecutionProfileId("profile-A"),
+        version="v1",
+        name="profile-A v1",
+        description="d",
+        provider=FAKE_PROVIDER,
+        model=FAKE_MODEL_V1,
+        capabilities=CAPS,
+    )
     profile_reg.register(profile)
-    config_reg.register(ModelExecutionConfig(
-        config_id=ModelExecutionConfigId("config-A"), version="v1",
-        name="config-A v1", description="d", profile_ref=profile.ref,
-        parameter_settings=()))
+    config_reg.register(
+        ModelExecutionConfig(
+            config_id=ModelExecutionConfigId("config-A"),
+            version="v1",
+            name="config-A v1",
+            description="d",
+            profile_ref=profile.ref,
+            parameter_settings=(),
+        )
+    )
     agent = AgentDefinition(
-        agent_id=AgentId("agent-A"), version="v3",
-        name="agent-A v3", description="d",
-        allowed_execution_profiles=(ModelExecutionProfileRef(
-            ModelExecutionProfileId("profile-A"), "v1"),))
+        agent_id=AgentId("agent-A"),
+        version="v3",
+        name="agent-A v3",
+        description="d",
+        allowed_execution_profiles=(
+            ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1"),
+        ),
+    )
     agent_reg.register(agent)
 
     mgr = AgentBindingManager(
-        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink,
-        binding_id_factory=_Counter("bind"), event_id_factory=_Counter("evt"),
-        now=clock)
+        sess_store,
+        run_store,
+        agent_reg,
+        profile_reg,
+        config_reg,
+        binding_store,
+        sink,
+        binding_id_factory=_Counter("bind"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
     coord = RuntimeExecutionCoordinator(
         rm,
         InMemoryProviderExecutionRequestStore(),
@@ -134,21 +167,35 @@ def _m3_agt_001_stack():
         now=clock,
     )
     factory = AgentProviderExecutionRequestFactory(att_store)
-    return (sm, rm, sink, mgr, factory, coord, profile_reg, agent_reg,
-            binding_store, att_store, clock)
+    return (
+        sm,
+        rm,
+        sink,
+        mgr,
+        factory,
+        coord,
+        profile_reg,
+        agent_reg,
+        binding_store,
+        att_store,
+        clock,
+    )
 
 
 def test_m3_agt_001_full_agent_binding_execution():
     """Full bind -> ready -> start -> factory -> coordinator -> SUCCEEDED."""
-    (sm, rm, sink, mgr, factory, coord, profile_reg, agent_reg,
-     binding_store, att_store, clock) = _m3_agt_001_stack()
+    (sm, rm, sink, mgr, factory, coord, profile_reg, agent_reg, binding_store, att_store, clock) = (
+        _m3_agt_001_stack()
+    )
 
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
 
     binding = mgr.bind_agent(
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v3",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v3",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
@@ -164,17 +211,22 @@ def test_m3_agt_001_full_agent_binding_execution():
     assert started_run.status.value == "RUNNING"
 
     request = factory.build(
-        binding=binding, session=session, run=started_run, attempt=att,
+        binding=binding,
+        session=session,
+        run=started_run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input={"segments": ["s1"]}, created_at=TZ,
+        projected_input={"segments": ["s1"]},
+        created_at=TZ,
     )
     # provider/model/input_ref sourced exclusively from Binding/Run
     assert request.provider == FAKE_PROVIDER
     assert request.model == FAKE_MODEL_V1
     assert request.input_ref == INPUT_REF
 
-    fake = FakeProviderExecutor([FakeProviderExecutor.success(
-        {"judgement": "CONTRADICT", "confidence": 0.9})])
+    fake = FakeProviderExecutor(
+        [FakeProviderExecutor.success({"judgement": "CONTRADICT", "confidence": 0.9})]
+    )
     final_run, outcome = asyncio.run(coord.execute(request, fake))
     assert final_run.status.value == "SUCCEEDED"
     assert outcome.status.value == "SUCCEEDED"
@@ -216,46 +268,88 @@ def test_m3_agt_002_version_pinning():
 
     # Register v1 AND v2 for both agent and profile
     profile_v1 = ModelExecutionProfile(
-        profile_id=ModelExecutionProfileId("profile-A"), version="v1",
-        name="p v1", description="d", provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-        capabilities=CAPS)
+        profile_id=ModelExecutionProfileId("profile-A"),
+        version="v1",
+        name="p v1",
+        description="d",
+        provider=FAKE_PROVIDER,
+        model=FAKE_MODEL_V1,
+        capabilities=CAPS,
+    )
     profile_v2 = ModelExecutionProfile(
-        profile_id=ModelExecutionProfileId("profile-A"), version="v2",
-        name="p v2", description="d", provider=FAKE_PROVIDER, model=FAKE_MODEL_V2,
-        capabilities=CAPS)
+        profile_id=ModelExecutionProfileId("profile-A"),
+        version="v2",
+        name="p v2",
+        description="d",
+        provider=FAKE_PROVIDER,
+        model=FAKE_MODEL_V2,
+        capabilities=CAPS,
+    )
     profile_reg.register(profile_v1)
     profile_reg.register(profile_v2)
 
     ref_v1 = ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1")
     ref_v2 = ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v2")
     # config v1 pins profile v1; config v2 pins profile v2
-    config_reg.register(ModelExecutionConfig(
-        config_id=ModelExecutionConfigId("config-A"), version="v1",
-        name="c v1", description="d", profile_ref=ref_v1, parameter_settings=()))
-    config_reg.register(ModelExecutionConfig(
-        config_id=ModelExecutionConfigId("config-A"), version="v2",
-        name="c v2", description="d", profile_ref=ref_v2, parameter_settings=()))
+    config_reg.register(
+        ModelExecutionConfig(
+            config_id=ModelExecutionConfigId("config-A"),
+            version="v1",
+            name="c v1",
+            description="d",
+            profile_ref=ref_v1,
+            parameter_settings=(),
+        )
+    )
+    config_reg.register(
+        ModelExecutionConfig(
+            config_id=ModelExecutionConfigId("config-A"),
+            version="v2",
+            name="c v2",
+            description="d",
+            profile_ref=ref_v2,
+            parameter_settings=(),
+        )
+    )
     agent_v1 = AgentDefinition(
-        agent_id=AgentId("agent-A"), version="v1", name="a v1", description="d",
-        allowed_execution_profiles=(ref_v1,))
+        agent_id=AgentId("agent-A"),
+        version="v1",
+        name="a v1",
+        description="d",
+        allowed_execution_profiles=(ref_v1,),
+    )
     agent_v2 = AgentDefinition(
-        agent_id=AgentId("agent-A"), version="v2", name="a v2", description="d",
-        allowed_execution_profiles=(ref_v1, ref_v2))
+        agent_id=AgentId("agent-A"),
+        version="v2",
+        name="a v2",
+        description="d",
+        allowed_execution_profiles=(ref_v1, ref_v2),
+    )
     agent_reg.register(agent_v1)
     agent_reg.register(agent_v2)
 
     mgr = AgentBindingManager(
-        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink,
-        binding_id_factory=_Counter("bind"), event_id_factory=_Counter("evt"),
-        now=clock)
+        sess_store,
+        run_store,
+        agent_reg,
+        profile_reg,
+        config_reg,
+        binding_store,
+        sink,
+        binding_id_factory=_Counter("bind"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
 
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
 
     # Explicitly bind the v1 versions even though v2 exists
     binding = mgr.bind_agent(
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
@@ -274,8 +368,12 @@ def test_m3_agt_002_version_pinning():
     started_run, att = rm.start_run(run.run_id)
     factory = AgentProviderExecutionRequestFactory(att_store)
     request = factory.build(
-        binding=binding, session=session, run=started_run, attempt=att,
+        binding=binding,
+        session=session,
+        run=started_run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert request.model == FAKE_MODEL_V1  # still v1, no auto-upgrade

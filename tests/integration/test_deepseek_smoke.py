@@ -93,9 +93,7 @@ class DeepSeekProviderExecutor:
         self._api_key = api_key
         self._model: str | None = None
 
-    async def execute(
-        self, request: ProviderExecutionRequest
-    ) -> ProviderExecutionOutcome:
+    async def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionOutcome:
         projection = request.projected_input
         try:
             if self._model is None:
@@ -108,8 +106,7 @@ class DeepSeekProviderExecutor:
                 {
                     "role": "user",
                     "content": "\n\n".join(
-                        entry.rendered_content
-                        for entry in getattr(projection, "input", ())
+                        entry.rendered_content for entry in getattr(projection, "input", ())
                     )
                     + (
                         "\n\nRespond with ONLY a JSON object with keys "
@@ -137,9 +134,7 @@ class DeepSeekProviderExecutor:
             return ProviderExecutionOutcome(
                 status=ProviderExecutionOutcomeStatus.SUCCEEDED,
                 response=ProviderExecutionResponse(
-                    response_id=ProviderExecutionResponseId(
-                        "resp-deepseek"
-                    ),
+                    response_id=ProviderExecutionResponseId("resp-deepseek"),
                     artifact_id=RuntimeArtifactId("art-deepseek"),
                     request_id=request.request_id,
                     session_id=request.session_id,
@@ -183,9 +178,7 @@ def test_deepseek_smoke_full_chain(
     record = executor.execute(_slice._make_request(), definition, _slice._binding_spec(), deepseek)
 
     assert record.run is not None
-    assert record.run.status is RunStatus.SUCCEEDED, (
-        f"provider failed: {record.run.failure}"
-    )
+    assert record.run.status is RunStatus.SUCCEEDED, f"provider failed: {record.run.failure}"
     assert record.validation is not None
     assert record.validation.status.value == "VALID", (
         f"raw output rejected: {getattr(record.validation, 'issues', None)}"

@@ -263,9 +263,7 @@ def _scope_visible(
     return item.project_id == project_id and item.branch_id == branch_id
 
 
-def _sort_items(
-    items: list[ContextItem], layer_rank: dict[ContextLayer, int]
-) -> list[ContextItem]:
+def _sort_items(items: list[ContextItem], layer_rank: dict[ContextLayer, int]) -> list[ContextItem]:
     """Deterministic item order: priority desc, layer_order index, item_id asc."""
     return sorted(
         items,

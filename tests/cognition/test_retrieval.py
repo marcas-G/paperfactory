@@ -52,8 +52,15 @@ from .conftest import (
 # =========================================================================
 def test_ret_001_context_item_type_nine_values() -> None:
     assert {t.value for t in ContextItemType} == {
-        "INSTRUCTION", "STATE", "EVIDENCE", "DECISION", "CONSTRAINT",
-        "FAILURE", "ARTIFACT", "REFERENCE", "NOTE",
+        "INSTRUCTION",
+        "STATE",
+        "EVIDENCE",
+        "DECISION",
+        "CONSTRAINT",
+        "FAILURE",
+        "ARTIFACT",
+        "REFERENCE",
+        "NOTE",
     }
 
 
@@ -123,26 +130,29 @@ def test_ret_012_priority_out_of_range_rejected() -> None:
 # =========================================================================
 def _resolve_one(resolver, catalog, context_policy, req):  # type: ignore[no-untyped-def]
     return resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
-        requirements=[req], retrieval_policy=RetrievalPolicy(
-            policy_id=RetrievalPolicyId("p"), version=1),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[req],
+        retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
 
 
 def test_ret_013_required_labels_all_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
     add_to_catalog(catalog, [make_item("a", labels=frozenset({"x", "y"}))])
-    req = make_requirement("r", required_labels=frozenset({"x", "y"}),
-                           layers=frozenset({ContextLayer.TASK}))
+    req = make_requirement(
+        "r", required_labels=frozenset({"x", "y"}), layers=frozenset({ContextLayer.TASK})
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert ContextItemId("a") in res.required_item_ids
 
 
 def test_ret_014_missing_required_label_no_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
     add_to_catalog(catalog, [make_item("a", labels=frozenset({"x"}))])
-    req = make_requirement("r", required_labels=frozenset({"x", "y"}),
-                           minimum_count=0)
+    req = make_requirement("r", required_labels=frozenset({"x", "y"}), minimum_count=0)
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert res.required_item_ids == ()
 
@@ -170,8 +180,7 @@ def test_ret_017_excluded_labels_excludes(resolver, catalog, context_policy) -> 
 
 def test_ret_018_case_sensitive_no_autofix(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
     add_to_catalog(catalog, [make_item("a", labels=frozenset({"Novelty"}))])
-    req = make_requirement("r", required_labels=frozenset({"novelty"}),
-                           minimum_count=0)
+    req = make_requirement("r", required_labels=frozenset({"novelty"}), minimum_count=0)
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert res.required_item_ids == ()
 
@@ -188,45 +197,58 @@ def test_ret_019_item_type_match(resolver, catalog, context_policy) -> None:  # 
 
 def test_ret_020_wrong_item_type_no_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
     add_to_catalog(catalog, [make_item("a", item_type=ContextItemType.EVIDENCE)])
-    req = make_requirement("r", item_types=frozenset({ContextItemType.INSTRUCTION}),
-                           minimum_count=0)
+    req = make_requirement(
+        "r", item_types=frozenset({ContextItemType.INSTRUCTION}), minimum_count=0
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert res.required_item_ids == ()
 
 
 def test_ret_021_layer_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [make_item("a", layer=ContextLayer.STATE,
-                                       scope=ContextScope.PROJECT)])
-    req = make_requirement("r", layers=frozenset({ContextLayer.STATE}),
-                           scopes=frozenset({ContextScope.PROJECT}))
+    add_to_catalog(catalog, [make_item("a", layer=ContextLayer.STATE, scope=ContextScope.PROJECT)])
+    req = make_requirement(
+        "r", layers=frozenset({ContextLayer.STATE}), scopes=frozenset({ContextScope.PROJECT})
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert ContextItemId("a") in res.required_item_ids
 
 
 def test_ret_022_scope_type_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [make_item("a", scope=ContextScope.SYSTEM,
-                                       layer=ContextLayer.GLOBAL)])
-    req = make_requirement("r", layers=frozenset({ContextLayer.GLOBAL}),
-                           scopes=frozenset({ContextScope.SYSTEM}))
+    add_to_catalog(catalog, [make_item("a", scope=ContextScope.SYSTEM, layer=ContextLayer.GLOBAL)])
+    req = make_requirement(
+        "r", layers=frozenset({ContextLayer.GLOBAL}), scopes=frozenset({ContextScope.SYSTEM})
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert ContextItemId("a") in res.required_item_ids
 
 
 def test_ret_023_same_project_visible(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [make_item("a", scope=ContextScope.PROJECT,
-                                       layer=ContextLayer.STATE)])
-    req = make_requirement("r", layers=frozenset({ContextLayer.STATE}),
-                           scopes=frozenset({ContextScope.PROJECT}))
+    add_to_catalog(catalog, [make_item("a", scope=ContextScope.PROJECT, layer=ContextLayer.STATE)])
+    req = make_requirement(
+        "r", layers=frozenset({ContextLayer.STATE}), scopes=frozenset({ContextScope.PROJECT})
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert ContextItemId("a") in res.required_item_ids
 
 
 def test_ret_024_cross_project_no_match(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [make_item("a", scope=ContextScope.PROJECT,
-                                       layer=ContextLayer.STATE,
-                                       project_id=ProjectId("OTHER"))])
-    req = make_requirement("r", layers=frozenset({ContextLayer.STATE}),
-                           scopes=frozenset({ContextScope.PROJECT}), minimum_count=0)
+    add_to_catalog(
+        catalog,
+        [
+            make_item(
+                "a",
+                scope=ContextScope.PROJECT,
+                layer=ContextLayer.STATE,
+                project_id=ProjectId("OTHER"),
+            )
+        ],
+    )
+    req = make_requirement(
+        "r",
+        layers=frozenset({ContextLayer.STATE}),
+        scopes=frozenset({ContextScope.PROJECT}),
+        minimum_count=0,
+    )
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert res.required_item_ids == ()
 
@@ -251,10 +273,13 @@ def test_ret_026_cross_branch_no_match(resolver, catalog, context_policy) -> Non
 # RET-027..031 — selection ordering / limits
 # =========================================================================
 def test_ret_027_priority_descending(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [
-        make_item("low", priority=10),
-        make_item("high", priority=90),
-    ])
+    add_to_catalog(
+        catalog,
+        [
+            make_item("low", priority=10),
+            make_item("high", priority=90),
+        ],
+    )
     req = make_requirement("r", maximum_count=2)
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert list(res.required_item_ids) == [ContextItemId("high"), ContextItemId("low")]
@@ -262,56 +287,72 @@ def test_ret_027_priority_descending(resolver, catalog, context_policy) -> None:
 
 def test_ret_028_layer_order_tiebreak(resolver, catalog) -> None:  # type: ignore[no-untyped-def]
     policy = ContextPolicy(
-        policy_id="rev", version=1,
+        policy_id="rev",
+        version=1,
         layer_order=(ContextLayer.TASK, ContextLayer.STATE, ContextLayer.GLOBAL),
         default_blinding_policy=__import__(
-            "packages.cognition", fromlist=["BlindingPolicy"]).BlindingPolicy(
-            policy_id="n", version=1),
+            "packages.cognition", fromlist=["BlindingPolicy"]
+        ).BlindingPolicy(policy_id="n", version=1),
     )
     g = make_item("g", layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM, priority=50)
     t = make_item("t", priority=50)
     add_to_catalog(catalog, [g, t])
-    req = make_requirement("r", layers=frozenset({ContextLayer.GLOBAL, ContextLayer.TASK}),
-                           scopes=frozenset({ContextScope.SYSTEM, ContextScope.BRANCH}),
-                           maximum_count=2)
+    req = make_requirement(
+        "r",
+        layers=frozenset({ContextLayer.GLOBAL, ContextLayer.TASK}),
+        scopes=frozenset({ContextScope.SYSTEM, ContextScope.BRANCH}),
+        maximum_count=2,
+    )
     res = _resolve_one(resolver, catalog, policy, req)
     assert list(res.required_item_ids) == [ContextItemId("t"), ContextItemId("g")]
 
 
 def test_ret_029_item_id_lexical_tiebreak(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [
-        make_item("z", priority=50),
-        make_item("a", priority=50),
-    ])
+    add_to_catalog(
+        catalog,
+        [
+            make_item("z", priority=50),
+            make_item("a", priority=50),
+        ],
+    )
     req = make_requirement("r", maximum_count=2)
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert list(res.required_item_ids) == [ContextItemId("a"), ContextItemId("z")]
 
 
 def test_ret_030_maximum_count_truncates(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    add_to_catalog(catalog, [
-        make_item("a", priority=90),
-        make_item("b", priority=50),
-        make_item("c", priority=10),
-    ])
+    add_to_catalog(
+        catalog,
+        [
+            make_item("a", priority=90),
+            make_item("b", priority=50),
+            make_item("c", priority=10),
+        ],
+    )
     req = make_requirement("r", maximum_count=2)
     res = _resolve_one(resolver, catalog, context_policy, req)
     assert set(res.required_item_ids) == {ContextItemId("a"), ContextItemId("b")}
 
 
 def test_ret_031_truncated_recorded_as_requirement_limit(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
-    add_to_catalog(catalog, [
-        make_item("a", priority=90),
-        make_item("b", priority=50),
-        make_item("c", priority=10),
-    ])
+    add_to_catalog(
+        catalog,
+        [
+            make_item("a", priority=90),
+            make_item("b", priority=50),
+            make_item("c", priority=10),
+        ],
+    )
     req = make_requirement("r", maximum_count=1)
     res = _resolve_one(resolver, catalog, context_policy, req)
     rr = res.requirement_resolutions[0]
-    limit_reasons = [e for e in rr.exclusions
-                     if e.reason_code is RetrievalExclusionReason.REQUIREMENT_LIMIT]
+    limit_reasons = [
+        e for e in rr.exclusions if e.reason_code is RetrievalExclusionReason.REQUIREMENT_LIMIT
+    ]
     assert len(limit_reasons) == 2
 
 
@@ -319,15 +360,20 @@ def test_ret_031_truncated_recorded_as_requirement_limit(
 # RET-032..035 — dedup
 # =========================================================================
 def test_ret_032_same_item_matches_multiple_requirements(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     item = make_item("shared", priority=80)
     add_to_catalog(catalog, [item])
     r1 = make_requirement("r1", priority=90)
     r2 = make_requirement("r2", priority=10, required=False, minimum_count=0)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
@@ -343,39 +389,50 @@ def test_ret_033_first_requirement_wins(resolver, catalog, context_policy) -> No
     r1 = make_requirement("r1", priority=90)
     r2 = make_requirement("r2", priority=10, required=False, minimum_count=0)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
     rr1 = next(
-        rr for rr in res.requirement_resolutions
+        rr
+        for rr in res.requirement_resolutions
         if rr.requirement_id == RetrievalRequirementId("r1")
     )
     assert ContextItemId("shared") in rr1.selected_item_ids
 
 
 def test_ret_034_later_requirement_records_already_selected(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     item = make_item("shared", priority=80)
     add_to_catalog(catalog, [item])
     r1 = make_requirement("r1", priority=90)
     r2 = make_requirement("r2", priority=10, minimum_count=0)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
     rr2 = next(
-        rr for rr in res.requirement_resolutions
+        rr
+        for rr in res.requirement_resolutions
         if rr.requirement_id == RetrievalRequirementId("r2")
     )
-    already = [e for e in rr2.exclusions
-               if e.reason_code is RetrievalExclusionReason.ALREADY_SELECTED]
+    already = [
+        e for e in rr2.exclusions if e.reason_code is RetrievalExclusionReason.ALREADY_SELECTED
+    ]
     assert len(already) == 1
 
 
@@ -384,14 +441,22 @@ def test_ret_035_requirement_input_order_invariant(resolver, catalog, context_po
     r1 = make_requirement("r1", priority=90, maximum_count=2)
     r2 = make_requirement("r2", priority=10, required=False, minimum_count=0)
     fwd = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r1, r2],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
     rev = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r2, r1],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r2, r1],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
@@ -436,8 +501,11 @@ def test_ret_040_records_unsatisfied_optional(resolver, catalog, context_policy)
     req = make_requirement("r", required=False, minimum_count=2)
     res = _resolve_one(resolver, catalog, context_policy, req)
     rr = res.requirement_resolutions[0]
-    unsat = [e for e in rr.exclusions
-             if e.reason_code is RetrievalExclusionReason.UNSATISFIED_OPTIONAL_REQUIREMENT]
+    unsat = [
+        e
+        for e in rr.exclusions
+        if e.reason_code is RetrievalExclusionReason.UNSATISFIED_OPTIONAL_REQUIREMENT
+    ]
     assert len(unsat) == 1
 
 
@@ -456,8 +524,12 @@ def test_ret_042_forbidden_selected_excluded(resolver, catalog, context_policy) 
     add_to_catalog(catalog, [make_item("a"), make_item("b")])
     req = make_requirement("r", maximum_count=2)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[req],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[req],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
         forbidden_item_ids=(ContextItemId("a"),),
@@ -471,8 +543,12 @@ def test_ret_043_forbidden_causes_required_fail(resolver, catalog, context_polic
     req = make_requirement("r", minimum_count=1)
     with pytest.raises(RequiredRetrievalRequirementUnsatisfiedError):
         resolver.resolve(
-            project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-            action_id=ACTION, cognitive_mode="FALSIFY", requirements=[req],
+            project_id=PROJECT,
+            branch_id=BRANCH,
+            state_revision=REVISION,
+            action_id=ACTION,
+            cognitive_mode="FALSIFY",
+            requirements=[req],
             retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
             context_policy=context_policy,
             forbidden_item_ids=(ContextItemId("a"),),
@@ -480,13 +556,19 @@ def test_ret_043_forbidden_causes_required_fail(resolver, catalog, context_polic
 
 
 def test_ret_044_optional_forbidden_unsatisfied_still_succeeds(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a")])
     req = make_requirement("r", required=False, minimum_count=1)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[req],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[req],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
         forbidden_item_ids=(ContextItemId("a"),),
@@ -509,8 +591,12 @@ def test_ret_046_required_optional_disjoint(resolver, catalog, context_policy) -
     r1 = make_requirement("r1", priority=90)
     r2 = make_requirement("r2", priority=10, required=False)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r1, r2],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
@@ -518,29 +604,29 @@ def test_ret_046_required_optional_disjoint(resolver, catalog, context_policy) -
 
 
 def test_ret_047_resolution_records_policy_versions(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    res = _resolve_one(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    res = _resolve_one(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert res.retrieval_policy_id == RetrievalPolicyId("p")
     assert res.retrieval_policy_version == 1
     assert res.resolver_version == RESOLVER_VERSION
 
 
 def test_ret_048_resolution_records_revision_action_mode(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    res = _resolve_one(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    res = _resolve_one(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert res.state_revision == REVISION
     assert res.action_id == ACTION
     assert res.cognitive_mode == "FALSIFY"
 
 
 def test_ret_049_requirement_resolution_order_deterministic(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("b", priority=50), make_item("a", priority=50)])
     res = _resolve_one(
-        resolver, catalog, context_policy,
+        resolver,
+        catalog,
+        context_policy,
         make_requirement("r", maximum_count=2),
     )
     rr = res.requirement_resolutions[0]
@@ -562,7 +648,9 @@ def _convert(resolver, catalog, context_policy, req):  # type: ignore[no-untyped
 
 
 def test_ret_050_conversion_produces_context_request(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a")])
     req = make_requirement("r")
@@ -590,8 +678,12 @@ def test_ret_053_forbidden_preserved(resolver, catalog, context_policy) -> None:
     add_to_catalog(catalog, [make_item("a"), make_item("b")])
     req = make_requirement("r", maximum_count=2)
     res = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[req],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[req],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
         forbidden_item_ids=(ContextItemId("a"),),
@@ -599,31 +691,26 @@ def test_ret_053_forbidden_preserved(resolver, catalog, context_policy) -> None:
     from packages.cognition import ContextBudget
 
     request = res.to_context_request(
-        request_id=ContextRequestId("rq"), context_policy=context_policy,
+        request_id=ContextRequestId("rq"),
+        context_policy=context_policy,
         budget=ContextBudget(max_tokens=500),
     )
     assert ContextItemId("a") in request.forbidden_item_ids
 
 
 def test_ret_054_state_revision_preserved(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    request = _convert(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    request = _convert(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert request.state_revision == REVISION
 
 
 def test_ret_055_action_mode_preserved(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    request = _convert(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    request = _convert(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert request.action_id == ACTION
     assert request.cognitive_mode == "FALSIFY"
 
 
 def test_ret_056_context_policy_identity_written(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    request = _convert(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    request = _convert(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert request.context_policy_id == context_policy.policy_id
     assert request.context_policy_version == context_policy.version
 
@@ -632,23 +719,24 @@ def test_ret_056_context_policy_identity_written(resolver, catalog, context_poli
 # RET-057..058 — staleness integration
 # =========================================================================
 def test_ret_057_revision_carried_to_request(resolver, catalog, context_policy) -> None:  # type: ignore[no-untyped-def]
-    request = _convert(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    request = _convert(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     assert request.state_revision == 7
 
 
 def test_ret_058_stale_request_rejected_by_compiler(
-    resolver, catalog, context_policy, compiler, no_blinding  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,
+    compiler,
+    no_blinding,  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.cognition import ContextBudget
     from packages.cognition.errors import StaleContextRequestError
 
-    res = _resolve_one(
-        resolver, catalog, context_policy, make_requirement("r", minimum_count=0)
-    )
+    res = _resolve_one(resolver, catalog, context_policy, make_requirement("r", minimum_count=0))
     request = res.to_context_request(
-        request_id=ContextRequestId("rq"), context_policy=context_policy,
+        request_id=ContextRequestId("rq"),
+        context_policy=context_policy,
         budget=ContextBudget(max_tokens=500),
     )
     # state revision advanced to 8 -> compiler rejects as stale
@@ -678,7 +766,10 @@ def test_ret_060_duplicate_context_item_id_rejected(catalog) -> None:  # type: i
 
 
 def test_ret_061_resolution_store_round_trip(
-    resolver, catalog, context_policy, resolution_store  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,
+    resolution_store,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a")])
     res = _resolve_one(resolver, catalog, context_policy, make_requirement("r"))
@@ -697,21 +788,30 @@ def test_ret_062_duplicate_resolution_id_rejected(resolution_store) -> None:  # 
         InMemoryContextCatalog(), resolution_store, resolution_id_factory=factory
     )
     pol = ContextPolicy(
-        policy_id="d", version=1,
+        policy_id="d",
+        version=1,
         layer_order=(ContextLayer.GLOBAL, ContextLayer.STATE, ContextLayer.TASK),
         default_blinding_policy=BlindingPolicy(policy_id="n", version=1),
     )
     rsv.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=pol,
     )
     # second resolve with same forced id must fail on save
     with pytest.raises(CognitionError):
         rsv.resolve(
-            project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-            action_id=ACTION, cognitive_mode="FALSIFY", requirements=[],
+            project_id=PROJECT,
+            branch_id=BRANCH,
+            state_revision=REVISION,
+            action_id=ACTION,
+            cognitive_mode="FALSIFY",
+            requirements=[],
             retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
             context_policy=pol,
         )
@@ -729,33 +829,43 @@ class _ConstId:
 # RET-063..065 — determinism
 # =========================================================================
 def test_ret_063_catalog_insertion_order_invariant(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     a = make_item("a", priority=50)
     b = make_item("b", priority=50)
     # order 1
     add_to_catalog(catalog, [a, b])
-    res1 = _resolve_one(
-        resolver, catalog, context_policy, make_requirement("r", maximum_count=2)
-    )
+    res1 = _resolve_one(resolver, catalog, context_policy, make_requirement("r", maximum_count=2))
     assert list(res1.required_item_ids) == [ContextItemId("a"), ContextItemId("b")]
 
 
 def test_ret_064_requirement_input_order_invariant(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a"), make_item("b")])
     r1 = make_requirement("r1", priority=90, maximum_count=2)
     r2 = make_requirement("r2", priority=10, required=False, minimum_count=0)
     fwd = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r1, r2],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r1, r2],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
     rev = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r2, r1],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r2, r1],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
@@ -763,7 +873,9 @@ def test_ret_064_requirement_input_order_invariant(
 
 
 def test_ret_065_repeat_resolve_same_result(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a"), make_item("b", priority=90)])
     req = make_requirement("r", maximum_count=2)
@@ -797,16 +909,21 @@ def test_ret_067_resolver_does_not_import_search_vector_lib() -> None:  # type: 
 
 
 def test_ret_068_resolver_does_not_build_bundle(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     add_to_catalog(catalog, [make_item("a")])
     res = _resolve_one(resolver, catalog, context_policy, make_requirement("r"))
-    assert not isinstance(res, __import__(
-        "packages.cognition.context", fromlist=["ContextBundle"]).ContextBundle)
+    assert not isinstance(
+        res, __import__("packages.cognition.context", fromlist=["ContextBundle"]).ContextBundle
+    )
 
 
 def test_ret_069_resolver_does_not_invoke_compiler(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     import inspect
 
@@ -818,7 +935,9 @@ def test_ret_069_resolver_does_not_invoke_compiler(
 
 
 def test_ret_070_resolver_does_not_mutate_research_state(
-    resolver, catalog, context_policy  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,  # type: ignore[no-untyped-def]
 ) -> None:
     import inspect
 
@@ -833,7 +952,11 @@ def test_ret_070_resolver_does_not_mutate_research_state(
 # M2-RET-001 — end-to-end: retrieval → compiler
 # =========================================================================
 def test_m2_ret_001_retrieval_then_compile(
-    resolver, catalog, context_policy, compiler, bundle_store  # type: ignore[no-untyped-def]
+    resolver,
+    catalog,
+    context_policy,
+    compiler,
+    bundle_store,  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.cognition import (
         BlindingPolicy,
@@ -843,53 +966,97 @@ def test_m2_ret_001_retrieval_then_compile(
     )
 
     constitution = make_item(
-        "constitution", item_type=ContextItemType.INSTRUCTION,
-        layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM,
-        content="global rules", tokens=20, priority=80, labels=frozenset({"global"}),
+        "constitution",
+        item_type=ContextItemType.INSTRUCTION,
+        layer=ContextLayer.GLOBAL,
+        scope=ContextScope.SYSTEM,
+        content="global rules",
+        tokens=20,
+        priority=80,
+        labels=frozenset({"global"}),
         instruction_authority=InstructionAuthority.SYSTEM,
     )
     current_state = make_item(
-        "current-state", item_type=ContextItemType.STATE,
-        layer=ContextLayer.STATE, scope=ContextScope.BRANCH,
-        content="state summary", tokens=20, priority=70, labels=frozenset({"current"}),
+        "current-state",
+        item_type=ContextItemType.STATE,
+        layer=ContextLayer.STATE,
+        scope=ContextScope.BRANCH,
+        content="state summary",
+        tokens=20,
+        priority=70,
+        labels=frozenset({"current"}),
     )
     supporting = make_item(
-        "supporting-evidence", item_type=ContextItemType.EVIDENCE,
-        layer=ContextLayer.TASK, scope=ContextScope.BRANCH,
-        content="support", tokens=20, priority=60, labels=frozenset({"support"}),
+        "supporting-evidence",
+        item_type=ContextItemType.EVIDENCE,
+        layer=ContextLayer.TASK,
+        scope=ContextScope.BRANCH,
+        content="support",
+        tokens=20,
+        priority=60,
+        labels=frozenset({"support"}),
     )
     contradictory = make_item(
-        "contradictory-evidence", item_type=ContextItemType.EVIDENCE,
-        layer=ContextLayer.TASK, scope=ContextScope.BRANCH,
-        content="contradiction", tokens=20, priority=55, labels=frozenset({"contradiction"}),
+        "contradictory-evidence",
+        item_type=ContextItemType.EVIDENCE,
+        layer=ContextLayer.TASK,
+        scope=ContextScope.BRANCH,
+        content="contradiction",
+        tokens=20,
+        priority=55,
+        labels=frozenset({"contradiction"}),
     )
     future = make_item(
-        "future-result", item_type=ContextItemType.EVIDENCE,
-        layer=ContextLayer.TASK, scope=ContextScope.BRANCH,
-        content="future", tokens=20, priority=90, labels=frozenset({"future"}),
+        "future-result",
+        item_type=ContextItemType.EVIDENCE,
+        layer=ContextLayer.TASK,
+        scope=ContextScope.BRANCH,
+        content="future",
+        tokens=20,
+        priority=90,
+        labels=frozenset({"future"}),
         protection_tags=frozenset({ContextProtectionTag.FUTURE_RESULT}),
     )
     add_to_catalog(catalog, [constitution, current_state, supporting, contradictory, future])
 
     r1 = make_requirement(
-        "r1", item_types=frozenset({ContextItemType.INSTRUCTION}),
-        layers=frozenset({ContextLayer.GLOBAL}), scopes=frozenset({ContextScope.SYSTEM}),
-        required_labels=frozenset({"global"}), minimum_count=1, maximum_count=1, priority=90,
+        "r1",
+        item_types=frozenset({ContextItemType.INSTRUCTION}),
+        layers=frozenset({ContextLayer.GLOBAL}),
+        scopes=frozenset({ContextScope.SYSTEM}),
+        required_labels=frozenset({"global"}),
+        minimum_count=1,
+        maximum_count=1,
+        priority=90,
     )
     r2 = make_requirement(
-        "r2", item_types=frozenset({ContextItemType.STATE}),
-        layers=frozenset({ContextLayer.STATE}), scopes=frozenset({ContextScope.BRANCH}),
-        required_labels=frozenset({"current"}), minimum_count=1, maximum_count=1, priority=80,
+        "r2",
+        item_types=frozenset({ContextItemType.STATE}),
+        layers=frozenset({ContextLayer.STATE}),
+        scopes=frozenset({ContextScope.BRANCH}),
+        required_labels=frozenset({"current"}),
+        minimum_count=1,
+        maximum_count=1,
+        priority=80,
     )
     r3 = make_requirement(
-        "r3", item_types=frozenset({ContextItemType.EVIDENCE}),
-        layers=frozenset({ContextLayer.TASK}), scopes=frozenset({ContextScope.BRANCH}),
+        "r3",
+        item_types=frozenset({ContextItemType.EVIDENCE}),
+        layers=frozenset({ContextLayer.TASK}),
+        scopes=frozenset({ContextScope.BRANCH}),
         any_labels=frozenset({"support", "contradiction", "future"}),
-        required=False, minimum_count=0, maximum_count=5, priority=50,
+        required=False,
+        minimum_count=0,
+        maximum_count=5,
+        priority=50,
     )
     resolution = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=[r1, r2, r3],
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=[r1, r2, r3],
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
@@ -899,15 +1066,19 @@ def test_m2_ret_001_retrieval_then_compile(
     assert len(resolution.optional_item_ids) == 3
 
     hide_future = BlindingPolicy(
-        policy_id="hide-future", version=1,
+        policy_id="hide-future",
+        version=1,
         hidden_tags=frozenset({ContextProtectionTag.FUTURE_RESULT}),
     )
     request = resolution.to_context_request(
-        request_id=ContextRequestId("rq"), context_policy=context_policy,
+        request_id=ContextRequestId("rq"),
+        context_policy=context_policy,
         budget=ContextBudget(max_tokens=500),
     )
     bundle = compiler.compile(
-        request, context_policy, hide_future,
+        request,
+        context_policy,
+        hide_future,
         [constitution, current_state, supporting, contradictory, future],
         current_state_revision=REVISION,
     )

@@ -239,9 +239,7 @@ def controller(
     Initializes a main branch (ACTIVE) with the draft snapshot, so ordinary
     STEP-002/003/004 transition tests run against an actionable branch."""
     engine = TransitionEngine(store)
-    task_manager = TaskManager(
-        task_store, event_sink, id_factory=seq_id_factory, now=clock
-    )
+    task_manager = TaskManager(task_store, event_sink, id_factory=seq_id_factory, now=clock)
     approval_manager = ApprovalManager(
         approval_store, event_sink, id_factory=seq_id_factory, now=clock
     )

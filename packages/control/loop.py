@@ -143,9 +143,7 @@ def evaluate_stop(
         return LoopStopDecision(
             should_stop=True,
             reason=LoopStopReason.BUDGET_TOTAL_FAILURES,
-            detail=(
-                f"{total_failures} total failures >= max {budget.max_total_failures}"
-            ),
+            detail=(f"{total_failures} total failures >= max {budget.max_total_failures}"),
         )
     return _CONTINUE
 

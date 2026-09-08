@@ -103,9 +103,7 @@ def _check_signal_value(name: str, value: float) -> None:
     if math.isinf(v):
         raise InvalidModelSelectionSignalsError(f"signal {name} is inf")
     if v < 0.0 or v > 1.0:
-        raise InvalidModelSelectionSignalsError(
-            f"signal {name} must be in [0.0, 1.0], got {value}"
-        )
+        raise InvalidModelSelectionSignalsError(f"signal {name} must be in [0.0, 1.0], got {value}")
 
 
 @dataclass(frozen=True)
@@ -171,13 +169,13 @@ class ModelSelectionWeights:
             if v < 0.0:
                 raise InvalidModelSelectionPolicyError(f"{name} must be >= 0")
         total = (
-            float(self.quality_weight) + float(self.cost_efficiency_weight)
-            + float(self.latency_weight) + float(self.reliability_weight)
+            float(self.quality_weight)
+            + float(self.cost_efficiency_weight)
+            + float(self.latency_weight)
+            + float(self.reliability_weight)
         )
         if total <= 0.0:
-            raise InvalidModelSelectionPolicyError(
-                "at least one weight must be > 0"
-            )
+            raise InvalidModelSelectionPolicyError("at least one weight must be > 0")
 
 
 # =========================================================================
@@ -315,14 +313,14 @@ class ModelSelectionRecommendationStore(Protocol):
         ...
 
     def get(
-        self, evaluation_id: ModelSelectionEvaluationId,
-    ) -> ModelSelectionRecommendation:
-        ...
+        self,
+        evaluation_id: ModelSelectionEvaluationId,
+    ) -> ModelSelectionRecommendation: ...
 
     def list_for_agent(
-        self, agent_id: AgentId,
-    ) -> list[ModelSelectionRecommendation]:
-        ...
+        self,
+        agent_id: AgentId,
+    ) -> list[ModelSelectionRecommendation]: ...
 
 
 # =========================================================================
@@ -358,9 +356,11 @@ class ModelSelectionEngine:
         self._profiles = profile_registry
         self._recs = recommendation_store
         import uuid
+
         self._evaluation_id_factory = evaluation_id_factory or (lambda: uuid.uuid4().hex)
         from datetime import UTC
         from datetime import datetime as _dt
+
         self._now = now or (lambda: _dt.now(UTC))
 
     def evaluate(
@@ -474,8 +474,10 @@ class ModelSelectionEngine:
                 reason=ModelSelectionExclusionReason.MISSING_PARAMETER_SUPPORT,
                 detail="missing: " + ",".join(sorted(p.value for p in missing)),
             )
-        if (requirement.allowed_providers
-                and profile.provider.name not in requirement.allowed_providers):
+        if (
+            requirement.allowed_providers
+            and profile.provider.name not in requirement.allowed_providers
+        ):
             return ExcludedModelCandidate(
                 profile_ref=ref,
                 reason=ModelSelectionExclusionReason.PROVIDER_NOT_ALLOWED,
@@ -501,8 +503,14 @@ class ModelSelectionEngine:
         surviving: list[tuple[ModelExecutionProfileRef, ModelSelectionSignals]],
         weights: ModelSelectionWeights,
     ) -> list[RankedModelCandidate]:
-        scored: list[tuple[float, ModelExecutionProfileRef, ModelSelectionSignals,
-                           ModelSelectionScoreComponents]] = []
+        scored: list[
+            tuple[
+                float,
+                ModelExecutionProfileRef,
+                ModelSelectionSignals,
+                ModelSelectionScoreComponents,
+            ]
+        ] = []
         for ref, sig in surviving:
             qc = weights.quality_weight * sig.quality
             cc = weights.cost_efficiency_weight * sig.cost_efficiency
@@ -519,21 +527,25 @@ class ModelSelectionEngine:
             scored.append((total, ref, sig, comps))
 
         # Deterministic sort: score desc, profile_id asc, version asc.
-        scored.sort(key=lambda item: (
-            -item[0],
-            str(item[1].profile_id),
-            item[1].version,
-        ))
+        scored.sort(
+            key=lambda item: (
+                -item[0],
+                str(item[1].profile_id),
+                item[1].version,
+            )
+        )
 
         result: list[RankedModelCandidate] = []
         for idx, (total, ref, sig, comps) in enumerate(scored, start=1):
-            result.append(RankedModelCandidate(
-                profile_ref=ref,
-                rank=idx,
-                score=total,
-                score_components=comps,
-                reason_codes=sig.reason_codes,
-            ))
+            result.append(
+                RankedModelCandidate(
+                    profile_ref=ref,
+                    rank=idx,
+                    score=total,
+                    score_components=comps,
+                    reason_codes=sig.reason_codes,
+                )
+            )
         return result
 
 

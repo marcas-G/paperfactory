@@ -84,8 +84,7 @@ class ContextCompiler:
         # 2. stale request
         if request.state_revision != current_state_revision:
             raise StaleContextRequestError(
-                f"request revision {request.state_revision} != "
-                f"current {current_state_revision}"
+                f"request revision {request.state_revision} != current {current_state_revision}"
             )
 
         # 3. duplicate candidates + index
@@ -105,29 +104,22 @@ class ContextCompiler:
             if item is None:
                 raise RequiredContextMissingError(f"required item missing: {req_id}")
             if not _is_scope_visible(item, request.project_id, request.branch_id):
-                raise RequiredContextScopeError(
-                    f"required item scope mismatch: {req_id}"
-                )
+                raise RequiredContextScopeError(f"required item scope mismatch: {req_id}")
             if _is_blinded(item, blinding_policy):
-                raise RequiredContextBlindedError(
-                    f"required item blinded: {req_id}"
-                )
+                raise RequiredContextBlindedError(f"required item blinded: {req_id}")
             required_items.append(item)
 
         # required tokens vs budget
         required_tokens = sum(i.estimated_tokens for i in required_items)
         if required_tokens > request.budget.max_tokens:
             raise ContextBudgetExceededError(
-                f"required tokens {required_tokens} > budget "
-                f"{request.budget.max_tokens}"
+                f"required tokens {required_tokens} > budget {request.budget.max_tokens}"
             )
         included.extend(required_items)
 
         # 5/6/9. OPTIONAL — scope/blinding exclude, then greedy budget
         optional_items = [
-            candidate_index[oid]
-            for oid in request.optional_item_ids
-            if oid in candidate_index
+            candidate_index[oid] for oid in request.optional_item_ids if oid in candidate_index
         ]
         # record missing optional items
         for oid in request.optional_item_ids:
@@ -179,9 +171,7 @@ class ContextCompiler:
         # 8. deterministic order of the final included set (required first,
         # then optional, each deterministically sorted).
         included_required = _deterministic_sort(required_items, context_policy.layer_order)
-        included_optional = [
-            it for it in included if it not in required_items
-        ]
+        included_optional = [it for it in included if it not in required_items]
         included_optional = _deterministic_sort(included_optional, context_policy.layer_order)
         final_items: tuple[ContextItem, ...] = (*included_required, *included_optional)
 

@@ -109,9 +109,7 @@ class InMemoryRetrievalResolutionStore:
 
     def save(self, resolution: RetrievalResolution) -> None:
         if resolution.resolution_id in self._records:
-            raise CognitionError(
-                f"resolution already saved: {resolution.resolution_id}"
-            )
+            raise CognitionError(f"resolution already saved: {resolution.resolution_id}")
         self._records[resolution.resolution_id] = resolution
 
     def get(self, resolution_id: RetrievalResolutionId) -> RetrievalResolution:
@@ -292,26 +290,20 @@ class ExampleCognitiveAssessmentValidator:
 
     schema_ref = OutputSchemaRef(OutputSchemaId("example-assessment"), 1)
 
-    def validate(
-        self, payload: object, contract: OutputContract
-    ) -> SchemaValidationOutcome:
+    def validate(self, payload: object, contract: OutputContract) -> SchemaValidationOutcome:
         issues: list[SchemaValidationIssue] = []
         if not isinstance(payload, Mapping):
             return SchemaValidationOutcome(
                 valid=False,
                 normalized_payload=None,
-                issues=(
-                    SchemaValidationIssue("NOT_OBJECT", (), "payload must be a mapping"),
-                ),
+                issues=(SchemaValidationIssue("NOT_OBJECT", (), "payload must be a mapping"),),
             )
         data: Mapping = payload
         known = {"judgement", "confidence", "reason_codes"}
         if contract.strict:
             for key in data:
                 if key not in known:
-                    issues.append(
-                        SchemaValidationIssue("UNKNOWN_FIELD", (key,), "unknown field")
-                    )
+                    issues.append(SchemaValidationIssue("UNKNOWN_FIELD", (key,), "unknown field"))
 
         judgement = cast(object, data.get("judgement"))
         if judgement not in _JUDGEMENTS:

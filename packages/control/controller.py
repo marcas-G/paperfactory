@@ -143,9 +143,7 @@ class ResearchController:
         current = state.object_states.get(target_object_id)
         if current is None:
             return []
-        return [
-            d for d in self._registry.list_all() if d.allows_source_state(current)
-        ]
+        return [d for d in self._registry.list_all() if d.allows_source_state(current)]
 
     # ===================================================================
     # Tasks
@@ -422,18 +420,14 @@ class ResearchController:
     def approve(
         self, approval_id: ApprovalId, *, resolved_by: ActorType, note: str = ""
     ) -> ApprovalRequest:
-        approval = self._approvals.approve(
-            approval_id, resolved_by=resolved_by, note=note
-        )
+        approval = self._approvals.approve(approval_id, resolved_by=resolved_by, note=note)
         self._on_approval_resolved(approval, approved=True)
         return approval
 
     def reject(
         self, approval_id: ApprovalId, *, resolved_by: ActorType, note: str = ""
     ) -> ApprovalRequest:
-        approval = self._approvals.reject(
-            approval_id, resolved_by=resolved_by, note=note
-        )
+        approval = self._approvals.reject(approval_id, resolved_by=resolved_by, note=note)
         self._on_approval_resolved(approval, approved=False)
         return approval
 
@@ -528,9 +522,7 @@ class ResearchController:
     # ===================================================================
     # Branch-aware guards (STEP-004 §16/§20/§21/§22)
     # ===================================================================
-    def _assert_branch_actionable(
-        self, project_id: ProjectId, branch_id: BranchId
-    ) -> None:
+    def _assert_branch_actionable(self, project_id: ProjectId, branch_id: BranchId) -> None:
         """Ordinary research actions/transitions require an ACTIVE branch
         (STEP-004 §16). PAUSED/terminal branches raise IllegalActionError."""
         try:
@@ -539,8 +531,7 @@ class ResearchController:
             raise IllegalActionError(f"branch not found: {branch_id}") from None
         if branch.project_id != project_id:
             raise BranchScopeMismatchError(
-                f"branch {branch_id} belongs to project {branch.project_id}, "
-                f"not {project_id}"
+                f"branch {branch_id} belongs to project {branch.project_id}, not {project_id}"
             )
         if branch.status not in ACTIONABLE_BRANCH_STATUSES:
             raise IllegalActionError(
@@ -610,9 +601,7 @@ class ResearchController:
             except KeyError:
                 return
             if pending.status is PendingTransitionStatus.PENDING:
-                updated = pending.with_status(
-                    PendingTransitionStatus.RESUMABLE, now=self._now()
-                )
+                updated = pending.with_status(PendingTransitionStatus.RESUMABLE, now=self._now())
                 self._pending_store.update(updated)
         elif status is ApprovalStatus.REJECTED:
             try:
@@ -620,9 +609,7 @@ class ResearchController:
             except KeyError:
                 pending = None
             if pending is not None and not pending.is_terminal():
-                updated = pending.with_status(
-                    PendingTransitionStatus.REJECTED, now=self._now()
-                )
+                updated = pending.with_status(PendingTransitionStatus.REJECTED, now=self._now())
                 self._pending_store.update(updated)
             # FAIL the linked task (STEP-003 §25): WAITING -> FAILED
             try:
@@ -654,9 +641,7 @@ class ResearchController:
         elif status is TaskStatus.FAILED:
             self._tasks.mark_failed(task_id)
 
-    def _advance_pending(
-        self, pending: PendingTransition, status: PendingTransitionStatus
-    ) -> None:
+    def _advance_pending(self, pending: PendingTransition, status: PendingTransitionStatus) -> None:
         if pending.status is status:
             return
         updated = pending.with_status(status, now=self._now())

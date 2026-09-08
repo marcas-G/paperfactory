@@ -186,13 +186,15 @@ def definition() -> ResearchActionDefinition:
 
 def _register_templates(registry: InMemoryPromptTemplateRegistry) -> None:
     harness = PromptTemplate(
-        template_id=PromptTemplateId("harness"), version=1,
+        template_id=PromptTemplateId("harness"),
+        version=1,
         kind=PromptTemplateKind.HARNESS_GUARDRAIL,
         body="You are a research cognition engine. Follow the output contract exactly.",
         variables=frozenset(),
     )
     task = PromptTemplate(
-        template_id=PromptTemplateId("task"), version=1,
+        template_id=PromptTemplateId("task"),
+        version=1,
         kind=PromptTemplateKind.TASK_FRAME,
         body=(
             "Objective: $task_objective\n"
@@ -209,12 +211,15 @@ def _register_templates(registry: InMemoryPromptTemplateRegistry) -> None:
     from packages.cognition.modes import CognitiveMode
 
     for mode in CognitiveMode:
-        registry.register(PromptTemplate(
-            template_id=PromptTemplateId(f"mode-{mode.value}"), version=1,
-            kind=PromptTemplateKind.MODE_GUIDANCE,
-            body=f"Think in {mode.value} mode.",
-            variables=frozenset(),
-        ))
+        registry.register(
+            PromptTemplate(
+                template_id=PromptTemplateId(f"mode-{mode.value}"),
+                version=1,
+                kind=PromptTemplateKind.MODE_GUIDANCE,
+                body=f"Think in {mode.value} mode.",
+                variables=frozenset(),
+            )
+        )
 
 
 def _build_stack(clock, seq, snapshot, definition):
@@ -238,12 +243,16 @@ def _build_stack(clock, seq, snapshot, definition):
         TaskManager(task_store, control_sink, id_factory=seq, now=clock),
         ApprovalManager(approval_store, control_sink, id_factory=seq, now=clock),
         BranchManager(
-            branch_store, fork_store, state_store, merge_store, task_store,
-            control_sink, id_factory=seq, now=clock,
+            branch_store,
+            fork_store,
+            state_store,
+            merge_store,
+            task_store,
+            control_sink,
+            id_factory=seq,
+            now=clock,
         ),
-        ResearchPolicyEngine(
-            registry, rec_store, control_sink, id_factory=seq, now=clock
-        ),
+        ResearchPolicyEngine(registry, rec_store, control_sink, id_factory=seq, now=clock),
         pending_store=pending_store,
         task_store=task_store,
         approval_store=approval_store,
@@ -254,26 +263,26 @@ def _build_stack(clock, seq, snapshot, definition):
         id_factory=seq,
         now=clock,
     )
-    controller.create_main_branch(
-        project_id=PROJECT, branch_id=BRANCH, initial_snapshot=snapshot
-    )
+    controller.create_main_branch(project_id=PROJECT, branch_id=BRANCH, initial_snapshot=snapshot)
 
     # --- cognition plane ----------------------------------------------------
     catalog = InMemoryContextCatalog()
-    catalog.add(ContextItem(
-        item_id=ContextItemId("item-knowledge-1"),
-        layer=ContextLayer.STATE,
-        scope=ContextScope.BRANCH,
-        source_ref=ContextSourceRef(
-            source_type="knowledge_item", source_id=str(OBJ), version="1"
-        ),
-        content="KnowledgeItem: transformers need positional encoding.",
-        estimated_tokens=12,
-        priority=50,
-        item_type=ContextItemType.STATE,
-        project_id=PROJECT,
-        branch_id=BRANCH,
-    ))
+    catalog.add(
+        ContextItem(
+            item_id=ContextItemId("item-knowledge-1"),
+            layer=ContextLayer.STATE,
+            scope=ContextScope.BRANCH,
+            source_ref=ContextSourceRef(
+                source_type="knowledge_item", source_id=str(OBJ), version="1"
+            ),
+            content="KnowledgeItem: transformers need positional encoding.",
+            estimated_tokens=12,
+            priority=50,
+            item_type=ContextItemType.STATE,
+            project_id=PROJECT,
+            branch_id=BRANCH,
+        )
+    )
     retrieval_resolver = RetrievalResolver(
         catalog,
         InMemoryRetrievalResolutionStore(),
@@ -281,18 +290,19 @@ def _build_stack(clock, seq, snapshot, definition):
         now=clock,
     )
     context_policy = ContextPolicy(
-        policy_id="slice", version=1,
+        policy_id="slice",
+        version=1,
         layer_order=(ContextLayer.GLOBAL, ContextLayer.STATE, ContextLayer.TASK),
         default_blinding_policy=BlindingPolicy(policy_id="none", version=1),
     )
     compiler = ContextCompiler(
-        InMemoryContextBundleStore(), bundle_id_factory=seq, now=clock  # type: ignore[arg-type]
+        InMemoryContextBundleStore(),
+        bundle_id_factory=seq,
+        now=clock,  # type: ignore[arg-type]
     )
     template_registry = InMemoryPromptTemplateRegistry()
     _register_templates(template_registry)
-    assembler = PromptAssembler(
-        InMemoryPromptPackageStore(), now=clock
-    )
+    assembler = PromptAssembler(InMemoryPromptPackageStore(), now=clock)
     from packages.cognition.modes import CognitiveMode
     from packages.cognition.prompt import TemplateRef
     from packages.domain.ids import (
@@ -303,24 +313,29 @@ def _build_stack(clock, seq, snapshot, definition):
     )
 
     prompt_policy = PromptPolicy(
-        policy_id=PromptPolicyId("slice"), version=1,
+        policy_id=PromptPolicyId("slice"),
+        version=1,
         harness_template_ref=TemplateRef(PromptTemplateId("harness"), 1),
         task_template_ref=TemplateRef(PromptTemplateId("task"), 1),
         mode_template_refs={
-            m: TemplateRef(PromptTemplateId(f"mode-{m.value}"), 1)
-            for m in CognitiveMode
+            m: TemplateRef(PromptTemplateId(f"mode-{m.value}"), 1) for m in CognitiveMode
         },
     )
     contract_registry = InMemoryOutputContractRegistry()
-    contract_registry.register(OutputContract(
-        contract_id=OutputContractId("example-assessment"), version=1,
-        schema_ref=OutputSchemaRef(OutputSchemaId("example-assessment"), 1),
-        strict=True, description="slice test contract",
-    ))
+    contract_registry.register(
+        OutputContract(
+            contract_id=OutputContractId("example-assessment"),
+            version=1,
+            schema_ref=OutputSchemaRef(OutputSchemaId("example-assessment"), 1),
+            strict=True,
+            description="slice test contract",
+        )
+    )
     validator_registry = InMemoryStructuredOutputValidatorRegistry()
     validator_registry.register(ExampleCognitiveAssessmentValidator())
     output_validator = OutputValidationEngine(
-        contract_registry, validator_registry,
+        contract_registry,
+        validator_registry,
         InMemoryOutputValidationResultStore(),
         InMemoryCognitiveResultStore(),
         validation_id_factory=seq,  # type: ignore[arg-type]
@@ -334,52 +349,75 @@ def _build_stack(clock, seq, snapshot, definition):
     attempt_store = InMemoryExecutionAttemptStore()
     runtime_sink = InMemoryRuntimeEventSink()
     session_mgr = RuntimeSessionManager(
-        session_store, run_store, runtime_sink,
-        session_id_factory=seq, event_id_factory=seq, now=clock,
+        session_store,
+        run_store,
+        runtime_sink,
+        session_id_factory=seq,
+        event_id_factory=seq,
+        now=clock,
     )
     run_mgr = RuntimeRunManager(
-        session_store, run_store, attempt_store, runtime_sink,
-        run_id_factory=seq, attempt_id_factory=seq, event_id_factory=seq,
+        session_store,
+        run_store,
+        attempt_store,
+        runtime_sink,
+        run_id_factory=seq,
+        attempt_id_factory=seq,
+        event_id_factory=seq,
         now=clock,
     )
     profile_registry = InMemoryModelExecutionProfileRegistry()
     profile = ModelExecutionProfile(
-        profile_id=ModelExecutionProfileId("openai-profile"), version="v1",
-        name="openai fake", description="slice",
+        profile_id=ModelExecutionProfileId("openai-profile"),
+        version="v1",
+        name="openai fake",
+        description="slice",
         provider=__import__(
             "packages.runtime.provider", fromlist=["ProviderIdentifier"]
         ).ProviderIdentifier(name="openai"),
-        model=__import__(
-            "packages.runtime.provider", fromlist=["ModelIdentifier"]
-        ).ModelIdentifier(name="fake-model"),
+        model=__import__("packages.runtime.provider", fromlist=["ModelIdentifier"]).ModelIdentifier(
+            name="fake-model"
+        ),
         capabilities=frozenset(
             {ModelCapability.TEXT_GENERATION, ModelCapability.STRUCTURED_OUTPUT}
         ),
     )
     profile_registry.register(profile)
     config_registry = InMemoryModelExecutionConfigRegistry()
-    config_registry.register(ModelExecutionConfig(
-        config_id=ModelExecutionConfigId("cfg"), version="v1",
-        name="c", description="d",
-        profile_ref=ModelExecutionProfileRef(
-            ModelExecutionProfileId("openai-profile"), "v1"
-        ),
-        parameter_settings=(),
-    ))
+    config_registry.register(
+        ModelExecutionConfig(
+            config_id=ModelExecutionConfigId("cfg"),
+            version="v1",
+            name="c",
+            description="d",
+            profile_ref=ModelExecutionProfileRef(ModelExecutionProfileId("openai-profile"), "v1"),
+            parameter_settings=(),
+        )
+    )
     agent_registry = InMemoryAgentDefinitionRegistry()
-    agent_registry.register(AgentDefinition(
-        agent_id=AGENT, version="v1", name="assessor", description="d",
-        allowed_execution_profiles=(
-            ModelExecutionProfileRef(
-                ModelExecutionProfileId("openai-profile"), "v1"
+    agent_registry.register(
+        AgentDefinition(
+            agent_id=AGENT,
+            version="v1",
+            name="assessor",
+            description="d",
+            allowed_execution_profiles=(
+                ModelExecutionProfileRef(ModelExecutionProfileId("openai-profile"), "v1"),
             ),
-        ),
-    ))
+        )
+    )
     binding_store = InMemoryAgentExecutionBindingStore()
     binding_mgr = AgentBindingManager(
-        session_store, run_store, agent_registry, profile_registry,
-        config_registry, binding_store, runtime_sink,
-        binding_id_factory=seq, event_id_factory=seq, now=clock,
+        session_store,
+        run_store,
+        agent_registry,
+        profile_registry,
+        config_registry,
+        binding_store,
+        runtime_sink,
+        binding_id_factory=seq,
+        event_id_factory=seq,
+        now=clock,
     )
     request_factory = AgentProviderExecutionRequestFactory(attempt_store)
     coordinator = RuntimeExecutionCoordinator(
@@ -405,9 +443,7 @@ def _build_stack(clock, seq, snapshot, definition):
         execution_coordinator=coordinator,
         context_policy=context_policy,
         blinding_policy=BlindingPolicy(policy_id="none", version=1),
-        retrieval_policy=RetrievalPolicy(
-            policy_id=RetrievalPolicyId("slice"), version=1
-        ),
+        retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("slice"), version=1),
         prompt_policy=prompt_policy,
         budget=ContextBudget(max_tokens=8192),
         output_contract_id=OutputContractId("example-assessment"),
@@ -500,9 +536,7 @@ def test_int_slice_001_happy_path_commits(clock, seq, snapshot, definition):
 
     # domain + control + runtime events all recorded (auditability §45)
     events = stores["state_store"].events()
-    assert any(
-        isinstance(e, DomainEvent) and e.new_state == STATE_ASSESSED for e in events
-    )
+    assert any(isinstance(e, DomainEvent) and e.new_state == STATE_ASSESSED for e in events)
     control_types = [e.event_type for e in stores["control_sink"].all_events()]
     assert ControlEventType.TASK_CREATED in control_types
     assert ControlEventType.OBJECT_STATE_CHANGED in control_types

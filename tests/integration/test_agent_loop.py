@@ -125,9 +125,9 @@ def _multi_object_snapshot():
         branch_id=BRANCH,
         revision=0,
         object_states={
-            _slice.OBJ: _slice.STATE_DRAFT,        # knowledge-1 DRAFT
-            OBJ_2: _slice.STATE_DRAFT,             # knowledge-2 DRAFT
-            OBJ_3: _slice.STATE_ASSESSED,          # already done
+            _slice.OBJ: _slice.STATE_DRAFT,  # knowledge-1 DRAFT
+            OBJ_2: _slice.STATE_DRAFT,  # knowledge-2 DRAFT
+            OBJ_3: _slice.STATE_ASSESSED,  # already done
         },
     )
 
@@ -196,8 +196,10 @@ def _loop_events(stores) -> list:  # noqa: ANN001, ANN202
     from packages.domain.events import ControlEventType
 
     return [
-        e for e in stores["control_sink"].all_events()
-        if e.event_type in (
+        e
+        for e in stores["control_sink"].all_events()
+        if e.event_type
+        in (
             ControlEventType.LOOP_STARTED,
             ControlEventType.LOOP_ITERATION_COMPLETED,
             ControlEventType.LOOP_STOPPED,
@@ -210,16 +212,18 @@ def _loop_events(stores) -> list:  # noqa: ANN001, ANN202
 # =========================================================================
 def test_loop_int_001_drains_work_then_completes(clock, seq) -> None:
     snapshot = _multi_object_snapshot()
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-    ])
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+        ]
+    )
     runner, stores = _build_loop(clock, seq, snapshot, fake)
 
     record = runner.run(
-        PROJECT, BRANCH, LoopBudget(
-            max_iterations=10, max_consecutive_failures=5, max_total_failures=5
-        )
+        PROJECT,
+        BRANCH,
+        LoopBudget(max_iterations=10, max_consecutive_failures=5, max_total_failures=5),
     )
 
     # exactly 2 commits (knowledge-1 + knowledge-2), then nothing legal
@@ -253,17 +257,19 @@ def test_loop_int_001_drains_work_then_completes(clock, seq) -> None:
 # =========================================================================
 def test_loop_int_002_iteration_budget_stops(clock, seq) -> None:
     snapshot = _multi_object_snapshot()
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-    ])
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+        ]
+    )
     runner, stores = _build_loop(clock, seq, snapshot, fake)
 
     record = runner.run(
-        PROJECT, BRANCH, LoopBudget(
-            max_iterations=1, max_consecutive_failures=5, max_total_failures=5
-        )
+        PROJECT,
+        BRANCH,
+        LoopBudget(max_iterations=1, max_consecutive_failures=5, max_total_failures=5),
     )
     assert record.status is LoopRunStatus.STOPPED
     assert record.stop_reason is LoopStopReason.BUDGET_ITERATIONS
@@ -279,16 +285,18 @@ def test_loop_int_002_iteration_budget_stops(clock, seq) -> None:
 # =========================================================================
 def test_loop_int_003_consecutive_failure_budget(clock, seq) -> None:
     snapshot = _multi_object_snapshot()
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
-        FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
-    ])
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
+            FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
+        ]
+    )
     runner, stores = _build_loop(clock, seq, snapshot, fake)
 
     record = runner.run(
-        PROJECT, BRANCH, LoopBudget(
-            max_iterations=10, max_consecutive_failures=2, max_total_failures=9
-        )
+        PROJECT,
+        BRANCH,
+        LoopBudget(max_iterations=10, max_consecutive_failures=2, max_total_failures=9),
     )
     assert record.stop_reason is LoopStopReason.BUDGET_CONSECUTIVE_FAILURES
     assert record.status is LoopRunStatus.STOPPED
@@ -311,9 +319,9 @@ def test_loop_int_004_unplanned_action_stops(clock, seq) -> None:
     runner._action_specs = {}  # noqa: SLF001 — test hook
 
     record = runner.run(
-        PROJECT, BRANCH, LoopBudget(
-            max_iterations=5, max_consecutive_failures=5, max_total_failures=5
-        )
+        PROJECT,
+        BRANCH,
+        LoopBudget(max_iterations=5, max_consecutive_failures=5, max_total_failures=5),
     )
     assert record.stop_reason is LoopStopReason.UNPLANNED_ACTION
     assert record.status is LoopRunStatus.STOPPED
@@ -327,18 +335,20 @@ def test_loop_int_004_unplanned_action_stops(clock, seq) -> None:
 def test_loop_int_005_failure_then_success_resets_streak(clock, seq) -> None:
     snapshot = _multi_object_snapshot()
     # first: INVALID output (failure), then: VALID (commit), then: VALID
-    fake = FakeProviderExecutor([
-        FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-        FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
-    ])
+    fake = FakeProviderExecutor(
+        [
+            FakeProviderExecutor.success({"judgement": "BAD", "confidence": 9.0}),
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+            FakeProviderExecutor.success(dict(_slice.VALID_PAYLOAD)),
+        ]
+    )
     runner, stores = _build_loop(clock, seq, snapshot, fake)
 
     # consecutive max 2: without streak reset this WOULD trip after fail+…
     record = runner.run(
-        PROJECT, BRANCH, LoopBudget(
-            max_iterations=10, max_consecutive_failures=2, max_total_failures=9
-        )
+        PROJECT,
+        BRANCH,
+        LoopBudget(max_iterations=10, max_consecutive_failures=2, max_total_failures=9),
     )
     assert record.status is LoopRunStatus.COMPLETED
     assert record.stop_reason is LoopStopReason.NO_CANDIDATES

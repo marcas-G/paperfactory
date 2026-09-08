@@ -2,6 +2,7 @@
 
 Each test carries a direct behavioral assertion — never "covered by E2E".
 """
+
 from __future__ import annotations
 
 import inspect
@@ -63,8 +64,10 @@ def test_cfg_001_model_parameter_exact_four():
     # CFG-001 exact four canonical parameters
     members = {m for m in ModelParameter}
     assert members == {
-        ModelParameter.TEMPERATURE, ModelParameter.TOP_P,
-        ModelParameter.MAX_OUTPUT_UNITS, ModelParameter.SEED,
+        ModelParameter.TEMPERATURE,
+        ModelParameter.TOP_P,
+        ModelParameter.MAX_OUTPUT_UNITS,
+        ModelParameter.SEED,
     }
 
 
@@ -273,8 +276,12 @@ def test_cfg_028_no_latest_default_config():
 def test_cfg_029_exact_profile_match_success():
     # CFG-029 Config exact profile match succeeds
     profile = make_profile("profile-A", "v1", supported_parameters=PARAMS_FULL)
-    config = make_config("config-A", "v1", profile_ref=profile.ref,
-                         settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.5),))
+    config = make_config(
+        "config-A",
+        "v1",
+        profile_ref=profile.ref,
+        settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.5),),
+    )
     ModelExecutionConfigValidator().validate(config, profile)  # no raise
 
 
@@ -299,8 +306,9 @@ def test_cfg_031_profile_version_mismatch_rejected():
 def test_cfg_032_unsupported_parameter_rejected():
     # CFG-032 TEMPERATURE not in supported_parameters fails
     profile = make_profile("profile-A", "v1", supported_parameters=frozenset({ModelParameter.SEED}))
-    config = make_config(profile_ref=profile.ref,
-                         settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.5),))
+    config = make_config(
+        profile_ref=profile.ref, settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.5),)
+    )
     with pytest.raises(ModelExecutionConfigIncompatibleError):
         ModelExecutionConfigValidator().validate(config, profile)
 
@@ -318,10 +326,14 @@ def test_cfg_033_all_parameters_supported_success():
     ModelExecutionConfigValidator().validate(config, profile)  # no raise
 
 
-PARAMS_FULL = frozenset({
-    ModelParameter.TEMPERATURE, ModelParameter.TOP_P,
-    ModelParameter.MAX_OUTPUT_UNITS, ModelParameter.SEED,
-})
+PARAMS_FULL = frozenset(
+    {
+        ModelParameter.TEMPERATURE,
+        ModelParameter.TOP_P,
+        ModelParameter.MAX_OUTPUT_UNITS,
+        ModelParameter.SEED,
+    }
+)
 
 
 # =========================================================================
@@ -338,16 +350,29 @@ def _bindable(clock=None):
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     return mgr, binding_store, session, run
 
 
-def _bind_ok(mgr, session, run, *, cid="config-A", cver="v1",
-             pid="profile-A", pver="v1", aid="agent-A", aver="v1"):
+def _bind_ok(
+    mgr,
+    session,
+    run,
+    *,
+    cid="config-A",
+    cver="v1",
+    pid="profile-A",
+    pver="v1",
+    aid="agent-A",
+    aver="v1",
+):
     return mgr.bind_agent(
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId(aid), agent_version=aver,
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId(aid),
+        agent_version=aver,
         execution_profile_id=ModelExecutionProfileId(pid),
         execution_profile_version=pver,
         execution_config_id=ModelExecutionConfigId(cid),
@@ -370,15 +395,18 @@ def test_cfg_035_binding_parameter_snapshot():
     config_reg = InMemoryModelExecutionConfigRegistry()
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
-    settings = (ModelParameterSetting(ModelParameter.TEMPERATURE, 0.2),
-                ModelParameterSetting(ModelParameter.MAX_OUTPUT_UNITS, 2048))
+    settings = (
+        ModelParameterSetting(ModelParameter.TEMPERATURE, 0.2),
+        ModelParameterSetting(ModelParameter.MAX_OUTPUT_UNITS, 2048),
+    )
     profile_reg.register(make_profile())
     config_reg.register(make_config(settings=settings))
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     b = _bind_ok(mgr, session, run)
     assert b.resolved_parameter_settings == settings
 
@@ -400,17 +428,25 @@ def test_cfg_037_wrong_config_profile_rejected():
     binding_store = InMemoryAgentExecutionBindingStore()
     profile_reg.register(make_profile("profile-A", "v1"))
     # config points at profile-B
-    config_reg.register(make_config("config-X", "v1",
-        profile_ref=ModelExecutionProfileRef(ModelExecutionProfileId("profile-B"), "v1")))
+    config_reg.register(
+        make_config(
+            "config-X",
+            "v1",
+            profile_ref=ModelExecutionProfileRef(ModelExecutionProfileId("profile-B"), "v1"),
+        )
+    )
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     with pytest.raises(ModelExecutionConfigIncompatibleError):
         mgr.bind_agent(
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-X"),
@@ -426,20 +462,27 @@ def test_cfg_038_unsupported_config_param_rejected():
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
     # profile supports only TEMPERATURE
-    profile_reg.register(make_profile("profile-A", "v1",
-        supported_parameters=frozenset({ModelParameter.TEMPERATURE})))
+    profile_reg.register(
+        make_profile(
+            "profile-A", "v1", supported_parameters=frozenset({ModelParameter.TEMPERATURE})
+        )
+    )
     # config uses SEED (unsupported)
-    config_reg.register(make_config("config-A", "v1",
-        settings=(ModelParameterSetting(ModelParameter.SEED, 1),)))
+    config_reg.register(
+        make_config("config-A", "v1", settings=(ModelParameterSetting(ModelParameter.SEED, 1),))
+    )
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     with pytest.raises(ModelExecutionConfigIncompatibleError):
         mgr.bind_agent(
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
@@ -462,15 +505,22 @@ def test_cfg_040_config_v1_pinned_when_v2_exists():
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
     profile_reg.register(make_profile())
-    config_reg.register(make_config(version="v1", settings=(
-        ModelParameterSetting(ModelParameter.TEMPERATURE, 0.1),)))
-    config_reg.register(make_config(version="v2", settings=(
-        ModelParameterSetting(ModelParameter.TEMPERATURE, 0.9),)))
+    config_reg.register(
+        make_config(
+            version="v1", settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.1),)
+        )
+    )
+    config_reg.register(
+        make_config(
+            version="v2", settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.9),)
+        )
+    )
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     b = _bind_ok(mgr, session, run, cver="v1")
     assert b.execution_config_version == "v1"
     assert b.resolved_parameter_settings[0].value == 0.1  # NOT v2's 0.9
@@ -480,8 +530,11 @@ def test_cfg_041_agent_bound_event_has_config_identity():
     # CFG-041 AGENT_BOUND event metadata has config identity
     mgr, binding_store, session, run = _bindable()
     _bind_ok(mgr, session, run)
-    events = [e for e in mgr._sink._events  # type: ignore[attr-defined]
-              if e.event_type is RuntimeEventType.AGENT_BOUND]
+    events = [
+        e
+        for e in mgr._sink._events  # type: ignore[attr-defined]
+        if e.event_type is RuntimeEventType.AGENT_BOUND
+    ]
     assert events
     meta = events[0].metadata
     assert meta["execution_config_id"] == "config-A"
@@ -496,16 +549,21 @@ def test_cfg_042_event_no_full_parameter_values():
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
     profile_reg.register(make_profile())
-    config_reg.register(make_config(settings=(
-        ModelParameterSetting(ModelParameter.TEMPERATURE, 0.37),)))
+    config_reg.register(
+        make_config(settings=(ModelParameterSetting(ModelParameter.TEMPERATURE, 0.37),))
+    )
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     _bind_ok(mgr, session, run)
-    evt = next(e for e in sink._events  # type: ignore[attr-defined]
-               if e.event_type is RuntimeEventType.AGENT_BOUND)
+    evt = next(
+        e
+        for e in sink._events  # type: ignore[attr-defined]
+        if e.event_type is RuntimeEventType.AGENT_BOUND
+    )
     # no parameter value keys leaked into event metadata
     assert "TEMPERATURE" not in evt.metadata
     assert "parameters" not in evt.metadata
@@ -524,14 +582,19 @@ def test_cfg_043_request_has_execution_parameters_field():
 def test_cfg_044_low_level_request_empty_params():
     # CFG-044 low-level direct request may use () execution_parameters
     from packages.runtime import ModelIdentifier, ProviderIdentifier
+
     req = ProviderExecutionRequest(
         request_id=ProviderExecutionRequestId("r"),
-        session_id=run_id_helper(), run_id=run_id_helper2(),
+        session_id=run_id_helper(),
+        run_id=run_id_helper2(),
         attempt_id=att_id_helper(),
-        project_id=PROJECT, branch_id=BRANCH,
+        project_id=PROJECT,
+        branch_id=BRANCH,
         provider=ProviderIdentifier(name="fake"),
         model=ModelIdentifier(name="m"),
-        input_ref=INPUT_REF, projected_input=None, created_at=TZ,
+        input_ref=INPUT_REF,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.execution_parameters == ()
 
@@ -543,23 +606,30 @@ def test_cfg_045_factory_parameters_from_binding():
     config_reg = InMemoryModelExecutionConfigRegistry()
     agent_reg = InMemoryAgentDefinitionRegistry()
     binding_store = InMemoryAgentExecutionBindingStore()
-    settings = (ModelParameterSetting(ModelParameter.TEMPERATURE, 0.4),
-                ModelParameterSetting(ModelParameter.MAX_OUTPUT_UNITS, 512))
+    settings = (
+        ModelParameterSetting(ModelParameter.TEMPERATURE, 0.4),
+        ModelParameterSetting(ModelParameter.MAX_OUTPUT_UNITS, 512),
+    )
     profile_reg.register(make_profile())
     config_reg.register(make_config(settings=settings))
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     b = _bind_ok(mgr, session, run)
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
     factory = AgentProviderExecutionRequestFactory(att_store)
     req = factory.build(
-        binding=b, session=session, run=started_run, attempt=att,
+        binding=b,
+        session=session,
+        run=started_run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.execution_parameters == settings
 
@@ -577,6 +647,7 @@ def test_cfg_047_coordinator_does_not_interpret_parameters():
     # CFG-047 Coordinator does not interpret TEMPERATURE — it just forwards.
     # We assert by source inspection that execution.py has no TEMPERATURE branch.
     import packages.runtime.execution as ex
+
     src = inspect.getsource(ex)
     assert "TEMPERATURE" not in src
     assert "if request.execution_parameters" not in src
@@ -595,24 +666,35 @@ def test_cfg_048_fake_provider_can_observe_parameters():
     agent_reg.register(make_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                        binding_store, sink, now)
+    mgr = build_manager(
+        sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+    )
     b = _bind_ok(mgr, session, run)
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
     factory = AgentProviderExecutionRequestFactory(att_store)
     req = factory.build(
-        binding=b, session=session, run=started_run, attempt=att,
+        binding=b,
+        session=session,
+        run=started_run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     fake = FakeProviderExecutor([FakeProviderExecutor.success({"ok": True})])
     coord = RuntimeExecutionCoordinator(
-        rm, InMemoryProviderExecutionRequestStore(),
-        InMemoryProviderExecutionResponseStore(), sink,
-        response_id_factory=Counter("resp"), artifact_id_factory=Counter("art"),
-        event_id_factory=Counter("evt"), now=now)
+        rm,
+        InMemoryProviderExecutionRequestStore(),
+        InMemoryProviderExecutionResponseStore(),
+        sink,
+        response_id_factory=Counter("resp"),
+        artifact_id_factory=Counter("art"),
+        event_id_factory=Counter("evt"),
+        now=now,
+    )
     import asyncio
+
     final_run, outcome = asyncio.run(coord.execute(req, fake))
     assert final_run.status.value == "SUCCEEDED"
     # Fake observed the canonical parameters unchanged
@@ -622,14 +704,17 @@ def test_cfg_048_fake_provider_can_observe_parameters():
 # helpers for cfg-044 (avoid NewType construction noise)
 def run_id_helper():
     from packages.domain.ids import RuntimeSessionId
+
     return RuntimeSessionId("s-1")
 
 
 def run_id_helper2():
     from packages.domain.ids import RuntimeRunId
+
     return RuntimeRunId("r-1")
 
 
 def att_id_helper():
     from packages.domain.ids import ExecutionAttemptId
+
     return ExecutionAttemptId("a-1")

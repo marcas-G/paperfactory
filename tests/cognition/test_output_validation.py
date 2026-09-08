@@ -156,8 +156,11 @@ def test_out_002_contract_immutable() -> None:
 def test_out_003_empty_description_rejected() -> None:
     with pytest.raises(InvalidOutputContractError):
         OutputContract(
-            contract_id=OutputContractId("c"), version=1, schema_ref=_SCHEMA_REF,
-            strict=True, description="  ",
+            contract_id=OutputContractId("c"),
+            version=1,
+            schema_ref=_SCHEMA_REF,
+            strict=True,
+            description="  ",
         )
 
 
@@ -195,11 +198,15 @@ def test_out_008_duplicate_validator_rejected(validator_registry) -> None:
 
 def test_out_009_validator_missing(validation_engine, contract_registry) -> None:
     # contract with a schema that has no validator
-    contract_registry.register(OutputContract(
-        contract_id=OutputContractId("orphan"), version=1,
-        schema_ref=OutputSchemaRef(OutputSchemaId("no-validator"), 1),
-        strict=True, description="orphan",
-    ))
+    contract_registry.register(
+        OutputContract(
+            contract_id=OutputContractId("orphan"),
+            version=1,
+            schema_ref=OutputSchemaRef(OutputSchemaId("no-validator"), 1),
+            strict=True,
+            description="orphan",
+        )
+    )
     cand = _candidate({}, contract_id=OutputContractId("orphan"))
     with pytest.raises(OutputValidatorNotFoundError):
         validation_engine.validate(
@@ -219,21 +226,28 @@ def test_out_010_contract_missing(validation_engine) -> None:
 # OUT-011..014 — SchemaValidationOutcome invariants
 # =========================================================================
 def test_out_011_valid_outcome_legal() -> None:
-    o = SchemaValidationOutcome(valid=True, normalized_payload=ExampleCognitiveAssessment(
-        judgement="SUPPORT", confidence=0.8, reason_codes=("E1",)), issues=())
+    o = SchemaValidationOutcome(
+        valid=True,
+        normalized_payload=ExampleCognitiveAssessment(
+            judgement="SUPPORT", confidence=0.8, reason_codes=("E1",)
+        ),
+        issues=(),
+    )
     assert o.valid
 
 
 def test_out_012_valid_with_issues_rejected() -> None:
     with pytest.raises(InvalidSchemaValidationOutcomeError):
-        SchemaValidationOutcome(valid=True, normalized_payload=object(),
-                                issues=(SchemaValidationIssue("X"),))
+        SchemaValidationOutcome(
+            valid=True, normalized_payload=object(), issues=(SchemaValidationIssue("X"),)
+        )
 
 
 def test_out_013_invalid_with_payload_rejected() -> None:
     with pytest.raises(InvalidSchemaValidationOutcomeError):
-        SchemaValidationOutcome(valid=False, normalized_payload=object(),
-                                issues=(SchemaValidationIssue("X"),))
+        SchemaValidationOutcome(
+            valid=False, normalized_payload=object(), issues=(SchemaValidationIssue("X"),)
+        )
 
 
 def test_out_014_invalid_with_zero_issues_rejected() -> None:
@@ -253,11 +267,17 @@ def test_out_015_candidate_immutable() -> None:
 def test_out_016_naive_created_at_rejected() -> None:
     with pytest.raises(InvalidOutputContractError):
         StructuredOutputCandidate(
-            candidate_id=OutputCandidateId("c"), project_id=PROJECT, branch_id=BRANCH,
-            state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
+            candidate_id=OutputCandidateId("c"),
+            project_id=PROJECT,
+            branch_id=BRANCH,
+            state_revision=REVISION,
+            action_id=ACTION,
+            cognitive_mode="FALSIFY",
             prompt_package_id=PromptPackageId("p"),
-            output_contract_id=OutputContractId("c"), output_contract_version=1,
-            payload={}, created_at=datetime(2026, 1, 1),
+            output_contract_id=OutputContractId("c"),
+            output_contract_version=1,
+            payload={},
+            created_at=datetime(2026, 1, 1),
         )
 
 
@@ -280,34 +300,51 @@ def test_out_019_prompt_request_requires_contract() -> None:
 
     with pytest.raises(Exception):
         PromptRequest(
-            request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
-            state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
+            request_id=PromptRequestId("r"),
+            project_id=PROJECT,
+            branch_id=BRANCH,
+            state_revision=REVISION,
+            action_id=ACTION,
+            cognitive_mode="FALSIFY",
             context_bundle_id=ContextBundleId("b"),
             task_objective="x",
         )
 
 
-def test_out_020_assembler_propagates_contract(
-    assembler, prompt_policy, template_registry
-) -> None:
+def test_out_020_assembler_propagates_contract(assembler, prompt_policy, template_registry) -> None:
     from packages.cognition import ContextBundle, PromptRequest
     from packages.domain.ids import ContextRequestId
 
     bundle = ContextBundle(
-        bundle_id=ContextBundleId("b"), request_id=ContextRequestId("r"),
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
-        context_policy_id="default", context_policy_version=1,
-        blinding_policy_id="none", blinding_policy_version=1,
-        compiler_version="c/0.1", items=(), excluded_items=(),
-        total_estimated_tokens=0, budget_max_tokens=1000, source_refs=(),
+        bundle_id=ContextBundleId("b"),
+        request_id=ContextRequestId("r"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        context_policy_id="default",
+        context_policy_version=1,
+        blinding_policy_id="none",
+        blinding_policy_version=1,
+        compiler_version="c/0.1",
+        items=(),
+        excluded_items=(),
+        total_estimated_tokens=0,
+        budget_max_tokens=1000,
+        source_refs=(),
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     req = PromptRequest(
-        request_id=PromptRequestId("r"), project_id=PROJECT, branch_id=BRANCH,
-        state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
+        request_id=PromptRequestId("r"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id,
-        output_contract_id=OutputContractId("example-assessment"), output_contract_version=1,
+        output_contract_id=OutputContractId("example-assessment"),
+        output_contract_version=1,
         task_objective="x",
     )
     pkg = assembler.assemble(req, bundle, prompt_policy, template_registry, REVISION)
@@ -360,7 +397,8 @@ def test_out_023_029_consistency_mismatch(validation_engine, kwargs) -> None:
 def test_out_030_current_revision_validates(validation_engine) -> None:
     result = validation_engine.validate(
         _candidate({"judgement": "SUPPORT", "confidence": 0.8, "reason_codes": ["E1"]}),
-        _matching_package(), REVISION,
+        _matching_package(),
+        REVISION,
     )
     assert result.status is OutputValidationStatus.VALID
 
@@ -417,12 +455,18 @@ def test_out_036_confidence_normalized(validation_engine, result_store) -> None:
 def test_out_037_result_provenance(validation_engine, result_store) -> None:
     cand = _candidate(_valid_payload())
     cand = StructuredOutputCandidate(
-        candidate_id=cand.candidate_id, project_id=cand.project_id, branch_id=cand.branch_id,
-        state_revision=cand.state_revision, action_id=cand.action_id,
-        cognitive_mode=cand.cognitive_mode, prompt_package_id=cand.prompt_package_id,
+        candidate_id=cand.candidate_id,
+        project_id=cand.project_id,
+        branch_id=cand.branch_id,
+        state_revision=cand.state_revision,
+        action_id=cand.action_id,
+        cognitive_mode=cand.cognitive_mode,
+        prompt_package_id=cand.prompt_package_id,
         output_contract_id=cand.output_contract_id,
         output_contract_version=cand.output_contract_version,
-        payload=cand.payload, provider=None, model_identifier="test-model",
+        payload=cand.payload,
+        provider=None,
+        model_identifier="test-model",
         created_at=cand.created_at,
     )
     validation_engine.validate(cand, _matching_package(), REVISION)
@@ -633,12 +677,20 @@ def test_out_065_validation_store_round_trip(validation_engine, validation_store
 def test_out_066_duplicate_validation_id_rejected() -> None:
     store = InMemoryOutputValidationResultStore()
     r = OutputValidationResult(
-        validation_id=OutputValidationId("dup"), candidate_id=OutputCandidateId("c"),
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", prompt_package_id=PromptPackageId("p"),
-        output_contract_id=OutputContractId("c"), output_contract_version=1,
-        schema_ref=_SCHEMA_REF, status=OutputValidationStatus.INVALID,
-        issues=(SchemaValidationIssue("X"),), cognitive_result_id=None,
+        validation_id=OutputValidationId("dup"),
+        candidate_id=OutputCandidateId("c"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        prompt_package_id=PromptPackageId("p"),
+        output_contract_id=OutputContractId("c"),
+        output_contract_version=1,
+        schema_ref=_SCHEMA_REF,
+        status=OutputValidationStatus.INVALID,
+        issues=(SchemaValidationIssue("X"),),
+        cognitive_result_id=None,
         validated_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     store.save(r)
@@ -655,13 +707,22 @@ def test_out_067_result_store_round_trip(validation_engine, result_store) -> Non
 def test_out_068_duplicate_result_id_rejected() -> None:
     store = InMemoryCognitiveResultStore()
     e = CognitiveResultEnvelope(
-        result_id=CognitiveResultId("dup"), candidate_id=OutputCandidateId("c"),
-        validation_id=OutputValidationId("v"), project_id=PROJECT, branch_id=BRANCH,
-        state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
-        prompt_package_id=PromptPackageId("p"), output_contract_id=OutputContractId("c"),
-        output_contract_version=1, schema_ref=_SCHEMA_REF,
+        result_id=CognitiveResultId("dup"),
+        candidate_id=OutputCandidateId("c"),
+        validation_id=OutputValidationId("v"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        prompt_package_id=PromptPackageId("p"),
+        output_contract_id=OutputContractId("c"),
+        output_contract_version=1,
+        schema_ref=_SCHEMA_REF,
         payload=ExampleCognitiveAssessment(judgement="SUPPORT", confidence=0.8),
-        provider=None, model_identifier=None, validated_at=datetime(2026, 1, 1, tzinfo=UTC),
+        provider=None,
+        model_identifier=None,
+        validated_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     store.save(e)
     with pytest.raises(Exception):
@@ -699,7 +760,10 @@ def test_out_071_result_save_failure_no_valid_validation(
     contract_reg = InMemoryOutputContractRegistry()
     contract_reg.register(_contract())
     engine = OutputValidationEngine(
-        contract_reg, validator_registry, validation_store, FailingResultStore(),  # type: ignore[arg-type]
+        contract_reg,
+        validator_registry,
+        validation_store,
+        FailingResultStore(),  # type: ignore[arg-type]
         validation_id_factory=lambda: OutputValidationId("v"),
         result_id_factory=lambda: CognitiveResultId("r"),
     )
@@ -715,7 +779,8 @@ def test_out_071_result_save_failure_no_valid_validation(
 def test_out_072_string_confidence_not_coerced(validation_engine) -> None:
     result = validation_engine.validate(
         _candidate({"judgement": "SUPPORT", "confidence": "0.8", "reason_codes": ["E1"]}),
-        _matching_package(), REVISION,
+        _matching_package(),
+        REVISION,
     )
     assert result.status is OutputValidationStatus.INVALID
 
@@ -723,7 +788,8 @@ def test_out_072_string_confidence_not_coerced(validation_engine) -> None:
 def test_out_073_missing_reason_codes_not_filled(validation_engine) -> None:
     result = validation_engine.validate(
         _candidate({"judgement": "SUPPORT", "confidence": 0.8}),
-        _matching_package(), REVISION,
+        _matching_package(),
+        REVISION,
     )
     assert result.status is OutputValidationStatus.INVALID
 
@@ -731,7 +797,8 @@ def test_out_073_missing_reason_codes_not_filled(validation_engine) -> None:
 def test_out_074_markdown_not_json_parsed(validation_engine) -> None:
     result = validation_engine.validate(
         _candidate("```json\n{}\n```"),
-        _matching_package(), REVISION,
+        _matching_package(),
+        REVISION,
     )
     assert result.status is OutputValidationStatus.INVALID
 
@@ -751,13 +818,19 @@ def test_out_075_invalid_calls_validator_once() -> None:
     contract_reg = InMemoryOutputContractRegistry()
     # register a contract pointing at a DIFFERENT schema (no validator) so the
     # validator is never reached; a system error is raised instead.
-    contract_reg.register(OutputContract(
-        contract_id=OutputContractId("missing-validator"), version=1,
-        schema_ref=OutputSchemaRef(OutputSchemaId("no-validator"), 1),
-        strict=True, description="no validator",
-    ))
+    contract_reg.register(
+        OutputContract(
+            contract_id=OutputContractId("missing-validator"),
+            version=1,
+            schema_ref=OutputSchemaRef(OutputSchemaId("no-validator"), 1),
+            strict=True,
+            description="no validator",
+        )
+    )
     engine = OutputValidationEngine(
-        contract_reg, reg, InMemoryOutputValidationResultStore(),
+        contract_reg,
+        reg,
+        InMemoryOutputValidationResultStore(),
         InMemoryCognitiveResultStore(),
         validation_id_factory=lambda: OutputValidationId("v"),
         result_id_factory=lambda: CognitiveResultId("r"),
@@ -795,7 +868,12 @@ def test_out_076_082_engine_no_llm_no_control_no_side_effects() -> None:
             if node.module:
                 imported.add(node.module.split(".")[0])
     for forbidden in (
-        "openai", "anthropic", "pydantic_ai", "control", "requests", "httpx",
+        "openai",
+        "anthropic",
+        "pydantic_ai",
+        "control",
+        "requests",
+        "httpx",
     ):
         assert forbidden not in imported, f"engine imports {forbidden}"
 
@@ -837,8 +915,14 @@ def test_out_084_next_action_field_no_authorization(validation_engine, contract_
 # M2-OUT-001 / M2-OUT-002 — end-to-end output validation
 # =========================================================================
 def _build_package_pipeline(
-    resolver, catalog, context_policy, compiler, hide_future_result,
-    assembler, prompt_policy, template_registry,
+    resolver,
+    catalog,
+    context_policy,
+    compiler,
+    hide_future_result,
+    assembler,
+    prompt_policy,
+    template_registry,
 ):
     from packages.cognition import (
         ContextBudget,
@@ -857,9 +941,13 @@ def _build_package_pipeline(
     )
 
     item = make_item(
-        "sys-inst", item_type=ContextItemType.INSTRUCTION,
-        layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM,
-        content="SYSTEM rule", tokens=10, priority=80,
+        "sys-inst",
+        item_type=ContextItemType.INSTRUCTION,
+        layer=ContextLayer.GLOBAL,
+        scope=ContextScope.SYSTEM,
+        content="SYSTEM rule",
+        tokens=10,
+        priority=80,
         instruction_authority=InstructionAuthority.SYSTEM,
     )
     catalog.add(item)
@@ -869,25 +957,41 @@ def _build_package_pipeline(
             item_types=frozenset({ContextItemType.INSTRUCTION}),
             layers=frozenset({ContextLayer.GLOBAL}),
             scopes=frozenset({ContextScope.SYSTEM}),
-            required=True, minimum_count=1, maximum_count=1, priority=90,
+            required=True,
+            minimum_count=1,
+            maximum_count=1,
+            priority=90,
         ),
     ]
     resolution = resolver.resolve(
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY", requirements=reqs,
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
+        requirements=reqs,
         retrieval_policy=RetrievalPolicy(policy_id=RetrievalPolicyId("p"), version=1),
         context_policy=context_policy,
     )
     ctx_request = resolution.to_context_request(
-        request_id=ContextRequestId("cr"), context_policy=context_policy,
+        request_id=ContextRequestId("cr"),
+        context_policy=context_policy,
         budget=ContextBudget(max_tokens=500),
     )
     bundle = compiler.compile(
-        ctx_request, context_policy, hide_future_result, [item], REVISION,
+        ctx_request,
+        context_policy,
+        hide_future_result,
+        [item],
+        REVISION,
     )
     prompt_req = PromptRequest(
-        request_id=PromptRequestId("pr"), project_id=PROJECT, branch_id=BRANCH,
-        state_revision=REVISION, action_id=ACTION, cognitive_mode="FALSIFY",
+        request_id=PromptRequestId("pr"),
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         context_bundle_id=bundle.bundle_id,
         output_contract_id=OutputContractId("example-assessment"),
         output_contract_version=1,
@@ -895,29 +999,52 @@ def _build_package_pipeline(
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     package = assembler.assemble(
-        prompt_req, bundle, prompt_policy, template_registry, REVISION,
+        prompt_req,
+        bundle,
+        prompt_policy,
+        template_registry,
+        REVISION,
     )
     return package
 
 
 def test_m2_out_001_valid_end_to_end(
-    resolver, catalog, context_policy, compiler, hide_future_result,
-    assembler, prompt_policy, template_registry,
-    validation_engine, result_store,
+    resolver,
+    catalog,
+    context_policy,
+    compiler,
+    hide_future_result,
+    assembler,
+    prompt_policy,
+    template_registry,
+    validation_engine,
+    result_store,
 ) -> None:
     package = _build_package_pipeline(
-        resolver, catalog, context_policy, compiler, hide_future_result,
-        assembler, prompt_policy, template_registry,
+        resolver,
+        catalog,
+        context_policy,
+        compiler,
+        hide_future_result,
+        assembler,
+        prompt_policy,
+        template_registry,
     )
     candidate = StructuredOutputCandidate(
         candidate_id=OutputCandidateId("cand-e2e"),
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         prompt_package_id=package.package_id,
         output_contract_id=OutputContractId("example-assessment"),
         output_contract_version=1,
-        payload={"judgement": "CONTRADICT", "confidence": 0.91,
-                 "reason_codes": ["COUNTEREXAMPLE_FOUND"]},
+        payload={
+            "judgement": "CONTRADICT",
+            "confidence": 0.91,
+            "reason_codes": ["COUNTEREXAMPLE_FOUND"],
+        },
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     result = validation_engine.validate(candidate, package, REVISION)
@@ -933,18 +1060,34 @@ def test_m2_out_001_valid_end_to_end(
 
 
 def test_m2_out_002_invalid_end_to_end(
-    resolver, catalog, context_policy, compiler, hide_future_result,
-    assembler, prompt_policy, template_registry,
-    validation_engine, result_store,
+    resolver,
+    catalog,
+    context_policy,
+    compiler,
+    hide_future_result,
+    assembler,
+    prompt_policy,
+    template_registry,
+    validation_engine,
+    result_store,
 ) -> None:
     package = _build_package_pipeline(
-        resolver, catalog, context_policy, compiler, hide_future_result,
-        assembler, prompt_policy, template_registry,
+        resolver,
+        catalog,
+        context_policy,
+        compiler,
+        hide_future_result,
+        assembler,
+        prompt_policy,
+        template_registry,
     )
     candidate = StructuredOutputCandidate(
         candidate_id=OutputCandidateId("cand-e2e-bad"),
-        project_id=PROJECT, branch_id=BRANCH, state_revision=REVISION,
-        action_id=ACTION, cognitive_mode="FALSIFY",
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        state_revision=REVISION,
+        action_id=ACTION,
+        cognitive_mode="FALSIFY",
         prompt_package_id=package.package_id,
         output_contract_id=OutputContractId("example-assessment"),
         output_contract_version=1,

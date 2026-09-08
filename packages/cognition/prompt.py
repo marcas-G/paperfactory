@@ -109,16 +109,13 @@ class PromptTemplate:
         for name in self.variables:
             if not _VAR_NAME.match(name):
                 raise PromptTemplateError(
-                    f"invalid template variable name: {name!r} "
-                    "(must be [A-Za-z_][A-Za-z0-9_]*)"
+                    f"invalid template variable name: {name!r} (must be [A-Za-z_][A-Za-z0-9_]*)"
                 )
         # Declared variables must actually appear in the body (sanity).
         declared = _extract_template_vars(self.body)
         unknown = declared - self.variables
         if unknown:
-            raise PromptTemplateError(
-                f"body references undeclared variables: {sorted(unknown)}"
-            )
+            raise PromptTemplateError(f"body references undeclared variables: {sorted(unknown)}")
 
 
 class PromptTemplateRenderer:
@@ -188,9 +185,7 @@ class PromptPolicy:
         # All 10 modes must be covered.
         for mode in CognitiveMode:
             if mode not in self.mode_template_refs:
-                raise InvalidPromptPolicyError(
-                    f"missing MODE_GUIDANCE template for {mode.value}"
-                )
+                raise InvalidPromptPolicyError(f"missing MODE_GUIDANCE template for {mode.value}")
         # Extra modes impossible (enum closed), but guard anyway.
         if set(self.mode_template_refs) != set(CognitiveMode):
             raise InvalidPromptPolicyError("mode_template_refs must cover exactly the 10 modes")
@@ -301,9 +296,7 @@ class PromptPackage:
     created_at: datetime = field(default_factory=lambda: _EPOCH)
 
 
-def is_prompt_package_current(
-    package: PromptPackage, current_state_revision: int
-) -> bool:
+def is_prompt_package_current(package: PromptPackage, current_state_revision: int) -> bool:
     """A package is current only if the state revision is unchanged
     (STEP-008 §38). No auto-refresh."""
     return package.state_revision == current_state_revision

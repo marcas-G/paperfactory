@@ -72,9 +72,7 @@ def assert_action_legal(
             f"definition={definition.action_type!r}"
         )
     if action.target_object_id not in state.object_states:
-        raise IllegalActionError(
-            f"target object does not exist: {action.target_object_id!r}"
-        )
+        raise IllegalActionError(f"target object does not exist: {action.target_object_id!r}")
     current = state.object_states[action.target_object_id]
     if not definition.allows_source_state(current):
         raise IllegalActionError(
@@ -84,9 +82,7 @@ def assert_action_legal(
         )
 
 
-def current_object_state(
-    state: ResearchStateSnapshot, object_id: ObjectId
-) -> StateLabel:
+def current_object_state(state: ResearchStateSnapshot, object_id: ObjectId) -> StateLabel:
     """Return the current state label of ``object_id`` or raise."""
     if object_id not in state.object_states:
         raise IllegalActionError(f"object not found: {object_id!r}")
@@ -174,11 +170,7 @@ class TransitionEngine:
         if gate_decision is TransitionDecision.REJECT:
             return TransitionExecutionResult(
                 decision=TransitionDecision.REJECT,
-                reason_codes=tuple(
-                    code
-                    for r in proposal.gate_results
-                    for code in r.reason_codes
-                ),
+                reason_codes=tuple(code for r in proposal.gate_results for code in r.reason_codes),
             )
 
         if gate_decision is TransitionDecision.WAIT:
@@ -253,14 +245,12 @@ class TransitionEngine:
         snapshot = self._store.get_snapshot(proposal.project_id, proposal.branch_id)
         if proposal.expected_revision != snapshot.revision:
             raise StaleStateError(
-                f"stale revision: expected={proposal.expected_revision} "
-                f"actual={snapshot.revision}"
+                f"stale revision: expected={proposal.expected_revision} actual={snapshot.revision}"
             )
         actual = snapshot.object_states.get(proposal.target_object_id)
         if actual != proposal.from_state:
             raise InvariantViolationError(
-                f"from_state mismatch: proposal={proposal.from_state!r} "
-                f"actual={actual!r}"
+                f"from_state mismatch: proposal={proposal.from_state!r} actual={actual!r}"
             )
 
         event = DomainEvent(

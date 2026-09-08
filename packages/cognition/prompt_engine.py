@@ -81,8 +81,7 @@ class PromptAssembler:
         # 1. staleness
         if request.state_revision != current_state_revision:
             raise StalePromptRequestError(
-                f"request revision {request.state_revision} != "
-                f"current {current_state_revision}"
+                f"request revision {request.state_revision} != current {current_state_revision}"
             )
         # 2. consistency (request vs bundle)
         self._check_consistency(request, context_bundle)
@@ -122,38 +121,48 @@ class PromptAssembler:
 
         # 5a. HARNESS_GUARDRAIL
         ordinal += 1
-        segments.append(self._template_segment(
-            ordinal, harness, {},
-            kind=PromptSegmentKind.HARNESS_GUARDRAIL,
-            authority="HARNESS",
-        ))
+        segments.append(
+            self._template_segment(
+                ordinal,
+                harness,
+                {},
+                kind=PromptSegmentKind.HARNESS_GUARDRAIL,
+                authority="HARNESS",
+            )
+        )
 
         # 5b. context instructions grouped by authority, bundle order preserved
         ordinal = self._add_context_instructions(segments, ordinal, context_bundle)
 
         # 5c. MODE_GUIDANCE
         ordinal += 1
-        segments.append(self._template_segment(
-            ordinal, mode_tmpl, {"cognitive_mode": request.cognitive_mode},
-            kind=PromptSegmentKind.MODE_GUIDANCE,
-            authority="MODE",
-        ))
+        segments.append(
+            self._template_segment(
+                ordinal,
+                mode_tmpl,
+                {"cognitive_mode": request.cognitive_mode},
+                kind=PromptSegmentKind.MODE_GUIDANCE,
+                authority="MODE",
+            )
+        )
 
         # 5d. TASK_INSTRUCTION
         ordinal += 1
         constraints_rendered = _render_constraints(request.task_constraints)
-        segments.append(self._template_segment(
-            ordinal,
-            task_tmpl,
-            {
-                "task_objective": request.task_objective,
-                "task_constraints_rendered": constraints_rendered,
-                "action_id": str(request.action_id) if request.action_id else "",
-                "cognitive_mode": request.cognitive_mode,
-            },
-            kind=PromptSegmentKind.TASK_INSTRUCTION,
-            authority="TASK",
-        ))
+        segments.append(
+            self._template_segment(
+                ordinal,
+                task_tmpl,
+                {
+                    "task_objective": request.task_objective,
+                    "task_constraints_rendered": constraints_rendered,
+                    "action_id": str(request.action_id) if request.action_id else "",
+                    "cognitive_mode": request.cognitive_mode,
+                },
+                kind=PromptSegmentKind.TASK_INSTRUCTION,
+                authority="TASK",
+            )
+        )
 
         # 5e. CONTEXT_DATA (untrusted, canonical JSON), bundle order preserved
         ordinal = self._add_context_data(segments, ordinal, context_bundle)
@@ -215,10 +224,7 @@ class PromptAssembler:
         ordinal: int,
         bundle: ContextBundle,
     ) -> int:
-        instructions = [
-            it for it in bundle.items
-            if it.item_type is ContextItemType.INSTRUCTION
-        ]
+        instructions = [it for it in bundle.items if it.item_type is ContextItemType.INSTRUCTION]
         for authority_value in ("SYSTEM", "PROJECT", "BRANCH"):
             for item in instructions:
                 if item.instruction_authority is None:
@@ -226,16 +232,18 @@ class PromptAssembler:
                 if item.instruction_authority.value != authority_value:
                     continue
                 ordinal += 1
-                segments.append(PromptSegment(
-                    segment_id=self._segment_id_factory(),
-                    kind=PromptSegmentKind.CONTEXT_INSTRUCTION,
-                    trust=PromptSegmentTrust.TRUSTED_INSTRUCTION,
-                    ordinal=ordinal,
-                    content=item.content,
-                    authority=item.instruction_authority.value,
-                    source_refs=(item.source_ref,),
-                    context_item_id=item.item_id,
-                ))
+                segments.append(
+                    PromptSegment(
+                        segment_id=self._segment_id_factory(),
+                        kind=PromptSegmentKind.CONTEXT_INSTRUCTION,
+                        trust=PromptSegmentTrust.TRUSTED_INSTRUCTION,
+                        ordinal=ordinal,
+                        content=item.content,
+                        authority=item.instruction_authority.value,
+                        source_refs=(item.source_ref,),
+                        context_item_id=item.item_id,
+                    )
+                )
         return ordinal
 
     def _add_context_data(
@@ -260,21 +268,23 @@ class PromptAssembler:
                 },
                 "content": item.content,
             }
-            segments.append(PromptSegment(
-                segment_id=self._segment_id_factory(),
-                kind=PromptSegmentKind.CONTEXT_DATA,
-                trust=PromptSegmentTrust.UNTRUSTED_CONTEXT,
-                ordinal=ordinal,
-                content=render_context_data(payload),
-                authority=None,
-                source_refs=(item.source_ref,),
-                context_item_id=item.item_id,
-                metadata={
-                    "item_type": item.item_type.value,
-                    "layer": item.layer.value,
-                    "scope": item.scope.value,
-                },
-            ))
+            segments.append(
+                PromptSegment(
+                    segment_id=self._segment_id_factory(),
+                    kind=PromptSegmentKind.CONTEXT_DATA,
+                    trust=PromptSegmentTrust.UNTRUSTED_CONTEXT,
+                    ordinal=ordinal,
+                    content=render_context_data(payload),
+                    authority=None,
+                    source_refs=(item.source_ref,),
+                    context_item_id=item.item_id,
+                    metadata={
+                        "item_type": item.item_type.value,
+                        "layer": item.layer.value,
+                        "scope": item.scope.value,
+                    },
+                )
+            )
         return ordinal
 
     @staticmethod

@@ -154,14 +154,13 @@ class ModelExecutionProfile:
         if not self.capabilities:
             raise ValueError("ModelExecutionProfile capabilities must be non-empty")
         if ModelCapability.TEXT_GENERATION not in self.capabilities:
-            raise ValueError(
-                "ModelExecutionProfile must declare TEXT_GENERATION capability"
-            )
+            raise ValueError("ModelExecutionProfile must declare TEXT_GENERATION capability")
 
     @property
     def ref(self) -> ModelExecutionProfileRef:
         return ModelExecutionProfileRef(
-            profile_id=self.profile_id, version=self.version,
+            profile_id=self.profile_id,
+            version=self.version,
         )
 
 
@@ -198,9 +197,7 @@ class AgentDefinition:
         for ref in self.allowed_execution_profiles:
             key = (str(ref.profile_id), ref.version)
             if key in seen:
-                raise ValueError(
-                    f"duplicate allowed profile ref: {ref.profile_id}/{ref.version}"
-                )
+                raise ValueError(f"duplicate allowed profile ref: {ref.profile_id}/{ref.version}")
             seen.add(key)
 
 
@@ -252,16 +249,24 @@ class AgentExecutionBinding:
         _check_non_empty(str(self.agent_id), "agent_id", "AgentExecutionBinding")
         _check_non_empty(self.agent_version, "agent_version", "AgentExecutionBinding")
         _check_non_empty(
-            str(self.execution_profile_id), "execution_profile_id", "AgentExecutionBinding",
+            str(self.execution_profile_id),
+            "execution_profile_id",
+            "AgentExecutionBinding",
         )
         _check_non_empty(
-            self.execution_profile_version, "execution_profile_version", "AgentExecutionBinding",
+            self.execution_profile_version,
+            "execution_profile_version",
+            "AgentExecutionBinding",
         )
         _check_non_empty(
-            str(self.execution_config_id), "execution_config_id", "AgentExecutionBinding",
+            str(self.execution_config_id),
+            "execution_config_id",
+            "AgentExecutionBinding",
         )
         _check_non_empty(
-            self.execution_config_version, "execution_config_version", "AgentExecutionBinding",
+            self.execution_config_version,
+            "execution_config_version",
+            "AgentExecutionBinding",
         )
         if not isinstance(self.resolved_parameter_settings, tuple):
             raise ValueError("resolved_parameter_settings must be a tuple")
@@ -284,13 +289,14 @@ class ModelExecutionProfileRegistry(Protocol):
         ...
 
     def get(
-        self, profile_id: ModelExecutionProfileId, version: str,
+        self,
+        profile_id: ModelExecutionProfileId,
+        version: str,
     ) -> ModelExecutionProfile:
         """Resolve by EXACT version. Raise if not found (no fallback)."""
         ...
 
-    def list_versions(self, profile_id: ModelExecutionProfileId) -> list[str]:
-        ...
+    def list_versions(self, profile_id: ModelExecutionProfileId) -> list[str]: ...
 
 
 @runtime_checkable
@@ -308,8 +314,7 @@ class AgentDefinitionRegistry(Protocol):
         """Resolve by EXACT version. Raise if not found (no fallback)."""
         ...
 
-    def list_versions(self, agent_id: AgentId) -> list[str]:
-        ...
+    def list_versions(self, agent_id: AgentId) -> list[str]: ...
 
 
 @runtime_checkable
@@ -327,14 +332,11 @@ class AgentExecutionBindingStore(Protocol):
         for the same Run."""
         ...
 
-    def get(self, binding_id: AgentExecutionBindingId) -> AgentExecutionBinding:
-        ...
+    def get(self, binding_id: AgentExecutionBindingId) -> AgentExecutionBinding: ...
 
-    def get_for_run(self, run_id: RuntimeRunId) -> AgentExecutionBinding | None:
-        ...
+    def get_for_run(self, run_id: RuntimeRunId) -> AgentExecutionBinding | None: ...
 
-    def list_for_session(self, session_id: RuntimeSessionId) -> list[AgentExecutionBinding]:
-        ...
+    def list_for_session(self, session_id: RuntimeSessionId) -> list[AgentExecutionBinding]: ...
 
     def discard(self, binding_id: AgentExecutionBindingId) -> None:
         """Roll back a binding whose AGENT_BOUND event was never emitted.
@@ -429,7 +431,8 @@ class AgentBindingManager:
         profile = self._profiles.get(execution_profile_id, execution_profile_version)
         # 8. validate selected Profile is allowed
         selected_ref = ModelExecutionProfileRef(
-            profile_id=execution_profile_id, version=execution_profile_version,
+            profile_id=execution_profile_id,
+            version=execution_profile_version,
         )
         if selected_ref not in definition.allowed_execution_profiles:
             raise AgentExecutionProfileNotAllowedError(
@@ -485,8 +488,7 @@ class AgentBindingManager:
                 self._bindings.discard(binding.binding_id)
             except Exception as discard_exc:  # pragma: no cover - defensive
                 raise AgentBindingStoreError(
-                    f"failed to roll back binding after event emission failure: "
-                    f"{discard_exc}"
+                    f"failed to roll back binding after event emission failure: {discard_exc}"
                 ) from exc
             raise AgentBindingStoreError(
                 f"failed to emit AGENT_BOUND; binding rolled back: {exc}"
@@ -509,12 +511,13 @@ class AgentBindingManager:
             raise RuntimeRunNotFoundError(f"run not found: {run_id}") from None
 
     def _validate_scope(
-        self, session: RuntimeSession, run: RuntimeRun,
+        self,
+        session: RuntimeSession,
+        run: RuntimeRun,
     ) -> None:
         if run.session_id != session.session_id:
             raise AgentBindingScopeError(
-                f"run.session_id {run.session_id} != session.session_id "
-                f"{session.session_id}"
+                f"run.session_id {run.session_id} != session.session_id {session.session_id}"
             )
         if run.project_id != session.project_id:
             raise AgentBindingScopeError("run/project project_id mismatch")
@@ -529,33 +532,35 @@ class AgentBindingManager:
         ts: datetime,
         actor: ActorType,
     ) -> None:
-        self._sink.append(RuntimeEvent(  # type: ignore[attr-defined]
-            event_id=RuntimeEventId(self._event_id_factory()),
-            event_type=RuntimeEventType.AGENT_BOUND,
-            session_id=session.session_id,
-            run_id=binding.run_id,
-            attempt_id=None,
-            project_id=session.project_id,
-            branch_id=session.branch_id,
-            actor=actor,
-            occurred_at=ts,
-            previous_status=RunStatus.CREATED.value,
-            new_status=RunStatus.CREATED.value,
-            metadata={
-                "binding_id": str(binding.binding_id),
-                "agent_id": str(binding.agent_id),
-                "agent_version": binding.agent_version,
-                "execution_profile_id": str(binding.execution_profile_id),
-                "execution_profile_version": binding.execution_profile_version,
-                "execution_config_id": str(binding.execution_config_id),
-                "execution_config_version": binding.execution_config_version,
-                "provider": binding.provider.name,
-                "model": binding.model.name,
-                # Full canonical parameter VALUES are intentionally NOT copied
-                # into the event — they live on the immutable Binding snapshot
-                # (STEP-014 §24).
-            },
-        ))
+        self._sink.append(
+            RuntimeEvent(  # type: ignore[attr-defined]
+                event_id=RuntimeEventId(self._event_id_factory()),
+                event_type=RuntimeEventType.AGENT_BOUND,
+                session_id=session.session_id,
+                run_id=binding.run_id,
+                attempt_id=None,
+                project_id=session.project_id,
+                branch_id=session.branch_id,
+                actor=actor,
+                occurred_at=ts,
+                previous_status=RunStatus.CREATED.value,
+                new_status=RunStatus.CREATED.value,
+                metadata={
+                    "binding_id": str(binding.binding_id),
+                    "agent_id": str(binding.agent_id),
+                    "agent_version": binding.agent_version,
+                    "execution_profile_id": str(binding.execution_profile_id),
+                    "execution_profile_version": binding.execution_profile_version,
+                    "execution_config_id": str(binding.execution_config_id),
+                    "execution_config_version": binding.execution_config_version,
+                    "provider": binding.provider.name,
+                    "model": binding.model.name,
+                    # Full canonical parameter VALUES are intentionally NOT copied
+                    # into the event — they live on the immutable Binding snapshot
+                    # (STEP-014 §24).
+                },
+            )
+        )
 
 
 # =========================================================================
@@ -605,9 +610,7 @@ class AgentProviderExecutionRequestFactory:
 
         # Lifecycle checks (§36)
         if run.status is not RunStatus.RUNNING:
-            raise IllegalAgentBindingStateError(
-                f"run must be RUNNING, got {run.status.value}"
-            )
+            raise IllegalAgentBindingStateError(f"run must be RUNNING, got {run.status.value}")
         if attempt.status is not AttemptStatus.RUNNING:
             raise IllegalAgentBindingStateError(
                 f"attempt must be RUNNING, got {attempt.status.value}"
@@ -616,9 +619,7 @@ class AgentProviderExecutionRequestFactory:
         # Current active attempt verification (§37)
         active = self._active_attempts(run.run_id)
         if len(active) == 0:
-            raise RuntimeInvariantViolationError(
-                f"run {run.run_id} has no active RUNNING attempt"
-            )
+            raise RuntimeInvariantViolationError(f"run {run.run_id} has no active RUNNING attempt")
         if len(active) > 1:
             raise RuntimeInvariantViolationError(
                 f"run {run.run_id} has multiple active RUNNING attempts"

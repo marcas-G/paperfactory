@@ -52,8 +52,16 @@ from .conftest import (
 # =========================================================================
 def test_ctx_001_cognitive_mode_has_ten_values() -> None:
     assert {m.value for m in CognitiveMode} == {
-        "FRAME", "EXPLORE", "MAP", "COMPARE", "FALSIFY", "DIAGNOSE",
-        "DISCRIMINATE", "VERIFY", "SYNTHESIZE", "DECIDE",
+        "FRAME",
+        "EXPLORE",
+        "MAP",
+        "COMPARE",
+        "FALSIFY",
+        "DIAGNOSE",
+        "DISCRIMINATE",
+        "VERIFY",
+        "SYNTHESIZE",
+        "DECIDE",
     }
 
 
@@ -172,7 +180,9 @@ def test_ctx_015_optional_forbidden_overlap_rejected() -> None:
 
 
 def test_ctx_016_stale_request_revision_rejected(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(state_revision=7)
     with pytest.raises(StaleContextRequestError):
@@ -183,7 +193,9 @@ def test_ctx_016_stale_request_revision_rejected(
 # CTX-017..023 — scope
 # =========================================================================
 def test_ctx_017_system_visible_to_branch_request(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     sys_item = make_item("sys", scope=ContextScope.SYSTEM, layer=ContextLayer.GLOBAL)
     req = make_request(required=["sys"])
@@ -192,7 +204,9 @@ def test_ctx_017_system_visible_to_branch_request(
 
 
 def test_ctx_018_same_project_visible(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     proj_item = make_item("proj", scope=ContextScope.PROJECT, layer=ContextLayer.STATE)
     req = make_request(required=["proj"])
@@ -201,7 +215,9 @@ def test_ctx_018_same_project_visible(
 
 
 def test_ctx_019_different_project_required_scope_error(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     other = ContextItem(
         item_id=ContextItemId("op"),
@@ -211,7 +227,7 @@ def test_ctx_019_different_project_required_scope_error(
         content="c",
         estimated_tokens=5,
         priority=10,
-            item_type=ContextItemType.NOTE,
+        item_type=ContextItemType.NOTE,
         project_id=ProjectId("OTHER"),
     )
     req = make_request(required=["op"])
@@ -220,7 +236,9 @@ def test_ctx_019_different_project_required_scope_error(
 
 
 def test_ctx_020_different_project_optional_excluded(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     other = ContextItem(
         item_id=ContextItemId("op"),
@@ -230,7 +248,7 @@ def test_ctx_020_different_project_optional_excluded(
         content="c",
         estimated_tokens=5,
         priority=10,
-            item_type=ContextItemType.NOTE,
+        item_type=ContextItemType.NOTE,
         project_id=ProjectId("OTHER"),
     )
     req = make_request(optional=["op"])
@@ -240,7 +258,9 @@ def test_ctx_020_different_project_optional_excluded(
 
 
 def test_ctx_021_same_branch_visible(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     br_item = make_item("br", scope=ContextScope.BRANCH, layer=ContextLayer.TASK)
     req = make_request(required=["br"])
@@ -249,7 +269,9 @@ def test_ctx_021_same_branch_visible(
 
 
 def test_ctx_022_different_branch_required_scope_error(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     from packages.domain.ids import BranchId
 
@@ -261,7 +283,7 @@ def test_ctx_022_different_branch_required_scope_error(
         content="c",
         estimated_tokens=5,
         priority=10,
-            item_type=ContextItemType.NOTE,
+        item_type=ContextItemType.NOTE,
         project_id=PROJECT,
         branch_id=BranchId("B2"),
     )
@@ -271,7 +293,9 @@ def test_ctx_022_different_branch_required_scope_error(
 
 
 def test_ctx_023_different_branch_optional_excluded(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     from packages.domain.ids import BranchId
 
@@ -283,7 +307,7 @@ def test_ctx_023_different_branch_optional_excluded(
         content="c",
         estimated_tokens=5,
         priority=10,
-            item_type=ContextItemType.NOTE,
+        item_type=ContextItemType.NOTE,
         project_id=PROJECT,
         branch_id=BranchId("B2"),
     )
@@ -296,7 +320,9 @@ def test_ctx_023_different_branch_optional_excluded(
 # CTX-024..030 — blinding
 # =========================================================================
 def test_ctx_024_no_hidden_tag_included(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     item = make_item("x")
     req = make_request(optional=["x"])
@@ -324,12 +350,14 @@ def test_ctx_026_required_future_result_blinded_raises(
 
 
 @pytest.mark.parametrize(
-    "tag", [ContextProtectionTag.TEST_SET, ContextProtectionTag.CONFIRMATORY_RESULT,
-            ContextProtectionTag.REVIEW_OUTCOME]
+    "tag",
+    [
+        ContextProtectionTag.TEST_SET,
+        ContextProtectionTag.CONFIRMATORY_RESULT,
+        ContextProtectionTag.REVIEW_OUTCOME,
+    ],
 )
-def test_ctx_027_029_tag_blinding(
-    compiler, context_policy, tag
-) -> None:
+def test_ctx_027_029_tag_blinding(compiler, context_policy, tag) -> None:
     policy = BlindingPolicy(policy_id="h", version=1, hidden_tags=frozenset({tag}))
     item = make_item("x", protection_tags=frozenset({tag}))
     req = make_request(optional=["x"])
@@ -349,7 +377,9 @@ def test_ctx_030_empty_hidden_tags_no_blinding(compiler, context_policy) -> None
 # CTX-031..035 — required context
 # =========================================================================
 def test_ctx_031_required_missing_raises(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["absent"])
     with pytest.raises(RequiredContextMissingError):
@@ -357,7 +387,9 @@ def test_ctx_031_required_missing_raises(
 
 
 def test_ctx_032_multiple_required_all_included(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a", layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM)
     b = make_item("b", layer=ContextLayer.STATE, scope=ContextScope.PROJECT)
@@ -368,7 +400,9 @@ def test_ctx_032_multiple_required_all_included(
 
 
 def test_ctx_033_required_preferred_over_optional(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["r"], optional=["o"], budget_tokens=15)
     r = make_item("r", tokens=10, priority=1)
@@ -379,7 +413,9 @@ def test_ctx_033_required_preferred_over_optional(
 
 
 def test_ctx_034_required_exceeds_budget_raises(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["r"], budget_tokens=5)
     r = make_item("r", tokens=10)
@@ -388,7 +424,9 @@ def test_ctx_034_required_exceeds_budget_raises(
 
 
 def test_ctx_035_required_never_removed_for_optional(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["r"], optional=["o"], budget_tokens=12)
     r = make_item("r", tokens=10, priority=1)
@@ -401,7 +439,9 @@ def test_ctx_035_required_never_removed_for_optional(
 # CTX-036..040 — optional budget
 # =========================================================================
 def test_ctx_036_optional_within_budget_included(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(optional=["o"], budget_tokens=100)
     o = make_item("o", tokens=10)
@@ -410,7 +450,9 @@ def test_ctx_036_optional_within_budget_included(
 
 
 def test_ctx_037_optional_over_budget_excluded(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(optional=["o"], budget_tokens=5)
     o = make_item("o", tokens=10)
@@ -419,7 +461,9 @@ def test_ctx_037_optional_over_budget_excluded(
 
 
 def test_ctx_038_large_optional_does_not_block_smaller(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     # budget=12; big optional=15 priority-high (does NOT fit); small=5 priority-low (fits)
     # Proves a too-large optional does not block a later, smaller one.
@@ -433,7 +477,9 @@ def test_ctx_038_large_optional_does_not_block_smaller(
 
 
 def test_ctx_038b_small_optional_after_skipped_large(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     # required fills most budget; big optional can't fit but small can
     req = make_request(required=["r"], optional=["big", "small"], budget_tokens=18)
@@ -449,7 +495,9 @@ def test_ctx_038b_small_optional_after_skipped_large(
 
 
 def test_ctx_039_total_within_budget(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["a"], optional=["b", "c"], budget_tokens=30)
     a = make_item("a", tokens=10, priority=1, layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM)
@@ -460,7 +508,9 @@ def test_ctx_039_total_within_budget(
 
 
 def test_ctx_040_bundle_total_equals_item_sum(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(required=["a"], optional=["b"], budget_tokens=100)
     a = make_item("a", tokens=10, priority=1, layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM)
@@ -474,7 +524,8 @@ def test_ctx_040_bundle_total_equals_item_sum(
 # =========================================================================
 def test_ctx_041_layer_order(compiler, no_blinding) -> None:
     policy = ContextPolicy(
-        policy_id="rev", version=1,
+        policy_id="rev",
+        version=1,
         layer_order=(ContextLayer.TASK, ContextLayer.STATE, ContextLayer.GLOBAL),
         default_blinding_policy=no_blinding,
     )
@@ -484,7 +535,9 @@ def test_ctx_041_layer_order(compiler, no_blinding) -> None:
     req = make_request(optional=["g", "s", "t"], budget_tokens=1000)
     bundle = _compile_fresh(policy, no_blinding, req, [g, s, t])
     assert [i.item_id for i in bundle.items] == [
-        ContextItemId("t"), ContextItemId("s"), ContextItemId("g"),
+        ContextItemId("t"),
+        ContextItemId("s"),
+        ContextItemId("g"),
     ]
 
 
@@ -496,7 +549,9 @@ def _compile_fresh(policy, blinding, req, candidates):
 
 
 def test_ctx_042_priority_descending_within_layer(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     low = make_item("low", priority=10)
     high = make_item("high", priority=90)
@@ -506,7 +561,9 @@ def test_ctx_042_priority_descending_within_layer(
 
 
 def test_ctx_043_item_id_lexical_within_layer_priority(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     z = make_item("z", priority=50)
     a = make_item("a", priority=50)
@@ -516,7 +573,9 @@ def test_ctx_043_item_id_lexical_within_layer_priority(
 
 
 def test_ctx_044_input_order_does_not_change_bundle(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a", priority=50)
     b = make_item("b", priority=90)
@@ -527,7 +586,9 @@ def test_ctx_044_input_order_does_not_change_bundle(
 
 
 def test_ctx_045_repeat_compile_same_content(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a", priority=50)
     req = make_request(optional=["a"], budget_tokens=1000)
@@ -543,7 +604,9 @@ def test_ctx_045_repeat_compile_same_content(
 # CTX-046..048 — duplicate / missing
 # =========================================================================
 def test_ctx_046_duplicate_candidate_rejected(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("dup")
     req = make_request(optional=["dup"])
@@ -552,7 +615,9 @@ def test_ctx_046_duplicate_candidate_rejected(
 
 
 def test_ctx_047_missing_optional_succeeds(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(optional=["absent"])
     bundle = compiler.compile(req, context_policy, no_blinding, [], REVISION)
@@ -560,7 +625,9 @@ def test_ctx_047_missing_optional_succeeds(
 
 
 def test_ctx_048_missing_optional_recorded(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     req = make_request(optional=["absent"])
     bundle = compiler.compile(req, context_policy, no_blinding, [], REVISION)
@@ -572,7 +639,9 @@ def test_ctx_048_missing_optional_recorded(
 # CTX-049..054 — bundle
 # =========================================================================
 def test_ctx_049_bundle_immutable(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -582,7 +651,9 @@ def test_ctx_049_bundle_immutable(
 
 
 def test_ctx_050_bundle_records_metadata(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -599,7 +670,9 @@ def test_ctx_050_bundle_records_metadata(
 
 
 def test_ctx_051_source_provenance(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a", source=make_source("H3", "4"))
     req = make_request(required=["a"])
@@ -608,7 +681,9 @@ def test_ctx_051_source_provenance(
 
 
 def test_ctx_052_bundle_has_no_flattened_prompt_field(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -642,7 +717,8 @@ def test_ctx_054_duplicate_bundle_id_rejected(bundle_store) -> None:
 
 def _default_policy() -> ContextPolicy:
     return ContextPolicy(
-        policy_id="default", version=1,
+        policy_id="default",
+        version=1,
         layer_order=(ContextLayer.GLOBAL, ContextLayer.STATE, ContextLayer.TASK),
         default_blinding_policy=BlindingPolicy(policy_id="none", version=1),
     )
@@ -656,7 +732,9 @@ def _no_blinding() -> BlindingPolicy:
 # CTX-055..057 — staleness
 # =========================================================================
 def test_ctx_055_bundle_current_when_revision_matches(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -665,7 +743,9 @@ def test_ctx_055_bundle_current_when_revision_matches(
 
 
 def test_ctx_056_bundle_stale_after_revision_change(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -674,7 +754,9 @@ def test_ctx_056_bundle_stale_after_revision_change(
 
 
 def test_ctx_057_stale_bundle_not_modified(
-    compiler, context_policy, no_blinding,
+    compiler,
+    context_policy,
+    no_blinding,
 ) -> None:
     a = make_item("a")
     req = make_request(required=["a"])
@@ -700,8 +782,13 @@ def test_ctx_058_compiler_has_no_state_mutation_attr() -> None:
     from packages.cognition.compiler import ContextCompiler
 
     src = inspect.getsource(ContextCompiler)
-    for forbidden in ("packages.control", "packages.runtime", "packages.capabilities",
-                      "ResearchTask", "ApprovalRequest"):
+    for forbidden in (
+        "packages.control",
+        "packages.runtime",
+        "packages.capabilities",
+        "ResearchTask",
+        "ApprovalRequest",
+    ):
         assert forbidden not in src, f"compiler references {forbidden}"
         assert forbidden not in src, f"compiler references {forbidden}"
 
@@ -711,7 +798,11 @@ def test_ctx_059_061_compiler_creates_no_task_approval_llm() -> None:
     import packages.cognition as cog
 
     for forbidden in (
-        "create_task", "ApprovalRequest", "openai", "anthropic", "pydantic_ai",
+        "create_task",
+        "ApprovalRequest",
+        "openai",
+        "anthropic",
+        "pydantic_ai",
     ):
         assert not hasattr(cog, forbidden)
 
@@ -721,16 +812,27 @@ def test_ctx_059_061_compiler_creates_no_task_approval_llm() -> None:
 # =========================================================================
 def test_m2_ctx_001_end_to_end(compiler, bundle_store, context_policy, hide_future_result) -> None:
     constitution = make_item(
-        "constitution", layer=ContextLayer.GLOBAL, scope=ContextScope.SYSTEM,
-        content="global rules", tokens=20, priority=80,
+        "constitution",
+        layer=ContextLayer.GLOBAL,
+        scope=ContextScope.SYSTEM,
+        content="global rules",
+        tokens=20,
+        priority=80,
     )
     current_state = make_item(
-        "current-state", layer=ContextLayer.STATE, scope=ContextScope.PROJECT,
-        content="state summary", tokens=20, priority=70,
+        "current-state",
+        layer=ContextLayer.STATE,
+        scope=ContextScope.PROJECT,
+        content="state summary",
+        tokens=20,
+        priority=70,
     )
     evidence_a = make_item("ev-a", tokens=20, priority=60, content="evidence A")
     future = make_item(
-        "future", tokens=20, priority=90, content="future result",
+        "future",
+        tokens=20,
+        priority=90,
+        content="future result",
         protection_tags=frozenset({ContextProtectionTag.FUTURE_RESULT}),
     )
     evidence_b = make_item("ev-b", tokens=20, priority=50, content="evidence B")
@@ -743,7 +845,9 @@ def test_m2_ctx_001_end_to_end(compiler, bundle_store, context_policy, hide_futu
         state_revision=7,
     )
     bundle = compiler.compile(
-        req, context_policy, hide_future_result,
+        req,
+        context_policy,
+        hide_future_result,
         [constitution, current_state, evidence_a, future, evidence_b],
         current_state_revision=7,
     )

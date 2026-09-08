@@ -55,7 +55,11 @@ def _propose_and_execute(controller, action, definition, *, task_id):  # type: i
 
 # APP-001 ----------------------------------------------------------------
 def test_app_001_approval_required_waits_and_creates_request(
-    controller, approval_action, approval_definition, store, approval_store  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    store,
+    approval_store,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
     result = _propose_and_execute(
@@ -80,12 +84,12 @@ def test_app_001_approval_required_waits_and_creates_request(
 
 # APP-002 ----------------------------------------------------------------
 def test_app_002_approved_marks_pending_resumable(
-    controller, approval_action, approval_definition  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
 
     controller.approve(pending.approval_id, resolved_by=ActorType.USER, note="ok")
@@ -96,12 +100,13 @@ def test_app_002_approved_marks_pending_resumable(
 
 # APP-003 ----------------------------------------------------------------
 def test_app_003_resume_after_approval_commits(
-    controller, approval_action, approval_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
     controller.approve(pending.approval_id, resolved_by=ActorType.USER)
 
@@ -122,12 +127,13 @@ def test_app_003_resume_after_approval_commits(
 
 # APP-004 ----------------------------------------------------------------
 def test_app_004_resume_with_changed_revision_raises_stale(
-    controller, approval_action, approval_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
     controller.approve(pending.approval_id, resolved_by=ActorType.USER)
 
@@ -179,12 +185,13 @@ def test_app_004_resume_with_changed_revision_raises_stale(
 
 # APP-005 ----------------------------------------------------------------
 def test_app_005_rejected_fails_task_and_rejects_pending(
-    controller, approval_action, approval_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
 
     controller.reject(pending.approval_id, resolved_by=ActorType.USER, note="no")
@@ -200,14 +207,15 @@ def test_app_005_rejected_fails_task_and_rejects_pending(
 # APP-006 ----------------------------------------------------------------
 @pytest.mark.parametrize("resolver", ["approve", "reject"])
 def test_app_006_terminal_approval_cannot_be_re_resolved(
-    controller, approval_action, approval_definition, resolver  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    resolver,  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.control.errors import InvariantViolationError
 
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
 
     if resolver == "approve":
@@ -225,12 +233,13 @@ def test_app_006_terminal_approval_cannot_be_re_resolved(
 
 # APP-007 ----------------------------------------------------------------
 def test_app_007_approval_lifecycle_emits_events(
-    controller, approval_action, approval_definition, event_sink  # type: ignore[no-untyped-def]
+    controller,
+    approval_action,
+    approval_definition,
+    event_sink,  # type: ignore[no-untyped-def]
 ) -> None:
     task = _seed_running_task(controller)
-    _propose_and_execute(
-        controller, approval_action, approval_definition, task_id=task.task_id
-    )
+    _propose_and_execute(controller, approval_action, approval_definition, task_id=task.task_id)
     pending = controller.list_pending_transitions(PROJECT, BRANCH)[0]
 
     types_before = {e.event_type for e in event_sink.list_for_project(PROJECT)}

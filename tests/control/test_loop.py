@@ -59,8 +59,11 @@ def test_loop_003_bool_budget_rejected() -> None:
 # =========================================================================
 def test_loop_004_continue_when_healthy() -> None:
     d = evaluate_stop(
-        iteration=1, consecutive_failures=0, total_failures=0,
-        budget=BUDGET, branch_actionable=True,
+        iteration=1,
+        consecutive_failures=0,
+        total_failures=0,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.should_stop is False
     assert d.reason is None
@@ -68,46 +71,65 @@ def test_loop_004_continue_when_healthy() -> None:
 
 def test_loop_005_external_stop_wins_over_everything() -> None:
     d = evaluate_stop(
-        iteration=99, consecutive_failures=99, total_failures=99,
-        budget=BUDGET, branch_actionable=False, stop_flag=True,
+        iteration=99,
+        consecutive_failures=99,
+        total_failures=99,
+        budget=BUDGET,
+        branch_actionable=False,
+        stop_flag=True,
     )
     assert d.reason is LoopStopReason.EXTERNAL_STOP
 
 
 def test_loop_006_branch_not_actionable_beats_budgets() -> None:
     d = evaluate_stop(
-        iteration=99, consecutive_failures=99, total_failures=0,
-        budget=BUDGET, branch_actionable=False,
+        iteration=99,
+        consecutive_failures=99,
+        total_failures=0,
+        budget=BUDGET,
+        branch_actionable=False,
     )
     assert d.reason is LoopStopReason.BRANCH_NOT_ACTIONABLE
 
 
 def test_loop_007_iteration_budget() -> None:
     d = evaluate_stop(
-        iteration=5, consecutive_failures=0, total_failures=0,
-        budget=BUDGET, branch_actionable=True,
+        iteration=5,
+        consecutive_failures=0,
+        total_failures=0,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.reason is LoopStopReason.BUDGET_ITERATIONS
     # one below the limit continues
     d2 = evaluate_stop(
-        iteration=4, consecutive_failures=0, total_failures=0,
-        budget=BUDGET, branch_actionable=True,
+        iteration=4,
+        consecutive_failures=0,
+        total_failures=0,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d2.should_stop is False
 
 
 def test_loop_008_consecutive_failure_budget() -> None:
     d = evaluate_stop(
-        iteration=1, consecutive_failures=2, total_failures=2,
-        budget=BUDGET, branch_actionable=True,
+        iteration=1,
+        consecutive_failures=2,
+        total_failures=2,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.reason is LoopStopReason.BUDGET_CONSECUTIVE_FAILURES
 
 
 def test_loop_009_total_failure_budget() -> None:
     d = evaluate_stop(
-        iteration=1, consecutive_failures=1, total_failures=4,
-        budget=BUDGET, branch_actionable=True,
+        iteration=1,
+        consecutive_failures=1,
+        total_failures=4,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.reason is LoopStopReason.BUDGET_TOTAL_FAILURES
 
@@ -115,16 +137,22 @@ def test_loop_009_total_failure_budget() -> None:
 def test_loop_010_iteration_checked_before_failures() -> None:
     # both iteration and consecutive budgets exceeded: iteration wins
     d = evaluate_stop(
-        iteration=5, consecutive_failures=2, total_failures=0,
-        budget=BUDGET, branch_actionable=True,
+        iteration=5,
+        consecutive_failures=2,
+        total_failures=0,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.reason is LoopStopReason.BUDGET_ITERATIONS
 
 
 def test_loop_011_consecutive_before_total() -> None:
     d = evaluate_stop(
-        iteration=1, consecutive_failures=2, total_failures=4,
-        budget=BUDGET, branch_actionable=True,
+        iteration=1,
+        consecutive_failures=2,
+        total_failures=4,
+        budget=BUDGET,
+        branch_actionable=True,
     )
     assert d.reason is LoopStopReason.BUDGET_CONSECUTIVE_FAILURES
 
@@ -157,8 +185,11 @@ def test_loop_014_status_mapping() -> None:
 
 def test_loop_015_run_record_defaults() -> None:
     record = LoopRunRecord(
-        project_id="p", branch_id="b", budget=BUDGET,
-        status=LoopRunStatus.COMPLETED, stop_reason=LoopStopReason.NO_CANDIDATES,
+        project_id="p",
+        branch_id="b",
+        budget=BUDGET,
+        status=LoopRunStatus.COMPLETED,
+        stop_reason=LoopStopReason.NO_CANDIDATES,
     )
     assert record.iterations == ()
     assert record.started_at is None

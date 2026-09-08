@@ -4,6 +4,7 @@ These build the small typed objects (profiles, configs, agents, stacks) used
 across the CFG / SEL / E2E / integration tests. Kept here to avoid repeating
 the boilerplate in every test module.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -61,39 +62,53 @@ class Counter:
 
 
 def make_profile(
-    pid="profile-A", version="v1", *,
-    provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-    capabilities=TEXT_STRUCT, supported_parameters=PARAMS_BASIC,
+    pid="profile-A",
+    version="v1",
+    *,
+    provider=FAKE_PROVIDER,
+    model=FAKE_MODEL_V1,
+    capabilities=TEXT_STRUCT,
+    supported_parameters=PARAMS_BASIC,
 ):
     return ModelExecutionProfile(
-        profile_id=ModelExecutionProfileId(pid), version=version,
-        name=f"{pid} {version}", description="d",
-        provider=provider, model=model,
-        capabilities=capabilities, supported_parameters=supported_parameters,
+        profile_id=ModelExecutionProfileId(pid),
+        version=version,
+        name=f"{pid} {version}",
+        description="d",
+        provider=provider,
+        model=model,
+        capabilities=capabilities,
+        supported_parameters=supported_parameters,
     )
 
 
 def make_config(
-    cid="config-A", version="v1", *,
-    profile_ref=None, settings=(),
+    cid="config-A",
+    version="v1",
+    *,
+    profile_ref=None,
+    settings=(),
 ):
     if profile_ref is None:
-        profile_ref = ModelExecutionProfileRef(
-            ModelExecutionProfileId("profile-A"), "v1")
+        profile_ref = ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1")
     return ModelExecutionConfig(
-        config_id=ModelExecutionConfigId(cid), version=version,
-        name=f"{cid} {version}", description="d",
-        profile_ref=profile_ref, parameter_settings=tuple(settings),
+        config_id=ModelExecutionConfigId(cid),
+        version=version,
+        name=f"{cid} {version}",
+        description="d",
+        profile_ref=profile_ref,
+        parameter_settings=tuple(settings),
     )
 
 
 def make_agent(aid="agent-A", version="v1", refs=None):
     if refs is None:
-        refs = (ModelExecutionProfileRef(
-            ModelExecutionProfileId("profile-A"), "v1"),)
+        refs = (ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1"),)
     return AgentDefinition(
-        agent_id=AgentId(aid), version=version,
-        name=f"{aid} {version}", description="d",
+        agent_id=AgentId(aid),
+        version=version,
+        name=f"{aid} {version}",
+        description="d",
         allowed_execution_profiles=refs,
     )
 
@@ -105,20 +120,38 @@ def build_stack(clock: Callable[[], datetime] | None = None):
     sink = InMemoryRuntimeEventSink()
     now = clock or (lambda: TZ)
     sm = RuntimeSessionManager(
-        sess_store, run_store, sink,
-        session_id_factory=Counter("sess"), event_id_factory=Counter("evt"),
-        now=now)
+        sess_store,
+        run_store,
+        sink,
+        session_id_factory=Counter("sess"),
+        event_id_factory=Counter("evt"),
+        now=now,
+    )
     rm = RuntimeRunManager(
-        sess_store, run_store, att_store, sink,
-        run_id_factory=Counter("run"), attempt_id_factory=Counter("att"),
-        event_id_factory=Counter("evt"), now=now)
+        sess_store,
+        run_store,
+        att_store,
+        sink,
+        run_id_factory=Counter("run"),
+        attempt_id_factory=Counter("att"),
+        event_id_factory=Counter("evt"),
+        now=now,
+    )
     return sm, rm, sink, sess_store, run_store, att_store, now
 
 
-def build_manager(sess_store, run_store, agent_reg, profile_reg, config_reg,
-                  binding_store, sink, now):
+def build_manager(
+    sess_store, run_store, agent_reg, profile_reg, config_reg, binding_store, sink, now
+):
     return AgentBindingManager(
-        sess_store, run_store, agent_reg, profile_reg, config_reg,
-        binding_store, sink,
-        binding_id_factory=Counter("bind"), event_id_factory=Counter("evt"),
-        now=now)
+        sess_store,
+        run_store,
+        agent_reg,
+        profile_reg,
+        config_reg,
+        binding_store,
+        sink,
+        binding_id_factory=Counter("bind"),
+        event_id_factory=Counter("evt"),
+        now=now,
+    )

@@ -4,6 +4,7 @@ Covers AGT-001..095 (architecture-level boundaries AGT-089..095 live partly
 in tests/architecture). Each test carries a direct behavioral assertion —
 never "covered by E2E".
 """
+
 from __future__ import annotations
 
 import inspect
@@ -113,9 +114,15 @@ def clock():
     return lambda: TZ
 
 
-def _profile(profile_id="profile-A", version="v1", *,
-             provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-             capabilities=TEXT_STRUCT, supported_parameters=PARAMS_BASIC):
+def _profile(
+    profile_id="profile-A",
+    version="v1",
+    *,
+    provider=FAKE_PROVIDER,
+    model=FAKE_MODEL_V1,
+    capabilities=TEXT_STRUCT,
+    supported_parameters=PARAMS_BASIC,
+):
     return ModelExecutionProfile(
         profile_id=ModelExecutionProfileId(profile_id),
         version=version,
@@ -130,8 +137,9 @@ def _profile(profile_id="profile-A", version="v1", *,
 
 def _agent(agent_id="agent-A", version="v1", refs=None):
     if refs is None:
-        refs = (ModelExecutionProfileRef(
-            profile_id=ModelExecutionProfileId("profile-A"), version="v1"),)
+        refs = (
+            ModelExecutionProfileRef(profile_id=ModelExecutionProfileId("profile-A"), version="v1"),
+        )
     return AgentDefinition(
         agent_id=AgentId(agent_id),
         version=version,
@@ -147,13 +155,18 @@ def _stack(clock):
     att_store = InMemoryExecutionAttemptStore()
     sink = InMemoryRuntimeEventSink()
     sm = RuntimeSessionManager(
-        sess_store, run_store, sink,
+        sess_store,
+        run_store,
+        sink,
         session_id_factory=_Counter("sess"),
         event_id_factory=_Counter("evt"),
         now=clock,
     )
     rm = RuntimeRunManager(
-        sess_store, run_store, att_store, sink,
+        sess_store,
+        run_store,
+        att_store,
+        sink,
         run_id_factory=_Counter("run"),
         attempt_id_factory=_Counter("att"),
         event_id_factory=_Counter("evt"),
@@ -165,17 +178,30 @@ def _stack(clock):
 def _empty_config(cid="config-A", version="v1", *, profile_ref=None):
     if profile_ref is None:
         profile_ref = ModelExecutionProfileRef(
-            profile_id=ModelExecutionProfileId("profile-A"), version="v1")
+            profile_id=ModelExecutionProfileId("profile-A"), version="v1"
+        )
     return ModelExecutionConfig(
-        config_id=ModelExecutionConfigId(cid), version=version,
-        name=f"{cid} {version}", description="d",
-        profile_ref=profile_ref, parameter_settings=(),
+        config_id=ModelExecutionConfigId(cid),
+        version=version,
+        name=f"{cid} {version}",
+        description="d",
+        profile_ref=profile_ref,
+        parameter_settings=(),
     )
 
 
-def _manager(sess_store, run_store, agent_registry, profile_registry,
-             binding_store, sink, clock, *,
-             binding_counter="bind", config_registry=None):
+def _manager(
+    sess_store,
+    run_store,
+    agent_registry,
+    profile_registry,
+    binding_store,
+    sink,
+    clock,
+    *,
+    binding_counter="bind",
+    config_registry=None,
+):
     # STEP-013 tests bind an empty config-A/v1 against profile-A/v1. For
     # convenience we auto-provision such a config registry + empty config
     # unless the caller supplies one (STEP-014 tests supply their own).
@@ -186,8 +212,13 @@ def _manager(sess_store, run_store, agent_registry, profile_registry,
         except Exception:
             pass
     return AgentBindingManager(
-        sess_store, run_store, agent_registry, profile_registry,
-        config_registry, binding_store, sink,
+        sess_store,
+        run_store,
+        agent_registry,
+        profile_registry,
+        config_registry,
+        binding_store,
+        sink,
         binding_id_factory=_Counter(binding_counter),
         event_id_factory=_Counter("evt"),
         now=clock,
@@ -210,8 +241,7 @@ def _bindable_run(clock, profile_registry, agent_registry):
 # =========================================================================
 def test_agt_001_profile_ref_immutable():
     # AGT-001 ModelExecutionProfileRef immutable
-    ref = ModelExecutionProfileRef(
-        profile_id=ModelExecutionProfileId("p"), version="v1")
+    ref = ModelExecutionProfileRef(profile_id=ModelExecutionProfileId("p"), version="v1")
     with pytest.raises(FrozenInstanceError):
         ref.version = "v2"  # type: ignore[misc]
 
@@ -227,27 +257,42 @@ def test_agt_003_empty_profile_version_rejected():
     # AGT-003 empty profile version rejected
     with pytest.raises(ValueError):
         ModelExecutionProfile(
-            profile_id=ModelExecutionProfileId("p"), version="",
-            name="n", description="d", provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-            capabilities=TEXT_STRUCT)
+            profile_id=ModelExecutionProfileId("p"),
+            version="",
+            name="n",
+            description="d",
+            provider=FAKE_PROVIDER,
+            model=FAKE_MODEL_V1,
+            capabilities=TEXT_STRUCT,
+        )
 
 
 def test_agt_004_empty_profile_name_rejected():
     # AGT-004 empty profile name rejected
     with pytest.raises(ValueError):
         ModelExecutionProfile(
-            profile_id=ModelExecutionProfileId("p"), version="v",
-            name="", description="d", provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-            capabilities=TEXT_STRUCT)
+            profile_id=ModelExecutionProfileId("p"),
+            version="v",
+            name="",
+            description="d",
+            provider=FAKE_PROVIDER,
+            model=FAKE_MODEL_V1,
+            capabilities=TEXT_STRUCT,
+        )
 
 
 def test_agt_005_empty_description_rejected():
     # AGT-005 empty description rejected
     with pytest.raises(ValueError):
         ModelExecutionProfile(
-            profile_id=ModelExecutionProfileId("p"), version="v",
-            name="n", description="", provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
-            capabilities=TEXT_STRUCT)
+            profile_id=ModelExecutionProfileId("p"),
+            version="v",
+            name="n",
+            description="",
+            provider=FAKE_PROVIDER,
+            model=FAKE_MODEL_V1,
+            capabilities=TEXT_STRUCT,
+        )
 
 
 def test_agt_006_profile_registry_roundtrip(profile_registry):
@@ -289,35 +334,54 @@ def test_agt_010_empty_agent_version_rejected():
     # AGT-010 empty version rejected
     with pytest.raises(ValueError):
         AgentDefinition(
-            agent_id=AgentId("a"), version="", name="n", description="d",
-            allowed_execution_profiles=(ModelExecutionProfileRef(
-                ModelExecutionProfileId("p"), "v1"),))
+            agent_id=AgentId("a"),
+            version="",
+            name="n",
+            description="d",
+            allowed_execution_profiles=(
+                ModelExecutionProfileRef(ModelExecutionProfileId("p"), "v1"),
+            ),
+        )
 
 
 def test_agt_011_empty_agent_name_rejected():
     # AGT-011 empty name rejected
     with pytest.raises(ValueError):
         AgentDefinition(
-            agent_id=AgentId("a"), version="v", name="", description="d",
-            allowed_execution_profiles=(ModelExecutionProfileRef(
-                ModelExecutionProfileId("p"), "v1"),))
+            agent_id=AgentId("a"),
+            version="v",
+            name="",
+            description="d",
+            allowed_execution_profiles=(
+                ModelExecutionProfileRef(ModelExecutionProfileId("p"), "v1"),
+            ),
+        )
 
 
 def test_agt_012_empty_agent_description_rejected():
     # AGT-012 empty description rejected
     with pytest.raises(ValueError):
         AgentDefinition(
-            agent_id=AgentId("a"), version="v", name="n", description="",
-            allowed_execution_profiles=(ModelExecutionProfileRef(
-                ModelExecutionProfileId("p"), "v1"),))
+            agent_id=AgentId("a"),
+            version="v",
+            name="n",
+            description="",
+            allowed_execution_profiles=(
+                ModelExecutionProfileRef(ModelExecutionProfileId("p"), "v1"),
+            ),
+        )
 
 
 def test_agt_013_empty_allowed_profiles_rejected():
     # AGT-013 allowed profiles empty rejected
     with pytest.raises(ValueError):
         AgentDefinition(
-            agent_id=AgentId("a"), version="v", name="n", description="d",
-            allowed_execution_profiles=())
+            agent_id=AgentId("a"),
+            version="v",
+            name="n",
+            description="d",
+            allowed_execution_profiles=(),
+        )
 
 
 def test_agt_014_duplicate_allowed_profile_ref_rejected():
@@ -325,8 +389,12 @@ def test_agt_014_duplicate_allowed_profile_ref_rejected():
     ref = ModelExecutionProfileRef(ModelExecutionProfileId("p"), "v1")
     with pytest.raises(ValueError):
         AgentDefinition(
-            agent_id=AgentId("a"), version="v", name="n", description="d",
-            allowed_execution_profiles=(ref, ref))
+            agent_id=AgentId("a"),
+            version="v",
+            name="n",
+            description="d",
+            allowed_execution_profiles=(ref, ref),
+        )
 
 
 def test_agt_015_agent_registry_roundtrip(agent_registry):
@@ -373,9 +441,11 @@ def test_agt_019_binding_api_requires_exact_profile(
 ):
     # AGT-019 Binding API requires exact profile ID/version
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     sig = inspect.signature(mgr.bind_agent)
     params = sig.parameters
     assert "execution_profile_id" in params
@@ -414,16 +484,26 @@ def test_agt_021_allowed_profile_order_irrelevant(
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
     cfg_reg = InMemoryModelExecutionConfigRegistry()
     cfg_reg.register(_empty_config(profile_ref=ref_v1))
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock, config_registry=cfg_reg)
+    mgr = _manager(
+        sess_store,
+        run_store,
+        agent_registry,
+        profile_registry,
+        binding_store,
+        sink,
+        clock,
+        config_registry=cfg_reg,
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("p"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.execution_profile_version == "v1"
     assert binding.model is FAKE_MODEL_V1
 
@@ -434,34 +514,42 @@ def test_agt_021_allowed_profile_order_irrelevant(
 def test_agt_022_created_run_can_bind(clock, profile_registry, agent_registry, binding_store):
     # AGT-022 CREATED Run can bind
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.run_id == run.run_id
 
 
 def test_agt_023_binding_immutable(clock, profile_registry, agent_registry, binding_store):
     # AGT-023 Binding immutable
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     with pytest.raises(FrozenInstanceError):
         binding.agent_version = "v2"  # type: ignore[misc]
 
@@ -469,17 +557,21 @@ def test_agt_023_binding_immutable(clock, profile_registry, agent_registry, bind
 def test_agt_024_exact_agent_version_saved(clock, profile_registry, agent_registry, binding_store):
     # AGT-024 exact agent version saved
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.agent_id == AgentId("agent-A")
     assert binding.agent_version == "v1"
 
@@ -492,17 +584,21 @@ def test_agt_025_exact_profile_version_saved(
 ):
     # AGT-025 exact profile version saved
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.execution_profile_id == ModelExecutionProfileId("profile-A")
     assert binding.execution_profile_version == "v1"
 
@@ -510,34 +606,42 @@ def test_agt_025_exact_profile_version_saved(
 def test_agt_026_provider_snapshot_saved(clock, profile_registry, agent_registry, binding_store):
     # AGT-026 provider snapshot saved
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.provider == FAKE_PROVIDER
 
 
 def test_agt_027_model_snapshot_saved(clock, profile_registry, agent_registry, binding_store):
     # AGT-027 model snapshot saved
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.model == FAKE_MODEL_V1
 
 
@@ -549,17 +653,21 @@ def test_agt_028_run_remains_created_after_bind(
 ):
     # AGT-028 bind leaves Run CREATED
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert run_store.get(run.run_id).status.value == "CREATED"
 
 
@@ -572,17 +680,21 @@ def test_agt_029_bind_creates_no_attempt(
 ):
     # AGT-029 bind creates no Attempt
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert attempt_store.list_for_run(run.run_id) == []
 
 
@@ -595,17 +707,21 @@ def test_agt_030_attempt_count_still_zero(
 ):
     # AGT-030 attempt_count stays 0
     sm, rm, sink, sess_store, run_store_, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store_, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store_, agent_registry, profile_registry, binding_store, sink, clock
+    )
     mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert run_store_.get(run.run_id).attempt_count == 0
 
 
@@ -625,16 +741,20 @@ def _run_to_status(rm, session, status):
         return started_run
     if status == "WAITING":
         from packages.runtime import RunWaitReason
+
         rm.pause_run(run.run_id, reason=RunWaitReason.MANUAL_PAUSE)
         return rm.get_run(run.run_id)
     if status == "SUCCEEDED":
         from packages.runtime import RuntimeOutputRef
+
         out = RuntimeOutputRef(artifact_type="t", artifact_id="a", version="1")
         rm.succeed_run(run.run_id, output_ref=out)
         return rm.get_run(run.run_id)
     if status == "FAILED":
-        rm.fail_run(run.run_id, failure=RuntimeFailure(
-            category=RuntimeFailureCategory.INTERNAL, code="X", message="m"))
+        rm.fail_run(
+            run.run_id,
+            failure=RuntimeFailure(category=RuntimeFailureCategory.INTERNAL, code="X", message="m"),
+        )
         return rm.get_run(run.run_id)
     if status == "CANCELLED":
         rm.cancel_run(run.run_id)
@@ -645,33 +765,40 @@ def _run_to_status(rm, session, status):
     raise AssertionError(status)
 
 
-@pytest.mark.parametrize("status,exc_type", [
-    ("READY", IllegalAgentBindingStateError),       # AGT-031
-    ("RUNNING", IllegalAgentBindingStateError),     # AGT-032
-    ("WAITING", IllegalAgentBindingStateError),     # AGT-033
-    ("SUCCEEDED", IllegalAgentBindingStateError),   # AGT-034
-    ("FAILED", IllegalAgentBindingStateError),      # AGT-035
-    ("CANCELLED", IllegalAgentBindingStateError),   # AGT-036
-    ("TIMED_OUT", IllegalAgentBindingStateError),   # AGT-037
-])
+@pytest.mark.parametrize(
+    "status,exc_type",
+    [
+        ("READY", IllegalAgentBindingStateError),  # AGT-031
+        ("RUNNING", IllegalAgentBindingStateError),  # AGT-032
+        ("WAITING", IllegalAgentBindingStateError),  # AGT-033
+        ("SUCCEEDED", IllegalAgentBindingStateError),  # AGT-034
+        ("FAILED", IllegalAgentBindingStateError),  # AGT-035
+        ("CANCELLED", IllegalAgentBindingStateError),  # AGT-036
+        ("TIMED_OUT", IllegalAgentBindingStateError),  # AGT-037
+    ],
+)
 def test_agt_031_037_non_created_bind_rejected(
-        clock, profile_registry, agent_registry, binding_store, status, exc_type):
+    clock, profile_registry, agent_registry, binding_store, status, exc_type
+):
     profile_registry.register(_profile())
     agent_registry.register(_agent())
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = _run_to_status(rm, session, status)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(exc_type):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 # =========================================================================
@@ -680,17 +807,21 @@ def test_agt_031_037_non_created_bind_rejected(
 def test_agt_038_matching_session_run_ok(clock, profile_registry, agent_registry, binding_store):
     # AGT-038 matching Session/Run legal
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding is not None
 
 
@@ -704,17 +835,20 @@ def test_agt_039_session_mismatch_rejected(clock, profile_registry, agent_regist
     session_a = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     session_b = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session_a.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(AgentBindingScopeError):
         mgr.bind_agent(
-
-            session_id=session_b.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session_b.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_040_project_mismatch_rejected(clock, profile_registry, agent_registry, binding_store):
@@ -728,10 +862,15 @@ def test_agt_040_project_mismatch_rejected(clock, profile_registry, agent_regist
     # inconsistency by passing a session whose project differs. We simulate via
     # a custom session store returning a mismatched session.
     from packages.runtime import RuntimeSession, RuntimeSessionStatus
+
     bad_session = RuntimeSession(
-        session_id=session.session_id, project_id=ProjectId("OTHER"),
-        branch_id=BRANCH, status=RuntimeSessionStatus.OPEN,
-        created_by=ActorType.SYSTEM, created_at=TZ)
+        session_id=session.session_id,
+        project_id=ProjectId("OTHER"),
+        branch_id=BRANCH,
+        status=RuntimeSessionStatus.OPEN,
+        created_by=ActorType.SYSTEM,
+        created_at=TZ,
+    )
 
     class _BadStore:
         def __init__(self, real):
@@ -743,17 +882,26 @@ def test_agt_040_project_mismatch_rejected(clock, profile_registry, agent_regist
         def __getattr__(self, name):
             return getattr(self._real, name)
 
-    mgr = _manager(_BadStore(sess_store), run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        _BadStore(sess_store),
+        run_store,
+        agent_registry,
+        profile_registry,
+        binding_store,
+        sink,
+        clock,
+    )
     with pytest.raises(AgentBindingScopeError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_041_branch_mismatch_rejected(clock, profile_registry, agent_registry, binding_store):
@@ -764,10 +912,15 @@ def test_agt_041_branch_mismatch_rejected(clock, profile_registry, agent_registr
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
     from packages.runtime import RuntimeSession, RuntimeSessionStatus
+
     bad_session = RuntimeSession(
-        session_id=session.session_id, project_id=PROJECT,
-        branch_id=BranchId("OTHER"), status=RuntimeSessionStatus.OPEN,
-        created_by=ActorType.SYSTEM, created_at=TZ)
+        session_id=session.session_id,
+        project_id=PROJECT,
+        branch_id=BranchId("OTHER"),
+        status=RuntimeSessionStatus.OPEN,
+        created_by=ActorType.SYSTEM,
+        created_at=TZ,
+    )
 
     class _BadStore:
         def __init__(self, real):
@@ -779,17 +932,26 @@ def test_agt_041_branch_mismatch_rejected(clock, profile_registry, agent_registr
         def __getattr__(self, name):
             return getattr(self._real, name)
 
-    mgr = _manager(_BadStore(sess_store), run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        _BadStore(sess_store),
+        run_store,
+        agent_registry,
+        profile_registry,
+        binding_store,
+        sink,
+        clock,
+    )
     with pytest.raises(AgentBindingScopeError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 # =========================================================================
@@ -798,17 +960,21 @@ def test_agt_041_branch_mismatch_rejected(clock, profile_registry, agent_registr
 def test_agt_042_allowed_profile_succeeds(clock, profile_registry, agent_registry, binding_store):
     # AGT-042 allowed profile succeeds
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.execution_profile_version == "v1"
 
 
@@ -821,22 +987,26 @@ def test_agt_043_not_allowed_profile_rejected(
     # AGT-043 not allowed profile -> AgentExecutionProfileNotAllowedError
     profile_registry.register(_profile("profile-A", "v1"))
     profile_registry.register(_profile("profile-B", "v1", model=FAKE_MODEL_V2))
-    agent_registry.register(_agent(refs=(ModelExecutionProfileRef(
-        ModelExecutionProfileId("profile-A"), "v1"),)))
+    agent_registry.register(
+        _agent(refs=(ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1"),))
+    )
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(AgentExecutionProfileNotAllowedError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-B"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_044_agent_exact_version_missing(
@@ -851,17 +1021,20 @@ def test_agt_044_agent_exact_version_missing(
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(AgentDefinitionNotFoundError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v2",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v2",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_045_profile_exact_version_missing(
@@ -876,40 +1049,50 @@ def test_agt_045_profile_exact_version_missing(
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(ModelExecutionProfileNotFoundError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v2",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_046_no_fallback_when_v2_exists(clock, profile_registry, agent_registry, binding_store):
     # AGT-046 requesting v1 when v2 exists returns v1 (no fallback)
     profile_registry.register(_profile(version="v1"))
     profile_registry.register(_profile(version="v2", model=FAKE_MODEL_V2))
-    agent_registry.register(_agent(refs=(
-        ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1"),
-        ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v2"),
-    )))
+    agent_registry.register(
+        _agent(
+            refs=(
+                ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v1"),
+                ModelExecutionProfileRef(ModelExecutionProfileId("profile-A"), "v2"),
+            )
+        )
+    )
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding.execution_profile_version == "v1"
     assert binding.model is FAKE_MODEL_V1  # NOT v2
 
@@ -925,26 +1108,32 @@ def test_agt_047_second_binding_same_run_rejected(
 ):
     # AGT-047 same Run second binding rejected
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     with pytest.raises(AgentAlreadyBoundError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
 
 
 def test_agt_048_different_runs_same_agent_profile(
@@ -960,24 +1149,29 @@ def test_agt_048_different_runs_same_agent_profile(
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run1 = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
     run2 = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     b1 = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run1.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run1.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     b2 = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run2.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run2.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert b1.run_id != b2.run_id
     assert b1.binding_id != b2.binding_id
 
@@ -985,17 +1179,21 @@ def test_agt_048_different_runs_same_agent_profile(
 def test_agt_049_get_for_run_correct(clock, profile_registry, agent_registry, binding_store):
     # AGT-049 get_for_run returns the binding
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert binding_store.get_for_run(run.run_id) is binding
     assert binding_store.get_for_run(RuntimeRunId("nope")) is None
 
@@ -1004,34 +1202,51 @@ def test_agt_050_duplicate_binding_id_rejected(clock, profile_registry, agent_re
     # AGT-050 duplicate binding ID rejected
     binding_store = InMemoryAgentExecutionBindingStore()
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock, binding_counter="dup")
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store,
+        run_store,
+        agent_registry,
+        profile_registry,
+        binding_store,
+        sink,
+        clock,
+        binding_counter="dup",
+    )
     b1 = mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     # Manually craft a second binding with the SAME id but different run.
     sm2, rm2, _, _, _, _ = _stack(clock)
     session2 = sm2.create_session(project_id=PROJECT, branch_id=BRANCH)
     run2 = rm2.create_run(session_id=session2.session_id, input_ref=INPUT_REF)
     from packages.runtime import AgentExecutionBinding as _B
+
     dup = _B(
         binding_id=b1.binding_id,
-        session_id=session2.session_id, run_id=run2.run_id,
-        project_id=PROJECT, branch_id=BRANCH,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session2.session_id,
+        run_id=run2.run_id,
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
         execution_config_version="v1",
-        provider=FAKE_PROVIDER, model=FAKE_MODEL_V1,
+        provider=FAKE_PROVIDER,
+        model=FAKE_MODEL_V1,
         resolved_parameter_settings=(),
-        created_by=ActorType.SYSTEM, created_at=TZ,
+        created_by=ActorType.SYSTEM,
+        created_at=TZ,
     )
     with pytest.raises(Exception):
         binding_store.save(dup)
@@ -1042,8 +1257,10 @@ def test_agt_050_duplicate_binding_id_rejected(clock, profile_registry, agent_re
 # =========================================================================
 def _bind_ok(mgr, session, run):
     return mgr.bind_agent(
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
@@ -1054,9 +1271,11 @@ def _bind_ok(mgr, session, run):
 def test_agt_051_emits_agent_bound(clock, profile_registry, agent_registry, binding_store):
     # AGT-051 successful emit AGENT_BOUND
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     _bind_ok(mgr, session, run)
     types = [e.event_type for e in sink.list_for_session(session.session_id)]
     assert RuntimeEventType.AGENT_BOUND in types
@@ -1065,12 +1284,17 @@ def test_agt_051_emits_agent_bound(clock, profile_registry, agent_registry, bind
 def test_agt_052_event_saves_exact_versions(clock, profile_registry, agent_registry, binding_store):
     # AGT-052 event saves exact agent/profile versions
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     _bind_ok(mgr, session, run)
-    evt = next(e for e in sink.list_for_session(session.session_id)
-               if e.event_type is RuntimeEventType.AGENT_BOUND)
+    evt = next(
+        e
+        for e in sink.list_for_session(session.session_id)
+        if e.event_type is RuntimeEventType.AGENT_BOUND
+    )
     assert evt.metadata["agent_version"] == "v1"
     assert evt.metadata["execution_profile_version"] == "v1"
 
@@ -1078,12 +1302,17 @@ def test_agt_052_event_saves_exact_versions(clock, profile_registry, agent_regis
 def test_agt_053_event_saves_provider_model(clock, profile_registry, agent_registry, binding_store):
     # AGT-053 event saves provider/model
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     _bind_ok(mgr, session, run)
-    evt = next(e for e in sink.list_for_session(session.session_id)
-               if e.event_type is RuntimeEventType.AGENT_BOUND)
+    evt = next(
+        e
+        for e in sink.list_for_session(session.session_id)
+        if e.event_type is RuntimeEventType.AGENT_BOUND
+    )
     assert evt.metadata["provider"] == "fake"
     assert evt.metadata["model"] == "fake-model-v1"
 
@@ -1100,17 +1329,20 @@ def test_agt_054_validation_failure_no_event(
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(ModelExecutionProfileNotFoundError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v2",  # missing,
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
     types = [e.event_type for e in sink.list_for_session(session.session_id)]
     assert RuntimeEventType.AGENT_BOUND not in types
 
@@ -1127,17 +1359,20 @@ def test_agt_055_validation_failure_no_binding(
     sm, rm, sink, sess_store, run_store, att_store = _stack(clock)
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     with pytest.raises(ModelExecutionProfileNotFoundError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v2",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
     assert binding_store.get_for_run(run.run_id) is None
 
 
@@ -1152,9 +1387,9 @@ def test_agt_056_store_failure_no_event(clock, profile_registry, agent_registry)
     # AGT-056 binding store failure does not emit AGENT_BOUND
     failing = _FailingBindingStore()
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   failing, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(sess_store, run_store, agent_registry, profile_registry, failing, sink, clock)
     with pytest.raises(AgentBindingStoreError):
         _bind_ok(mgr, session, run)
     types = [e.event_type for e in sink.list_for_session(session.session_id)]
@@ -1171,6 +1406,7 @@ class _FailingEventSink(InMemoryRuntimeEventSink):
 
     def append(self, event):  # type: ignore[no-untyped-def]
         from packages.runtime import RuntimeEventType
+
         if event.event_type is RuntimeEventType.AGENT_BOUND:
             raise RuntimeError("event sink down")
         super().append(event)
@@ -1183,28 +1419,41 @@ def test_agt_057_event_failure_no_binding(clock, profile_registry, agent_registr
     run_store = InMemoryRuntimeRunStore()
     att_store = InMemoryExecutionAttemptStore()
     sm = RuntimeSessionManager(
-        sess_store, run_store, failing_sink,
-        session_id_factory=_Counter("sess"), event_id_factory=_Counter("evt"),
-        now=clock)
+        sess_store,
+        run_store,
+        failing_sink,
+        session_id_factory=_Counter("sess"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
     rm = RuntimeRunManager(
-        sess_store, run_store, att_store, failing_sink,
-        run_id_factory=_Counter("run"), attempt_id_factory=_Counter("att"),
-        event_id_factory=_Counter("evt"), now=clock)
+        sess_store,
+        run_store,
+        att_store,
+        failing_sink,
+        run_id_factory=_Counter("run"),
+        attempt_id_factory=_Counter("att"),
+        event_id_factory=_Counter("evt"),
+        now=clock,
+    )
     profile_registry.register(_profile())
     agent_registry.register(_agent())
     session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     run = rm.create_run(session_id=session.session_id, input_ref=INPUT_REF)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, failing_sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, failing_sink, clock
+    )
     with pytest.raises(AgentBindingStoreError):
         mgr.bind_agent(
-
-            session_id=session.session_id, run_id=run.run_id,
-            agent_id=AgentId("agent-A"), agent_version="v1",
+            session_id=session.session_id,
+            run_id=run.run_id,
+            agent_id=AgentId("agent-A"),
+            agent_version="v1",
             execution_profile_id=ModelExecutionProfileId("profile-A"),
             execution_profile_version="v1",
             execution_config_id=ModelExecutionConfigId("config-A"),
-            execution_config_version="v1")
+            execution_config_version="v1",
+        )
     # No binding survives the event failure
     assert binding_store.get_for_run(run.run_id) is None
 
@@ -1214,9 +1463,11 @@ def test_agt_057_event_failure_no_binding(clock, profile_registry, agent_registr
 # =========================================================================
 def _factory_stack(clock, profile_registry, agent_registry, binding_store):
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = _bind_ok(mgr, session, run)
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
@@ -1227,11 +1478,16 @@ def _factory_stack(clock, profile_registry, agent_registry, binding_store):
 def test_agt_058_factory_builds_request(clock, profile_registry, agent_registry, binding_store):
     # AGT-058 after mark_ready/start, request can be built
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input={"x": 1}, created_at=TZ,
+        projected_input={"x": 1},
+        created_at=TZ,
     )
     assert isinstance(req, ProviderExecutionRequest)
 
@@ -1239,11 +1495,16 @@ def test_agt_058_factory_builds_request(clock, profile_registry, agent_registry,
 def test_agt_059_provider_from_binding(clock, profile_registry, agent_registry, binding_store):
     # AGT-059 provider comes from Binding
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.provider == binding.provider == FAKE_PROVIDER
 
@@ -1251,11 +1512,16 @@ def test_agt_059_provider_from_binding(clock, profile_registry, agent_registry, 
 def test_agt_060_model_from_binding(clock, profile_registry, agent_registry, binding_store):
     # AGT-060 model comes from Binding
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.model == binding.model == FAKE_MODEL_V1
 
@@ -1263,11 +1529,16 @@ def test_agt_060_model_from_binding(clock, profile_registry, agent_registry, bin
 def test_agt_061_input_ref_from_run(clock, profile_registry, agent_registry, binding_store):
     # AGT-061 input_ref comes from Run
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.input_ref == run.input_ref == INPUT_REF
 
@@ -1275,11 +1546,16 @@ def test_agt_061_input_ref_from_run(clock, profile_registry, agent_registry, bin
 def test_agt_062_request_project_branch(clock, profile_registry, agent_registry, binding_store):
     # AGT-062 request project/branch correct
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.project_id == PROJECT
     assert req.branch_id == BRANCH
@@ -1293,11 +1569,16 @@ def test_agt_063_request_session_run_attempt(
 ):
     # AGT-063 request session/run/attempt correct
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert req.session_id == session.session_id
     assert req.run_id == run.run_id
@@ -1311,82 +1592,118 @@ def test_agt_064_wrong_session_rejected(clock, profile_registry, agent_registry,
     # AGT-064 wrong Session rejected — pass a session whose session_id differs
     # from binding.session_id (and from run.session_id).
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     sm, rm, _, _, _, _ = _stack(clock)
     other_session = sm.create_session(project_id=PROJECT, branch_id=BRANCH)
     with pytest.raises(AgentBindingScopeError):
         factory.build(
-            binding=binding, session=other_session, run=run, attempt=att,
+            binding=binding,
+            session=other_session,
+            run=run,
+            attempt=att,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
 def test_agt_065_wrong_run_rejected(clock, profile_registry, agent_registry, binding_store):
     # AGT-065 wrong Run rejected
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     # create a second run in the same session to use as "wrong run"
     sm2, rm2, _, _, _, att2 = _stack(clock)
     # Re-use same stores so the run is real: simplest path is to create via the
     # same rm that produced `run`. We reconstruct via factory_stack's rm by
     # making a fresh run on a fresh session; but binding.run_id must differ.
     from packages.runtime import RuntimeRun
+
     wrong_run = RuntimeRun(
-        run_id=RuntimeRunId("other-run"), session_id=session.session_id,
-        project_id=PROJECT, branch_id=BRANCH, status=__import__(
-            "packages.runtime", fromlist=["RunStatus"]).RunStatus.RUNNING,
-        input_ref=INPUT_REF, created_by=ActorType.SYSTEM, created_at=TZ,
-        started_at=TZ, attempt_count=1,
+        run_id=RuntimeRunId("other-run"),
+        session_id=session.session_id,
+        project_id=PROJECT,
+        branch_id=BRANCH,
+        status=__import__("packages.runtime", fromlist=["RunStatus"]).RunStatus.RUNNING,
+        input_ref=INPUT_REF,
+        created_by=ActorType.SYSTEM,
+        created_at=TZ,
+        started_at=TZ,
+        attempt_count=1,
     )
     with pytest.raises(AgentBindingScopeError):
         factory.build(
-            binding=binding, session=session, run=wrong_run, attempt=att,
+            binding=binding,
+            session=session,
+            run=wrong_run,
+            attempt=att,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
 def test_agt_066_wrong_attempt_rejected(clock, profile_registry, agent_registry, binding_store):
     # AGT-066 wrong Attempt rejected (attempt.run_id mismatch)
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     from packages.runtime import AttemptStatus, ExecutionAttempt
+
     wrong_att = ExecutionAttempt(
         attempt_id=__import__(
-            "packages.domain.ids", fromlist=["ExecutionAttemptId"]).ExecutionAttemptId("other"),
-        run_id=RuntimeRunId("other-run"), attempt_number=1,
-        status=AttemptStatus.RUNNING, started_at=TZ,
+            "packages.domain.ids", fromlist=["ExecutionAttemptId"]
+        ).ExecutionAttemptId("other"),
+        run_id=RuntimeRunId("other-run"),
+        attempt_number=1,
+        status=AttemptStatus.RUNNING,
+        started_at=TZ,
     )
     with pytest.raises(AgentBindingScopeError):
         factory.build(
-            binding=binding, session=session, run=run, attempt=wrong_att,
+            binding=binding,
+            session=session,
+            run=run,
+            attempt=wrong_att,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
 def test_agt_067_run_not_running_rejected(clock, profile_registry, agent_registry, binding_store):
     # AGT-067 Run non-RUNNING rejected (Run still CREATED, never started)
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = _bind_ok(mgr, session, run)
     # create a stray RUNNING attempt for a different run to feed in? No: build
     # against the CREATED run with a fabricated RUNNING attempt.
     from packages.domain.ids import ExecutionAttemptId
     from packages.runtime import AttemptStatus, ExecutionAttempt
+
     stray = ExecutionAttempt(
-        attempt_id=ExecutionAttemptId("att-1"), run_id=run.run_id,
-        attempt_number=1, status=AttemptStatus.RUNNING, started_at=TZ)
+        attempt_id=ExecutionAttemptId("att-1"),
+        run_id=run.run_id,
+        attempt_number=1,
+        status=AttemptStatus.RUNNING,
+        started_at=TZ,
+    )
     att_store.save(stray)
     factory = AgentProviderExecutionRequestFactory(att_store)
     with pytest.raises(IllegalAgentBindingStateError):
         factory.build(
-            binding=binding, session=session, run=run, attempt=stray,
+            binding=binding,
+            session=session,
+            run=run,
+            attempt=stray,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
@@ -1398,23 +1715,31 @@ def test_agt_068_attempt_not_running_rejected(
 ):
     # AGT-068 Attempt non-RUNNING rejected
     sm, rm, sink, sess_store, run_store, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = _bind_ok(mgr, session, run)
     rm.mark_ready(run.run_id)
     _, att = rm.start_run(run.run_id)
     # fail the attempt to make it non-RUNNING
-    rm.fail_run(run.run_id, failure=RuntimeFailure(
-        category=RuntimeFailureCategory.INTERNAL, code="X", message="m"))
+    rm.fail_run(
+        run.run_id,
+        failure=RuntimeFailure(category=RuntimeFailureCategory.INTERNAL, code="X", message="m"),
+    )
     failed_att = att_store.list_for_run(run.run_id)[0]
     failed_run = run_store.get(run.run_id)
     factory = AgentProviderExecutionRequestFactory(att_store)
     with pytest.raises(IllegalAgentBindingStateError):
         factory.build(
-            binding=binding, session=session, run=failed_run, attempt=failed_att,
+            binding=binding,
+            session=session,
+            run=failed_run,
+            attempt=failed_att,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
@@ -1428,17 +1753,27 @@ def test_agt_069_not_current_active_attempt_rejected(
     # attempt that is NOT the one stored as active (different id), while the
     # stored active one exists.
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     from packages.domain.ids import ExecutionAttemptId
     from packages.runtime import AttemptStatus, ExecutionAttempt
+
     other_running = ExecutionAttempt(
-        attempt_id=ExecutionAttemptId("ghost"), run_id=run.run_id,
-        attempt_number=99, status=AttemptStatus.RUNNING, started_at=TZ)
+        attempt_id=ExecutionAttemptId("ghost"),
+        run_id=run.run_id,
+        attempt_number=99,
+        status=AttemptStatus.RUNNING,
+        started_at=TZ,
+    )
     with pytest.raises(AgentBindingScopeError):
         factory.build(
-            binding=binding, session=session, run=run, attempt=other_running,
+            binding=binding,
+            session=session,
+            run=run,
+            attempt=other_running,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
@@ -1452,21 +1787,31 @@ def test_agt_070_multiple_active_attempts_invariant(
     # (which forbids this) and inject two RUNNING attempts directly, then call
     # the factory which must detect the invariant.
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     from packages.domain.ids import ExecutionAttemptId
     from packages.runtime import AttemptStatus, ExecutionAttempt, RuntimeInvariantViolationError
+
     extra = ExecutionAttempt(
-        attempt_id=ExecutionAttemptId("extra"), run_id=run.run_id,
-        attempt_number=2, status=AttemptStatus.RUNNING, started_at=TZ)
+        attempt_id=ExecutionAttemptId("extra"),
+        run_id=run.run_id,
+        attempt_number=2,
+        status=AttemptStatus.RUNNING,
+        started_at=TZ,
+    )
     # Insert directly into the store (invariant only enforced at build time here)
     binding_store  # noqa: B018 - keep ref
     # Use the same attempt store the factory was built with:
     factory._attempts.save(extra)  # type: ignore[attr-defined]
     with pytest.raises(RuntimeInvariantViolationError):
         factory.build(
-            binding=binding, session=session, run=run, attempt=att,
+            binding=binding,
+            session=session,
+            run=run,
+            attempt=att,
             request_id=ProviderExecutionRequestId("req-1"),
-            projected_input=None, created_at=TZ,
+            projected_input=None,
+            created_at=TZ,
         )
 
 
@@ -1499,11 +1844,16 @@ def test_agt_074_request_matches_binding_and_run(
 ):
     # AGT-074 generated request provider/model/input_ref exactly match Binding/Run
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input={"seg": 1}, created_at=TZ,
+        projected_input={"seg": 1},
+        created_at=TZ,
     )
     assert req.provider is binding.provider
     assert req.model is binding.model
@@ -1522,14 +1872,17 @@ def test_agt_075_bind_does_not_mark_ready(
 ):
     # AGT-075 bind does not mark READY
     sm, rm, sink, sess_store, run_store_, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store_, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store_, agent_registry, profile_registry, binding_store, sink, clock
+    )
     _bind_ok(mgr, session, run)
     assert run_store_.get(run.run_id).status.value == "CREATED"
     # no RUN_READY event emitted by binding
     types = [e.event_type for e in sink.list_for_run(run.run_id)]
     from packages.runtime import RuntimeEventType as _RT
+
     assert _RT.RUN_READY not in types
 
 
@@ -1542,12 +1895,15 @@ def test_agt_076_bind_does_not_start_run(
 ):
     # AGT-076 bind does not start Run
     sm, rm, sink, sess_store, run_store_, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store_, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store_, agent_registry, profile_registry, binding_store, sink, clock
+    )
     _bind_ok(mgr, session, run)
     types = [e.event_type for e in sink.list_for_run(run.run_id)]
     from packages.runtime import RuntimeEventType as _RT
+
     assert _RT.RUN_STARTED not in types
 
 
@@ -1570,16 +1926,19 @@ def test_agt_077_bind_does_not_call_provider(
             calls.append(request)
             raise AssertionError("provider must not be called during bind")
 
-    mgr = _manager(sess_store, run_store, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+    mgr = _manager(
+        sess_store, run_store, agent_registry, profile_registry, binding_store, sink, clock
+    )
     mgr.bind_agent(
-
-        session_id=session.session_id, run_id=run.run_id,
-        agent_id=AgentId("agent-A"), agent_version="v1",
+        session_id=session.session_id,
+        run_id=run.run_id,
+        agent_id=AgentId("agent-A"),
+        agent_version="v1",
         execution_profile_id=ModelExecutionProfileId("profile-A"),
         execution_profile_version="v1",
         execution_config_id=ModelExecutionConfigId("config-A"),
-        execution_config_version="v1")
+        execution_config_version="v1",
+    )
     assert calls == []
 
 
@@ -1591,7 +1950,8 @@ def test_agt_078_factory_does_not_call_provider(
 ):
     # AGT-078 Factory does not call Provider
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     calls = []
 
     class _SpyExecutor:
@@ -1600,9 +1960,13 @@ def test_agt_078_factory_does_not_call_provider(
             raise AssertionError("factory must not call provider")
 
     factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     assert calls == []
 
@@ -1615,21 +1979,29 @@ def test_agt_079_factory_does_not_persist_request(
 ):
     # AGT-079 Factory does not save ProviderExecutionRequest
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     req_store = InMemoryRuntimeRunStore()  # unused; we verify no persistence by
     # the factory. The factory only holds an attempt_store; confirm the built
     # request is returned, not stored anywhere the factory owns.
     req = factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-9"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     # The factory has no request store attribute.
     assert not hasattr(factory, "_request_store")
     assert not hasattr(factory, "_req_store")
     # attempt store unaffected (still exactly one RUNNING attempt)
-    actives = [a for a in factory._attempts.list_for_run(run.run_id)  # type: ignore[attr-defined]
-               if a.status.value == "RUNNING"]
+    actives = [
+        a
+        for a in factory._attempts.list_for_run(run.run_id)  # type: ignore[attr-defined]
+        if a.status.value == "RUNNING"
+    ]
     assert len(actives) == 1
     # request identity is the caller's, not persisted internally
     assert req.request_id == ProviderExecutionRequestId("req-9")
@@ -1645,18 +2017,24 @@ def test_agt_080_factory_does_not_modify_run(
 ):
     # AGT-080 Factory does not modify Run
     sm, rm, sink, sess_store, run_store_, att_store, session, run = _bindable_run(
-        clock, profile_registry, agent_registry)
-    mgr = _manager(sess_store, run_store_, agent_registry, profile_registry,
-                   binding_store, sink, clock)
+        clock, profile_registry, agent_registry
+    )
+    mgr = _manager(
+        sess_store, run_store_, agent_registry, profile_registry, binding_store, sink, clock
+    )
     binding = _bind_ok(mgr, session, run)
     rm.mark_ready(run.run_id)
     started_run, att = rm.start_run(run.run_id)
     run_before = run_store_.get(run.run_id)
     factory = AgentProviderExecutionRequestFactory(att_store)
     factory.build(
-        binding=binding, session=session, run=started_run, attempt=att,
+        binding=binding,
+        session=session,
+        run=started_run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     run_after = run_store_.get(run.run_id)
     assert run_after == run_before
@@ -1670,13 +2048,18 @@ def test_agt_081_factory_does_not_modify_attempt(
 ):
     # AGT-081 Factory does not modify Attempt
     factory, binding, session, run, att = _factory_stack(
-        clock, profile_registry, agent_registry, binding_store)
+        clock, profile_registry, agent_registry, binding_store
+    )
     att_store_ref = factory._attempts  # type: ignore[attr-defined]
     att_before = att_store_ref.list_for_run(run.run_id)[0]
     factory.build(
-        binding=binding, session=session, run=run, attempt=att,
+        binding=binding,
+        session=session,
+        run=run,
+        attempt=att,
         request_id=ProviderExecutionRequestId("req-1"),
-        projected_input=None, created_at=TZ,
+        projected_input=None,
+        created_at=TZ,
     )
     att_after = att_store_ref.list_for_run(run.run_id)[0]
     assert att_after == att_before
@@ -1722,8 +2105,13 @@ def test_agt_087_no_subagents_field():
 def test_agt_088_no_mutable_state_fields():
     # AGT-088 no mutable memory/state fields on AgentDefinition
     forbidden = {
-        "memory", "scratchpad", "conversation_history", "thought",
-        "current_goal", "working_memory", "state",
+        "memory",
+        "scratchpad",
+        "conversation_history",
+        "thought",
+        "current_goal",
+        "working_memory",
+        "state",
     }
     names = {f.name for f in fields(AgentDefinition)}
     assert not (forbidden & names)
@@ -1739,6 +2127,7 @@ def test_agt_088_no_mutable_state_fields():
 def test_agt_089_090_runtime_no_cognition_control_imports():
     # AGT-089 / AGT-090: the agent module imports neither cognition nor control
     import packages.runtime.agent as agent_mod
+
     src = inspect.getsource(agent_mod)
     assert "packages.cognition" not in src
     assert "packages.control" not in src
@@ -1749,14 +2138,21 @@ def test_agt_089_090_runtime_no_cognition_control_imports():
 def test_agt_091_094_no_sdk_imports():
     # AGT-091..094 no SDK imports in agent.py
     import packages.runtime.agent as agent_mod
+
     src = inspect.getsource(agent_mod)
-    for forbidden in ("import openai", "import anthropic", "pydantic_ai",
-                      "temporalio", "langgraph"):
+    for forbidden in (
+        "import openai",
+        "import anthropic",
+        "pydantic_ai",
+        "temporalio",
+        "langgraph",
+    ):
         assert forbidden not in src
 
 
 def test_agt_095_no_model_selector():
     # AGT-095 no ModelSelector/Router production implementation
     import packages.runtime as rt
+
     assert not hasattr(rt, "ModelSelector")
     assert not hasattr(rt, "ModelRouter")

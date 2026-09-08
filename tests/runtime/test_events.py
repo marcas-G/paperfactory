@@ -1,4 +1,5 @@
 """RUN-067..082, RUN-090 — runtime events, separation."""
+
 from __future__ import annotations
 
 from packages.domain.events import ControlEventType
@@ -48,11 +49,17 @@ def test_run_075_run_succeeded_attempt_succeeded(run_mgr, event_sink, created_ru
 
 def test_run_076_run_failed_attempt_failed(run_mgr, event_sink, created_run):
     from packages.runtime import RuntimeFailure, RuntimeFailureCategory
+
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)
-    run_mgr.fail_run(run.run_id, failure=RuntimeFailure(
-        category=RuntimeFailureCategory.NETWORK, code="X", message="m",
-    ))
+    run_mgr.fail_run(
+        run.run_id,
+        failure=RuntimeFailure(
+            category=RuntimeFailureCategory.NETWORK,
+            code="X",
+            message="m",
+        ),
+    )
     types = [e.event_type for e in event_sink.list_for_run(run.run_id)]
     assert RuntimeEventType.RUN_FAILED in types
     assert RuntimeEventType.ATTEMPT_FAILED in types
@@ -61,6 +68,7 @@ def test_run_076_run_failed_attempt_failed(run_mgr, event_sink, created_run):
 def test_run_079_runtime_event_not_domain_event():
     # RuntimeEvent is a separate frozen dataclass, not DomainEvent
     from packages.domain.events import DomainEvent
+
     assert RE is not DomainEvent
 
 
@@ -73,7 +81,10 @@ def test_run_080_runtime_event_type_not_control_event_type():
 
 
 def test_run_090_event_sink_lists_by_session_and_run(
-    run_mgr, created_run, event_sink, open_session,
+    run_mgr,
+    created_run,
+    event_sink,
+    open_session,
 ):
     run_mgr.mark_ready(created_run.run_id)
     run, _ = run_mgr.start_run(created_run.run_id)

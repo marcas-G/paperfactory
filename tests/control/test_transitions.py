@@ -30,7 +30,9 @@ from .conftest import (
 
 # CTRL-001 ----------------------------------------------------------------
 def test_ctrl_001_legal_action_is_listed(
-    controller, draft_snapshot, advance_definition  # type: ignore[no-untyped-def]
+    controller,
+    draft_snapshot,
+    advance_definition,  # type: ignore[no-untyped-def]
 ) -> None:
     legal = controller.list_legal_actions(draft_snapshot, OBJ)
     actionTypes = {d.action_type for d in legal}
@@ -39,7 +41,8 @@ def test_ctrl_001_legal_action_is_listed(
 
 # CTRL-002 ----------------------------------------------------------------
 def test_ctrl_002_action_for_wrong_source_state_not_listed(
-    controller, ready_snapshot  # type: ignore[no-untyped-def]
+    controller,
+    ready_snapshot,  # type: ignore[no-untyped-def]
 ) -> None:
     # Object is READY -> DRAFT-only action (TEST_ADVANCE) must NOT be listed;
     # only READY-only action (TEST_BLOCKED_ADVANCE) should appear.
@@ -51,7 +54,9 @@ def test_ctrl_002_action_for_wrong_source_state_not_listed(
 
 # CTRL-003 ----------------------------------------------------------------
 def test_ctrl_003_illegal_source_state_action_raises(
-    draft_snapshot, blocked_advance_definition, advance_action  # type: ignore[no-untyped-def]
+    draft_snapshot,
+    blocked_advance_definition,
+    advance_action,  # type: ignore[no-untyped-def]
 ) -> None:
     # advance_action is type TEST_ADVANCE but here we test asserting against
     # a definition whose allowed source state (READY) the object (DRAFT) lacks.
@@ -60,7 +65,9 @@ def test_ctrl_003_illegal_source_state_action_raises(
 
 
 def test_illegal_missing_target_object_raises(
-    draft_snapshot, advance_definition, advance_action  # type: ignore[no-untyped-def]
+    draft_snapshot,
+    advance_definition,
+    advance_action,  # type: ignore[no-untyped-def]
 ) -> None:
     action = ResearchAction(
         action_id=advance_action.action_id,
@@ -76,7 +83,12 @@ def test_illegal_missing_target_object_raises(
 
 # CTRL-008 / 009 ---------------------------------------------------------
 def test_ctrl_008_009_commit_advances_state_and_emits_event(
-    controller, advance_action, advance_definition, store, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,
+    fixed_now,
+    seq_id_factory,  # type: ignore[no-untyped-def]
 ) -> None:
     proposal = controller.propose_transition(
         advance_action, advance_definition, to_state=STATE_READY, gate_results=()
@@ -109,7 +121,12 @@ def test_ctrl_008_009_commit_advances_state_and_emits_event(
 
 # CTRL-010 ----------------------------------------------------------------
 def test_ctrl_010_stale_revision_rejected_and_state_unchanged(
-    controller, store, advance_action, advance_definition, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
+    controller,
+    store,
+    advance_action,
+    advance_definition,
+    fixed_now,
+    seq_id_factory,  # type: ignore[no-untyped-def]
 ) -> None:
     stale = StateTransitionProposal(
         proposal_id="p-stale",
@@ -139,7 +156,12 @@ def test_ctrl_010_stale_revision_rejected_and_state_unchanged(
 
 # CTRL-011 ----------------------------------------------------------------
 def test_ctrl_011_wrong_from_state_not_committed(
-    controller, store, advance_action, advance_definition, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
+    controller,
+    store,
+    advance_action,
+    advance_definition,
+    fixed_now,
+    seq_id_factory,  # type: ignore[no-untyped-def]
 ) -> None:
     from packages.control.errors import InvariantViolationError
 
@@ -168,7 +190,10 @@ def test_ctrl_011_wrong_from_state_not_committed(
 
 
 def test_reject_decision_does_not_commit(
-    controller, advance_action, advance_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     failing = (GateResult(gate_id="g", status=GateStatus.FAIL, message="no"),)
     proposal = controller.propose_transition(
@@ -184,7 +209,10 @@ def test_reject_decision_does_not_commit(
 
 
 def test_wait_decision_does_not_commit(
-    controller, advance_action, advance_definition, store  # type: ignore[no-untyped-def]
+    controller,
+    advance_action,
+    advance_definition,
+    store,  # type: ignore[no-untyped-def]
 ) -> None:
     blocked = (GateResult(gate_id="g", status=GateStatus.BLOCKED),)
     proposal = controller.propose_transition(
@@ -200,7 +228,12 @@ def test_wait_decision_does_not_commit(
 
 # CTRL-015 ----------------------------------------------------------------
 def test_ctrl_015_full_closed_loop_without_llm_db_temporal(
-    controller, store, advance_action, advance_definition, fixed_now, seq_id_factory  # type: ignore[no-untyped-def]
+    controller,
+    store,
+    advance_action,
+    advance_definition,
+    fixed_now,
+    seq_id_factory,  # type: ignore[no-untyped-def]
 ) -> None:
     """State -> Action -> Gate -> Transition -> Event -> New State, with no
     LLM, no database, and no Temporal anywhere in the call path."""

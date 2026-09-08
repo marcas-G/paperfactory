@@ -107,9 +107,7 @@ class ResearchPolicyEngine:
             reason = self._hard_filter(cand, project_id, branch_id, state)
             if reason is not None:
                 excluded.append(
-                    ExcludedPolicyCandidate(
-                        action_id=cand.action.action_id, reason_codes=(reason,)
-                    )
+                    ExcludedPolicyCandidate(action_id=cand.action.action_id, reason_codes=(reason,))
                 )
                 continue
             components = score_candidate(cand.signals, policy_config.weights)
@@ -231,9 +229,7 @@ class ResearchPolicyEngine:
         self._emit(recommendation, actor_type)
         return recommendation
 
-    def _emit(
-        self, recommendation: PolicyRecommendation, actor_type: ActorType
-    ) -> None:
+    def _emit(self, recommendation: PolicyRecommendation, actor_type: ActorType) -> None:
         self._sink.append(
             ControlEvent(
                 event_id=EventId(self._id_factory()),

@@ -192,10 +192,7 @@ class ProviderExecutionPort(Protocol):
     the external I/O boundary.
     """
 
-    async def execute(
-        self, request: ProviderExecutionRequest
-    ) -> ProviderExecutionOutcome:
-        ...
+    async def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionOutcome: ...
 
 
 __all__ = [
