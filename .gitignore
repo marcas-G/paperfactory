@@ -47,3 +47,8 @@ ts/pnpm-lock.yaml
 # .claude/CLAUDE.md  (global constitution — version controlled)
 # docs/             (architecture + ADRs)
 # tests/            (architecture + future business tests)
+ts/node_modules/
+ts/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
