@@ -4,8 +4,6 @@ import { createApp, AppConfig } from "@app/index";
 import { createDeterministicProvider, DeterministicScenario } from "@runtime/provider-deterministic";
 import { createHypothesis } from "@domain/objects/hypothesis";
 import { createResearchGap } from "@domain/objects/gap";
-import { createEvidence } from "@domain/objects/evidence";
-import { createKnowledgeItem } from "@domain/objects/knowledge";
 import { runWorkflow, createHypothesisVerificationWorkflow } from "@orchestration/hypothesis-verification";
 
 function generateUuid(): string {

@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { ActionRegistry } from "@control/registry";
 import { ActionDefinition } from "@control/actions";
 
@@ -30,8 +31,10 @@ describe("ActionRegistry", () => {
     const custom: ActionDefinition = {
       name: "custom_action",
       targetType: "Hypothesis",
+      allowedSourceStates: ["PROPOSED"],
       targetState: "CUSTOM",
       requiresGate: false,
+      cognitiveMode: "EXPLORE",
     };
     registry.register(custom);
     expect(registry.has("custom_action")).toBe(true);
@@ -44,14 +47,18 @@ describe("ActionRegistry", () => {
     registry.register({
       name: "extra_1",
       targetType: "Hypothesis",
+      allowedSourceStates: ["DRAFT"],
       targetState: "EXTRA",
       requiresGate: false,
+      cognitiveMode: "EXPLORE",
     });
     registry.register({
       name: "extra_2",
       targetType: "Evidence",
+      allowedSourceStates: ["DRAFT"],
       targetState: "EXTRA",
       requiresGate: false,
+      cognitiveMode: "VERIFY",
     });
     expect(registry.list().length).toBe(initial + 2);
   });
@@ -62,8 +69,10 @@ describe("ActionRegistry", () => {
     registry.register({
       name: "assess_hypothesis",
       targetType: "Hypothesis",
+      allowedSourceStates: ["PROPOSED"],
       targetState: "OVERRIDDEN",
       requiresGate: true,
+      cognitiveMode: "DECIDE",
     });
     const updated = registry.get("assess_hypothesis");
     expect(updated!.targetState).toBe("OVERRIDDEN");

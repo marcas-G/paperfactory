@@ -28,7 +28,7 @@ export async function buildEvidenceChain(
             sourceType: "Evidence",
             sourceId: evidenceId,
             targetType: "Result",
-            targetId: evidence.resultId,
+            targetId: evidence.resultId as string,
             relation: "derives-from",
           }) as Record<string, unknown>),
         );
@@ -43,7 +43,7 @@ export async function buildEvidenceChain(
             sourceType: "Evidence",
             sourceId: evidenceId,
             targetType: "Hypothesis",
-            targetId: (h as Record<string, unknown>).hypothesisId,
+            targetId: (h as Record<string, unknown>).hypothesisId as string,
             relation:
               (evidence.direction as string) === "SUPPORTING"
                 ? "supports"
@@ -68,7 +68,7 @@ export async function buildEvidenceChain(
             sourceType: "Hypothesis",
             sourceId: hypId,
             targetType: "ResearchGap",
-            targetId: hyp.gapId,
+            targetId: hyp.gapId as string,
             relation: "addresses",
           }) as Record<string, unknown>),
         );

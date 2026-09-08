@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
 import { KnowledgeItem, createKnowledgeItem } from "../../../src/domain/objects/knowledge";
 
-const validUUID = "00000000-0000-4000-a000-000000000000";
 const anotherUUID = "11111111-1111-4111-a111-111111111111";
 
 describe("KnowledgeItem Schema", () => {

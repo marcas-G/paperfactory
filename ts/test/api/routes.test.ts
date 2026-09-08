@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import * as Effect from "effect/Effect";
 import { APIRouter, APIRequest, createHonoApp, HonoApp } from "@api/routes";
-import { ObjectStore, InMemoryObjectStore } from "@persistence/object-store";
+import { InMemoryObjectStore } from "@persistence/object-store";
 import { InMemoryEventStore } from "@persistence/event-store";
 import { ResearchController } from "@control/controller";
 import { TransitionEngine } from "@control/engine";
@@ -24,26 +24,12 @@ function buildFullApp() {
     transitionEngine,
     actionRegistry
   );
-  const router = new APIRouter();
   const provider = new DeterministicProvider({
     name: "test",
     responses: [{ content: "ok", stopReason: "stop" }],
   });
   const app = createHonoApp(objectStore, controller, provider);
   return { app, objectStore, controller, provider };
-}
-
-function buildMockApp() {
-  const store = new InMemoryObjectStore();
-  const mockProvider = new MockProvider([
-    { pattern: "", response: { content: "ok", stopReason: "stop" } },
-  ]);
-  const mockController = {} as ResearchController;
-  return createHonoApp(
-    store,
-    mockController,
-    mockProvider
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -316,12 +302,22 @@ describe("Health & UI", () => {
     expect(body).toContain("PaperFactory");
   });
 
-  it("GET / returns Vue SPA entry point", async () => {
+  it("GET / returns React SPA entry point", async () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain("<!DOCTYPE html>");
-    expect(body).toContain("<div id=\"app\"");
+    expect(body).toContain("<div id=\"root\"");
+  });
+
+  it("GET known SPA routes returns index.html fallback", async () => {
+    // React Router 客户端路由:后端仅对白名单路由回退 index.html
+    for (const path of ["/projects", "/papers", "/research/abcd-1234"]) {
+      const res = await app.request(path);
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(body).toContain("<div id=\"root\"");
+    }
   });
 
   it("GET /ws returns 404", async () => {
@@ -711,8 +707,8 @@ describe("Phase Versions API", () => {
     expect(versions[1].phaseVersion).toBe(2);
     expect(versions[0].phaseRunId).toBe("run-1");
     expect(versions[1].phaseRunId).toBe("run-2");
-    expect(versions[1].selfReview?.passed).toBe(true);
-    expect(versions[1].toolCalls.length).toBe(1);
+    expect((versions[1].selfReview as { passed: boolean } | null)?.passed).toBe(true);
+    expect((versions[1].toolCalls as unknown[]).length).toBe(1);
   });
 
   it("GET /api/projects/:id/phases/:phaseName/versions returns empty for unknown phase", async () => {
@@ -826,9 +822,9 @@ describe("Phase Versions API", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     const versions = body.versions as Record<string, unknown>[];
-    expect(versions[0].toolCalls.length).toBe(1);
+    expect((versions[0].toolCalls as unknown[]).length).toBe(1);
     expect(versions[0].selfReview).not.toBeNull();
-    expect(versions[0].selfReview?.passed).toBe(true);
-    expect(versions[0].selfReview?.rounds).toBe(3);
+    expect((versions[0].selfReview as { passed: boolean } | null)?.passed).toBe(true);
+    expect((versions[0].selfReview as { rounds: number } | null)?.rounds).toBe(3);
   });
 });

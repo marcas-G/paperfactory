@@ -265,7 +265,7 @@ describe("Tree of Thoughts Engine", () => {
   });
 
   it("uses custom system prompt when provided", async () => {
-    let receivedMessages: import("@runtime/provider").Message[] | null = null;
+    let receivedMessages: ReadonlyArray<import("@runtime/provider").Message> | null = null;
     const provider = createDeterministicProvider({
       name: "tot-custom-prompt",
       responses: [
@@ -297,8 +297,8 @@ describe("Tree of Thoughts Engine", () => {
     );
 
     expect(receivedMessages).toBeDefined();
-    expect(receivedMessages[0].role).toBe("system");
-    expect(receivedMessages[0].content).toBe("You are a quantum physicist.");
+    expect(receivedMessages![0].role).toBe("system");
+    expect(receivedMessages![0].content).toBe("You are a quantum physicist.");
   });
 
   it("defaults to beamWidth 3 and depth 3 when not specified", async () => {

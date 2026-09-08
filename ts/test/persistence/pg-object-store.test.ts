@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
   source_ids JSONB DEFAULT '[]', status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
   certainty_level DOUBLE PRECISION NOT NULL DEFAULT 0.5,
   question_ids JSONB DEFAULT '[]', tags JSONB DEFAULT '[]',
-  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS research_gaps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -81,7 +82,7 @@ CREATE TABLE IF NOT EXISTS results (
   project_id UUID NOT NULL, branch_id UUID NOT NULL, experiment_id UUID NOT NULL,
   summary TEXT, status VARCHAR(32) NOT NULL DEFAULT 'RAW',
   data JSONB DEFAULT '{}', metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS evidence (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,7 +90,8 @@ CREATE TABLE IF NOT EXISTS evidence (
   summary TEXT NOT NULL, direction VARCHAR(32) NOT NULL DEFAULT 'SUPPORTING',
   status VARCHAR(32) NOT NULL DEFAULT 'PROPOSED',
   strength DOUBLE PRECISION NOT NULL DEFAULT 0.5,
-  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS claims (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -104,7 +106,8 @@ CREATE TABLE IF NOT EXISTS research_failures (
   project_id UUID NOT NULL, branch_id UUID NOT NULL,
   failed_hypothesis_id UUID, failure_type VARCHAR(32) NOT NULL DEFAULT 'SCIENTIFIC',
   root_cause TEXT NOT NULL, evidence TEXT, reusable_lesson TEXT, retry_condition TEXT,
-  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  metadata JSONB DEFAULT '{}', created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -6,7 +6,6 @@ import { ResearchController } from "@control/controller";
 import { TransitionEngine } from "@control/engine";
 import { ActionRegistry } from "@control/registry";
 import { ToolRegistry } from "@runtime/tools/registry";
-import { MockProvider } from "@runtime/provider";
 import type { Provider, ToolDefinition, Message } from "@runtime/provider";
 import type { AgentEvent } from "@runtime/agent/loop";
 import { runAgentDrivenResearch } from "@orchestration/agent-research";

@@ -21,11 +21,7 @@ export interface ToolCall {
 export interface SelfReview {
   passed: boolean;
   rounds: number;
-  issues: Array<{
-    severity: string;
-    category: string;
-    message: string;
-  }>;
+  issues: Array<{ severity: string; category: string; message: string }>;
 }
 
 export interface PhaseRun {
@@ -33,14 +29,7 @@ export interface PhaseRun {
   projectId: string;
   phaseName: string;
   phaseVersion: number;
-  status:
-    | 'PENDING'
-    | 'RUNNING'
-    | 'COMPLETED'
-    | 'ERROR'
-    | 'WAITING_APPROVAL'
-    | 'REJECTED'
-    | 'MODIFY_REQUESTED';
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'ERROR' | 'WAITING_APPROVAL' | 'REJECTED' | 'MODIFY_REQUESTED';
   artifacts: Record<string, string[]>;
   agentOutput: string;
   toolCalls: ToolCall[];
@@ -51,23 +40,9 @@ export interface PhaseRun {
   updatedAt: string;
 }
 
-export interface VersionCompare {
-  versions: Array<{
-    runId: string;
-    version: number;
-    summary: string;
-    status: string;
-    active: boolean;
-    output: string;
-    toolCalls: ToolCall[];
-    selfReview: SelfReview | null;
-    createdAt: string;
-  }>;
-  diff: Array<{
-    field: string;
-    changes: Array<{
-      from: string;
-      to: string;
-    }>;
-  }>;
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
 }

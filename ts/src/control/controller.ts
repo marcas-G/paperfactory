@@ -1,5 +1,5 @@
 import * as Effect from "effect/Effect";
-import { ObjectStore, ResearchObject } from "@persistence/object-store";
+import { ObjectStore } from "@persistence/object-store";
 import { DomainEvent, createDomainEvent } from "@domain/events";
 import { EventStore } from "@persistence/event-store";
 import { ActionRegistry } from "./registry";
@@ -63,7 +63,12 @@ export class ResearchController {
 
     const gateResults: GateResult[] = [];
     if (action.requiresGate) {
+      // 只评估适用于该对象类型的 gate(每个 gate 显式声明 targetTypes),
+      // 防止 FALSIFICATION 等专用 gate 误拦无关对象类型的动作。
       for (const gate of ALL_GATES) {
+        if (!gate.targetTypes.includes(request.objectType)) {
+          continue;
+        }
         const result = await Effect.runPromise(
           gate.evaluate({
             objectState: obj,

@@ -208,8 +208,8 @@ export const researchPhases = pgTable("research_phases", {
   artifacts: jsonb("artifacts").$type<Record<string, unknown>>().default({}),
   agentOutput: text("agent_output"),
   needsReview: varchar("needs_review", { length: 16 }).notNull().default("false"),
-  reviewStatus: varchar("review_status", { length: 16 }).default(null).$type<string | null>(),
-  reviewComment: text("review_comment").default(null).$type<string | null>(),
+  reviewStatus: varchar("review_status", { length: 16 }).$type<string | null>(),
+  reviewComment: text("review_comment").$type<string | null>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

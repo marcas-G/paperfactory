@@ -18,6 +18,8 @@ export function useSSE() {
   let eventSource: EventSource | null = null;
   let handlers: SSEEventHandlers = {};
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let reconnectCount = 0;
+  const maxReconnects = 3;
 
   function setHandlers(h: SSEEventHandlers) {
     handlers = h;
@@ -25,6 +27,7 @@ export function useSSE() {
 
   function connect(url = '/api/research/stream') {
     disconnect();
+    reconnectCount = 0;
 
     const es = new EventSource(url);
     eventSource = es;
@@ -44,7 +47,6 @@ export function useSSE() {
         messages.value.push(msg);
         handlers.onMessage?.(msg);
       } catch {
-        // If data isn't JSON, treat raw text as data
         const msg: SSEMessage = {
           event: 'message',
           data: e.data,
@@ -54,14 +56,16 @@ export function useSSE() {
       }
     };
 
-    es.onerror = (err) => {
+    es.onerror = () => {
       connected.value = false;
-      handlers.onDisconnect?.();
-      handlers.onError?.(err);
       es.close();
       eventSource = null;
-      // Auto-reconnect after 3s
-      reconnectTimer = setTimeout(() => connect(url), 3000);
+      if (reconnectCount < maxReconnects) {
+        reconnectCount++;
+        reconnectTimer = setTimeout(() => connect(url), 3000);
+      } else {
+        handlers.onDisconnect?.();
+      }
     };
 
     return es;

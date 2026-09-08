@@ -1,6 +1,45 @@
-import { describe, it, expect, vi } from "vitest";
-import { debate, DebateRound, DebateResult } from "../../../src/runtime/workflows/debate";
+import { describe, it, expect } from "vitest";
+import { debate } from "../../../src/runtime/workflows/debate";
 import { createDeterministicProvider } from "../../../src/runtime/provider-deterministic";
+import type { Provider, Message, ProviderOptions } from "../../../src/runtime/provider";
+
+/**
+ * Records every sendMessages call (system + user) while delegating responses
+ * to a DeterministicProvider — lets tests assert what prompt each agent
+ * actually received instead of only checking result structure.
+ */
+class RecordingProvider implements Provider {
+  readonly calls: Array<{ system: string | undefined; user: string }> = [];
+
+  constructor(
+    private inner: ReturnType<typeof createDeterministicProvider>
+  ) {}
+
+  sendMessages(
+    messages: ReadonlyArray<Message>,
+    options?: ProviderOptions
+  ) {
+    this.calls.push({
+      system: messages.find((m) => m.role === "system")?.content,
+      user: messages
+        .filter((m) => m.role === "user")
+        .map((m) => m.content)
+        .join("\n"),
+    });
+    return this.inner.sendMessages(messages, options);
+  }
+
+  streamResponse(
+    messages: ReadonlyArray<Message>,
+    options?: ProviderOptions
+  ) {
+    return this.inner.streamResponse(messages, options);
+  }
+
+  getCallCount(): number {
+    return this.inner.getCallCount();
+  }
+}
 
 describe("Multi-Agent Debate Engine", () => {
   it("conducts single round debate between pro and con agents", async () => {
@@ -92,25 +131,25 @@ describe("Multi-Agent Debate Engine", () => {
   });
 
   it("passes previous debate context to subsequent rounds", async () => {
-    const calls: Array<{ role: string; content: string }> = [];
-
-    const provider = createDeterministicProvider({
-      name: "context-propagation",
-      responses: [
-        // Round 1: pro
-        { content: "Pro R1 argument", stopReason: "stop" },
-        // Round 1: con
-        { content: "Con R1 argument", stopReason: "stop" },
-        // Round 1: judge
-        { content: "Judge R1 verdict. Confidence: 0.5", stopReason: "stop" },
-        // Round 2: pro - should see previous round context
-        { content: "Pro R2 builds on R1", stopReason: "stop" },
-        // Round 2: con
-        { content: "Con R2 counters", stopReason: "stop" },
-        // Round 2: judge
-        { content: "Judge R2 final. Confidence: 0.8", stopReason: "stop" },
-      ],
-    });
+    const provider = new RecordingProvider(
+      createDeterministicProvider({
+        name: "context-propagation",
+        responses: [
+          // Round 1: pro
+          { content: "Pro R1 argument", stopReason: "stop" },
+          // Round 1: con
+          { content: "Con R1 argument", stopReason: "stop" },
+          // Round 1: judge
+          { content: "Judge R1 verdict. Confidence: 0.5", stopReason: "stop" },
+          // Round 2: pro - should see previous round context
+          { content: "Pro R2 builds on R1", stopReason: "stop" },
+          // Round 2: con
+          { content: "Con R2 counters", stopReason: "stop" },
+          // Round 2: judge
+          { content: "Judge R2 final. Confidence: 0.8", stopReason: "stop" },
+        ],
+      })
+    );
 
     const result = await debate(
       "Test hypothesis",
@@ -122,6 +161,12 @@ describe("Multi-Agent Debate Engine", () => {
     expect(result.debates.length).toBe(2);
     expect(result.debates[1].judge).toContain("Judge R2");
     expect(result.confidence).toBeCloseTo(0.8);
+
+    // round 2 的 pro 提示词必须包含上一轮摘要(证明上下文真实传递,而非各轮独立)
+    const round2ProUser = provider.calls[3].user;
+    expect(round2ProUser).toContain("Previous debate summary");
+    expect(round2ProUser).toContain("Pro R1 argument");
+    expect(round2ProUser).toContain("Con R1 argument");
   });
 
   it("handles provider error gracefully", async () => {
@@ -196,27 +241,22 @@ describe("Multi-Agent Debate Engine", () => {
     expect(result.confidence).toBeCloseTo(1.0);
   });
 
-  it("verifies pro agent receives correct system prompt", async () => {
-    let capturedProSystem = "";
-    let capturedConSystem = "";
-    let capturedJudgeSystem = "";
-    let callIndex = 0;
+  it("gives each agent its role-specific system prompt", async () => {
+    const provider = new RecordingProvider(
+      createDeterministicProvider({
+        name: "prompt-verification",
+        responses: [
+          { content: "Pro argument here", stopReason: "stop" },
+          { content: "Con argument here", stopReason: "stop" },
+          { content: "Judge verdict here. Confidence: 0.9", stopReason: "stop" },
+        ],
+      })
+    );
 
-    const originalProvider = createDeterministicProvider({
-      name: "prompt-verification",
-      responses: [
-        { content: "Pro argument here", stopReason: "stop" },
-        { content: "Con argument here", stopReason: "stop" },
-        { content: "Judge verdict here. Confidence: 0.9", stopReason: "stop" },
-      ],
-    });
-
-    // We verify by checking that the debate function makes exactly 3 calls per round
-    // and that the result structure is correct
     const result = await debate(
       "Does exercise improve cognitive function?",
       ["Study shows 15% improvement in working memory"],
-      originalProvider,
+      provider,
       { rounds: 1 }
     );
 
@@ -224,5 +264,15 @@ describe("Multi-Agent Debate Engine", () => {
     expect(result.debates[0].con).toBe("Con argument here");
     expect(result.debates[0].judge).toBe("Judge verdict here. Confidence: 0.9");
     expect(result.confidence).toBeCloseTo(0.9);
+
+    // 每轮恰好 3 次调用:pro/con/judge 各收到自己的 system prompt
+    expect(provider.calls.length).toBe(3);
+    expect(provider.calls[0].system).toContain("IN FAVOR");
+    expect(provider.calls[1].system).toContain("AGAINST");
+    expect(provider.calls[2].system).toContain("impartial");
+    // judge 的 user 提示词必须同时包含 pro 与 con 的论点
+    expect(provider.calls[2].user).toContain("Pro argument here");
+    expect(provider.calls[2].user).toContain("Con argument here");
+    expect(provider.getCallCount()).toBe(3);
   });
 });

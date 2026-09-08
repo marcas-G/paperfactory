@@ -42,13 +42,11 @@ export function createAgentRoutes(
     const runId = generateUuid();
 
     const encoder = new TextEncoder();
-    let controllerRef: ReadableStreamDefaultController | null = null;
     let closed = false;
 
     const stream = new ReadableStream({
       start(controller) {
-        controllerRef = controller;
-        const sendEvent = (eventType: string, data: Record<string, unknown>) => {
+        const sendEvent = (eventType: string, data: unknown) => {
           if (closed) return;
           try {
             const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;

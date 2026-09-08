@@ -36,6 +36,22 @@ describe("Agent Loop", () => {
       writeOnly: false,
     });
 
+    // search tool hits the real Semantic Scholar API — mock it and assert
+    // the exact URL, so the test is deterministic and offline-safe.
+    const httpCalls: string[] = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((url: any) => {
+      httpCalls.push(url);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [{ title: "Paper", authors: [{ name: "A" }] }],
+          }),
+          { status: 200 }
+        )
+      );
+    }) as any;
+
     const provider = new MockProvider([
       {
         pattern: "papers",
@@ -60,13 +76,21 @@ describe("Agent Loop", () => {
       },
     ]);
 
-    const result = await runAgentLoop(provider, toolRegistry, [
-      { role: "user", content: "search for papers" },
-    ]);
+    try {
+      const result = await runAgentLoop(provider, toolRegistry, [
+        { role: "user", content: "search for papers" },
+      ]);
 
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].toolName).toBe("search");
-    expect(result.finalContent).toBe("I found the papers you requested.");
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0].toolName).toBe("search");
+      expect(result.finalContent).toBe("I found the papers you requested.");
+      // the search tool must have actually called the external API —
+      // never a hardcoded/cached result
+      expect(httpCalls.length).toBeGreaterThan(0);
+      expect(httpCalls[0]).toContain("https://api.semanticscholar.org");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 
   it("loop terminates on max iterations", async () => {

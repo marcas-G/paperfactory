@@ -1,12 +1,16 @@
 import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import { resolve } from 'path';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [vue()],
-  root: '.',
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   build: {
-    outDir: resolve(__dirname, '../ts/src/api/static'),
+    outDir: path.resolve(__dirname, '../ts/src/api/static'),
     emptyOutDir: true,
     rollupOptions: {
       output: {
@@ -16,11 +20,13 @@ export default defineConfig({
       },
     },
   },
-  publicDir: false,
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+      '^/api/': {
+        target: 'http://host.docker.internal:3001',
         changeOrigin: true,
       },
     },

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { InMemoryObjectStore } from "@persistence/object-store";
 import { PgObjectStore } from "@persistence/pg-object-store";
 import * as Effect from "effect/Effect";
@@ -112,7 +112,7 @@ describe("Integration: ObjectStore PhaseRun/EvidenceChain/Citation persistence",
         const listed = await Effect.runPromise(pgStore.list("Citation"));
         const found = listed.find((c: any) => c.citationId === "pg-test-citation-001");
         expect(found).toBeDefined();
-        expect(found.sourceTitle).toBe("PG Test Paper");
+        expect(found!.sourceTitle).toBe("PG Test Paper");
 
         // Clean up
         await Effect.runPromise(pgStore.delete("pg-test-citation-001", "Citation")).catch(() => {});
@@ -138,8 +138,8 @@ describe("Integration: ObjectStore PhaseRun/EvidenceChain/Citation persistence",
         const runs = await Effect.runPromise(pgStore.list("PhaseRun"));
         const found = runs.find((r: any) => r.phaseRunId === "pg-test-phase-001");
         expect(found).toBeDefined();
-        expect(found.phaseName).toBe("gap_identification");
-        expect(found.phaseVersion).toBe(2);
+        expect(found!.phaseName).toBe("gap_identification");
+        expect(found!.phaseVersion).toBe(2);
 
         // Clean up
         await Effect.runPromise(pgStore.delete("pg-test-phase-001", "PhaseRun")).catch(() => {});
@@ -163,7 +163,7 @@ describe("Integration: ObjectStore PhaseRun/EvidenceChain/Citation persistence",
         const chains = await Effect.runPromise(pgStore.list("EvidenceChain"));
         const found = chains.find((c: any) => c.evidenceChainId === "pg-test-chain-001");
         expect(found).toBeDefined();
-        expect(found.relation).toBe("supports");
+        expect(found!.relation).toBe("supports");
 
         // Clean up
         await Effect.runPromise(pgStore.delete("pg-test-chain-001", "EvidenceChain")).catch(() => {});

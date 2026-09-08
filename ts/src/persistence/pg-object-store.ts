@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect";
 import { eq } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
+import type { PgTable, AnyPgColumn } from "drizzle-orm/pg-core";
 import { ObjectStore, Option, ResearchObject } from "@persistence/object-store";
 import { getDb } from "@persistence/drizzle/db";
 import * as Schema from "@persistence/drizzle/schema";
@@ -44,6 +44,12 @@ const ID_KEY_MAP: Record<string, string> = {
   Citation: "citationId",
   ResearchPhase: "phaseId",
 };
+
+// Every TABLE_MAP table uses uuid "id" as its PK column, but PgTable's type
+// only exposes columns through its config generics — read it via a narrow cast.
+function idColumn(table: PgTable): AnyPgColumn {
+  return (table as unknown as { id: AnyPgColumn }).id;
+}
 
 function detectType(obj: ResearchObject): string {
   if ("phaseId" in obj) return "ResearchPhase";
@@ -101,7 +107,7 @@ export class PgObjectStore implements ObjectStore {
         const res = await database
           .select()
           .from(table)
-          .where(eq(table.id, id))
+          .where(eq(idColumn(table), id))
           .limit(1);
         if (res.length === 0) return Option.none<T>();
         return Option.some(mapToDomainObj(res[0], type) as T);
@@ -156,7 +162,7 @@ export class PgObjectStore implements ObjectStore {
         const existing = await database
           .select()
           .from(table)
-          .where(eq(table.id, existingId))
+          .where(eq(idColumn(table), existingId))
           .limit(1);
 
         if (existing.length === 0) {
@@ -168,7 +174,7 @@ export class PgObjectStore implements ObjectStore {
         const r = await database
           .update(table)
           .set(updateRow)
-          .where(eq(table.id, existingId))
+          .where(eq(idColumn(table), existingId))
           .returning();
         return mapToDomainObj(r[0] as Record<string, unknown>, type) as T;
       },
@@ -187,7 +193,7 @@ export class PgObjectStore implements ObjectStore {
         }
         const res = await database
           .delete(table)
-          .where(eq(table.id, id));
+          .where(eq(idColumn(table), id));
         return Number(res.rowCount) > 0;
       },
       catch: (error) =>

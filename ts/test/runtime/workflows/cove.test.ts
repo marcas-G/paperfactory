@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { chainOfVerification } from "../../../src/runtime/workflows/cove";
-import { MockProvider, Provider } from "../../../src/runtime/provider";
+import { Provider } from "../../../src/runtime/provider";
 import { ToolRegistry } from "../../../src/runtime/tools/registry";
 import * as Effect from "effect/Effect";
 
@@ -190,7 +190,8 @@ describe("chainOfVerification", () => {
     registry.register(mockSearchTool as any, {
       name: "search",
       description: "Search tool",
-      parameters: {},
+      schema: {},
+      writeOnly: false,
     });
 
     // Call 1: extract claims

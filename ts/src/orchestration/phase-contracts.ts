@@ -303,7 +303,7 @@ ${planInstructions}
 
 // ===== JSON Output Parser =====
 
-function tryParseLLMOutput(content: string, schemaName: string): Record<string, unknown> | null {
+function tryParseLLMOutput(content: string, _schemaName: string): Record<string, unknown> | null {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return null;
   try {
@@ -456,7 +456,11 @@ export async function runPhase(
         phase: contract.name,
         timestamp: new Date().toISOString(),
         passed: coveResult.issues.length === 0,
-        issues: coveResult.issues,
+        issues: coveResult.issues.map((issue) => ({
+          severity: issue.status === "CONTRADICTED" || issue.status === "UNVERIFIED_IMPORTANT" ? "blocking" : "warning",
+          category: "verification",
+          message: issue.reason ? `${issue.claim}: ${issue.reason}` : issue.claim,
+        })),
       });
     }
 
@@ -604,7 +608,10 @@ export async function runPhase(
         abstract: paper.abstract ?? "",
         relevanceScore: paper.relevanceScore ?? 0.5,
         localPdfPath: paper.localPdfPath ?? null,
-        metadata: { openAccessPdf: paper.openAccessPdf, citationCount: paper.citationCount } ?? {},
+        metadata: {
+          openAccessPdf: paper.openAccessPdf ?? null,
+          citationCount: paper.citationCount ?? null,
+        },
       } as Record<string, unknown>));
       savedCitationIds.push(citationId);
     }
@@ -658,11 +665,12 @@ export async function runPhase(
     for (let i = 0; i < hyps.length; i++) {
       const h = hyps[i];
       const hypothesisId = generateUuid();
-      const gapId = projectGaps[i % projectGaps.length]?.gapId ?? null;
+      const gapId = (projectGaps[i % projectGaps.length]?.gapId as string | null) ?? null;
+      const statement = (h.statement as string | undefined) ?? "未知假设";
+      const falsificationCondition = (h.falsificationCondition as string | undefined) ?? "实验结果与预测相反";
       await Effect.runPromise(store.save(createHypothesis({
         hypothesisId, projectId, branchId: generateUuid(), gapId,
-        statement: h.statement ?? "未知假设",
-        falsificationCondition: h.falsificationCondition ?? "实验结果与预测相反",
+        statement, falsificationCondition,
         status: "PROPOSED",
       })));
       savedIds.hypothesisIds = [...(savedIds.hypothesisIds ?? []), hypothesisId];
@@ -671,8 +679,6 @@ export async function runPhase(
 
   if (parsed && contract.name === "experiment_design") {
     const experimentId = generateUuid();
-    const existingHyps = await Effect.runPromise(store.list("Hypothesis"));
-    const projectHyps = existingHyps.filter((h: Record<string, unknown>) => (h as Record<string, unknown>).projectId === projectId);
     await Effect.runPromise(store.save(createExperiment({
       experimentId, projectId, branchId: generateUuid(),
       title: `验证实验: ${((parsed as Record<string, unknown>).design as Record<string, unknown>)?.objective as string ?? question}`,
@@ -737,7 +743,6 @@ export async function runPhase(
 
   if (parsed && contract.name === "report_generation") {
     const reportId = generateUuid();
-    const content = `${(parsed as Record<string, unknown>).abstract as string ?? ""}\n\n${(((parsed as Record<string, unknown>).sections as Array<Record<string, unknown>>) ?? []).map((s: Record<string, unknown>) => `## ${s.title as string}\n${s.content as string}`).join('\n\n')}`;
     await Effect.runPromise(store.save(createReport({
       reportId, projectId, branchId: generateUuid(),
       title: `研究报告: ${question}`,

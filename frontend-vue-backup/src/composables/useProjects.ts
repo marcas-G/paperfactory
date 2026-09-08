@@ -25,7 +25,8 @@ export function useProjects() {
   }
 
   async function createProject(question: string) {
-    const { data } = await client.post('/projects', { name: question, question });
+    const payload = { name: question, question: question };
+    const { data } = await client.post('/projects', payload);
     projects.value.unshift(data);
     return data;
   }

@@ -15,7 +15,11 @@ export type AgentEventType =
   | "message"
   | "user:interrupt"
   | "error"
-  | "self:review";
+  | "self:review"
+  | "phase:approved"
+  | "phase:rejected"
+  | "phase:modified"
+  | "phase:error";
 
 export interface AgentEvent {
   type: AgentEventType;

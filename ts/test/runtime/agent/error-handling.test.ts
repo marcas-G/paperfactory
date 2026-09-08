@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
 import { MockProvider, Provider } from "@runtime/provider";
-import { runAgentLoop, AgentLoopResult } from "@runtime/agent/loop";
+import { runAgentLoop } from "@runtime/agent/loop";
 import { ToolRegistry } from "@runtime/tools/registry";
 
 describe("Error Handling and Timeout Recovery", () => {

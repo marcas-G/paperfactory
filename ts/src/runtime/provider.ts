@@ -1,7 +1,7 @@
 import * as Effect from "effect/Effect";
 import type { Stream } from "effect/Stream";
 import * as StreamNS from "effect/Stream";
-import OpenAI from "openai";
+import OpenAI, { type ClientOptions } from "openai";
 
 export interface Message {
   role: "user" | "assistant" | "system" | "tool";
@@ -54,6 +54,9 @@ export interface OpenAIProviderConfig {
   baseUrl?: string;
   apiKey?: string;
   model?: string;
+  // 注入自定义 fetch 实现(openai SDK 在构造时解析 fetch,不会读运行时 globalThis;
+  // 测试用 mock + 代理场景需要显式传入)。
+  fetch?: ClientOptions["fetch"];
 }
 
 export class OpenAIProvider implements Provider {
@@ -65,6 +68,7 @@ export class OpenAIProvider implements Provider {
     this.client = new OpenAI({
       baseURL: config.baseUrl ?? "http://localhost:8011/v1",
       apiKey: config.apiKey ?? "not-needed",
+      ...(config.fetch ? { fetch: config.fetch } : {}),
     });
   }
 
@@ -80,7 +84,7 @@ export class OpenAIProvider implements Provider {
               return {
                 role: "tool" as const,
                 content: m.content,
-                tool_call_id: m.toolCallId,
+                tool_call_id: m.toolCallId ?? "",
               };
             }
             return {

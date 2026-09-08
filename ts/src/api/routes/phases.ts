@@ -6,7 +6,8 @@ import { apiError, lineDiff } from "../utils";
 import { ToolRegistry } from "@runtime/tools/registry";
 import { buildToolDefs } from "../utils";
 import { toPhaseRunDTO } from "../types";
-import { ResearchRunState } from "./research-runs";
+import { ResearchRunState, type PhaseDecision } from "./research-runs";
+import type { AgentEvent } from "@runtime/agent/loop";
 
 export function createPhaseRoutes(
   objectStore: ObjectStore,
@@ -79,7 +80,7 @@ export function createPhaseRoutes(
     const runId = c.req.param("runId");
     const body = await c.req.json();
     const dec = body?.decision as string | undefined;
-    if (!["approve", "modify", "reject"].includes(dec)) {
+    if (dec === undefined || !["approve", "modify", "reject"].includes(dec)) {
       return c.json(apiError("VALIDATION_ERROR", "decision must be approve, modify, or reject"), 400);
     }
 
@@ -89,7 +90,8 @@ export function createPhaseRoutes(
         const resolve = state.approvalResolve;
         state.approvalResolve = null;
         state.approvalRunId = null;
-        resolve(dec);
+        // dec 已通过上面的 guard 校验为三个合法值之一
+        resolve(dec as PhaseDecision);
       }
     }
 
@@ -130,7 +132,7 @@ export function createPhaseRoutes(
     }
 
     const toolDefinitions = buildToolDefs(toolRegistry);
-    const events: Array<Record<string, unknown>> = [];
+    const events: AgentEvent[] = [];
 
     const { runPhase } = await import("@orchestration/phase-contracts");
     const result = await runPhase(

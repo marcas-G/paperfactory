@@ -35,22 +35,47 @@ function serveStaticFile(c: import("hono").Context, filePath: string): Response 
   }
 }
 
+// SPA 前端路由白名单:仅这些路径回退到 index.html(React Router 客户端路由)。
+// 其余非 /api 路径(/ws、未知路径等)继续走 notFoundHandler → 404,
+// 避免 SPA catch-all 吞掉 WebSocket 端点与 API typo。
+const SPA_ROUTE_PREFIXES: ReadonlyArray<string> = [
+  "/research", // /research/:projectId
+];
+const SPA_ROUTES: ReadonlyArray<string> = ["/projects", "/papers"];
+
+function isSpaPath(urlPath: string): boolean {
+  if (urlPath === "" || urlPath === "/") return true;
+  if (SPA_ROUTES.includes(urlPath)) return true;
+  return SPA_ROUTE_PREFIXES.some(
+    (p) => urlPath === p || urlPath.startsWith(`${p}/`)
+  );
+}
+
 function getStaticMiddleware() {
   return async (c: import("hono").Context, next: () => Promise<void>) => {
     if (c.req.method !== "GET") {
       return next();
     }
-    const urlPath = c.req.url.replace(c.req.url.split("?")[0].split("/").slice(0, 3).join("/"), "");
-    if (urlPath === "" || urlPath === "/") {
-      const indexFile = path.join(STATIC_DIR, "index.html");
-      const resp = serveStaticFile(c, indexFile);
-      if (resp) return resp;
+    const baseUrl = c.req.url.split("?")[0].split("/").slice(0, 3).join("/");
+    const urlPath = c.req.url.replace(baseUrl, "").split("?")[0];
+
+    if (urlPath.startsWith("/api/") || urlPath === "/health") {
+      return next();
     }
+
     if (urlPath.startsWith("/js/") || urlPath.startsWith("/css/")) {
       const filePath = path.join(STATIC_DIR, urlPath);
       const resp = serveStaticFile(c, filePath);
       if (resp) return resp;
+      return next();
     }
+
+    if (isSpaPath(urlPath)) {
+      const indexFile = path.join(STATIC_DIR, "index.html");
+      const resp = serveStaticFile(c, indexFile);
+      if (resp) return resp;
+    }
+
     return next();
   };
 }
@@ -127,10 +152,10 @@ export function createHonoApp(
 
   app.route("", createHealthRoutes());
   app.route("", createProjectRoutes(objectStore));
-  app.route("", createResearchObjectRoutes(objectStore));
-  app.route("", createAgentRoutes(provider, researchToolRegistry));
   app.route("", createResearchRunRoutes(objectStore, controller, provider, researchToolRegistry, researchRuns));
+  app.route("", createAgentRoutes(provider, researchToolRegistry));
   app.route("", createPhaseRoutes(objectStore, provider, researchToolRegistry, researchRuns));
+  app.route("", createResearchObjectRoutes(objectStore));
   app.route("", createPaperRoutes(objectStore));
 
   return app;

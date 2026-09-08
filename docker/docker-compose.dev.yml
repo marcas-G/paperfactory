@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  frontend-dev:
+    image: node:22-bookworm
+    working_dir: /app/frontend
+    volumes:
+      - ../frontend:/app/frontend
+      - fnm-cache:/root/.fnm
+      - fcache:/root/.cache/puppeteer
+    ports:
+      - "5173:5173"
+    command: >
+      sh -c "
+        corepack enable && corepack prepare pnpm@latest --activate &&
+        pnpm install --ignore-scripts &&
+        node node_modules/esbuild/install.js 2>/dev/null;
+        pnpm dev
+      "
+    environment:
+      - NODE_ENV=development
+
+  chrome-debug:
+    image: node:22-bookworm
+    working_dir: /tmp/debug
+    volumes:
+      - /tmp/opencode:/tmp/debug
+      - fcache:/root/.cache/puppeteer
+    entrypoint: ["/bin/bash"]
+    depends_on:
+      - frontend-dev
+    networks:
+      - default
+
+volumes:
+  fnm-cache:
+  fcache:

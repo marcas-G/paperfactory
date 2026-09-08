@@ -1,12 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
 import { InMemoryObjectStore } from "@persistence/object-store";
-import { InMemoryEventStore } from "@persistence/event-store";
-import { ResearchController } from "@control/controller";
-import { TransitionEngine } from "@control/engine";
-import { ActionRegistry } from "@control/registry";
 import { ToolRegistry } from "@runtime/tools/registry";
-import type { Provider, ToolDefinition, Message } from "@runtime/provider";
+import type { Provider } from "@runtime/provider";
 import type { AgentEvent } from "@runtime/agent/loop";
 import { buildPhaseContext, runPhase, PHASE_CONTRACTS } from "@orchestration/phase-contracts";
 import { createDeterministicProvider } from "@runtime/provider-deterministic";

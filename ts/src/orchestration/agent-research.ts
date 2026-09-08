@@ -33,17 +33,17 @@ function buildPhaseSummary(phaseName: string, result: { output?: Record<string, 
   if (!result?.output) return "阶段完成";
   const o = result.output as Record<string, unknown>;
   if (phaseName === "literature_search") {
-    const findings = o.keyFindings ?? [];
-    const gaps = o.researchGaps ?? [];
+    const findings = (o.keyFindings as Array<unknown> | undefined) ?? [];
+    const gaps = (o.researchGaps as Array<unknown> | undefined) ?? [];
     return `找到 ${findings.length} 个关键发现，${gaps.length} 个研究空白`;
   }
   if (phaseName === "hypothesis_generation") {
-    const hyps = o.hypotheses ?? [];
+    const hyps = (o.hypotheses as Array<unknown> | undefined) ?? [];
     return `提出 ${hyps.length} 个假设`;
   }
   if (phaseName === "evidence_assessment" || phaseName === "confirmation") {
-    const conclusion = o.conclusion ?? o;
-    return `结论: ${conclusion.status ?? "未完成"} — ${conclusion.reasoning?.substring(0, 200) ?? ""}`;
+    const conclusion = (o.conclusion as Record<string, unknown> | undefined) ?? o;
+    return `结论: ${conclusion.status ?? "未完成"} — ${(conclusion.reasoning as string | undefined)?.substring(0, 200) ?? ""}`;
   }
   return `阶段完成`;
 }
