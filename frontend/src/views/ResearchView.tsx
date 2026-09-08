@@ -7,7 +7,7 @@ import ChatArea from '@/components/chat/ChatArea';
 import PhaseDetailDrawer from '@/components/layout/PhaseDetailDrawer';
 import { useStore } from '@/store/useStore';
 import client from '@/api/client';
-import { subscribeEvents, type BusEvent } from '@/api/events';
+import { pf, subscribeEvents } from '@/api/pfClient';
 import type { ChatMessage } from '@/components/chat/types';
 import type { PhaseRun } from '@/api/types';
 
@@ -164,7 +164,7 @@ export default function ResearchView() {
 // 统一事件流订阅（OpenCode 式：命令与事件分离，一条流驱动所有 UI 更新）
   useEffect(() => {
     if (!projectId) return;
-    const unsubscribe = subscribeEvents((e: BusEvent) => {
+    const unsubscribe = subscribeEvents('', (e) => {
       if (e.type === 'stream:ready') return;
       if (e.projectId && projectId && e.projectId !== projectId) return;
       handleSSE(e.type, { ...(e.data ?? {}), phase: e.phase, runId: e.runId });
@@ -180,8 +180,8 @@ export default function ResearchView() {
     setCurrentRunId(null);
     // 命令通道：POST 发起，秒回 runId；全部进度经 /api/events 统一事件流到达
     try {
-      const { data } = await client.post<{ runId: string; projectId: string }>('/research/run', { question, mode: 'auto' });
-      setCurrentRunId(data.runId);
+      const res = await pf.startResearch({ question, mode: 'auto' });
+      setCurrentRunId(res.runId);
     } catch {
       setIsRunning(false);
       setStatus('error');

@@ -4,5 +4,13 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "peerDependencies": {
+    "axios": "*"
+  },
+  "peerDependenciesMeta": {
+    "axios": {
+      "optional": true
+    }
+  }
 }
