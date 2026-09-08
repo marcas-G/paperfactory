@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ALL_ACTIONS, getActionByName, getActionsByTarget } from "../../src/control/actions";
+import { ALL_ACTIONS, getActionByName, getActionsByTarget } from "@pf/core/control/actions";
 
 describe("Actions", () => {
   it("has 24 actions", () => {

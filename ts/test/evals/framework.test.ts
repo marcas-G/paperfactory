@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DefaultEvalFramework } from "@evals/framework";
+import { DefaultEvalFramework } from "@pf/core/evals/framework";
 
 describe("Eval Framework", () => {
   it("adds and runs scenario", () => {

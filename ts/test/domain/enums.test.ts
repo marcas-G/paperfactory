@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import * as E from "../../src/domain/enums";
+import * as E from "@pf/schema/enums";
 
 describe("Domain Enums", () => {
   it("GateStatus has correct values", () => {

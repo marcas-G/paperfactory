@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
 import { createTestContext } from "../fixtures/test-context";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
 import {
   createHypothesisVerificationWorkflow,
   runWorkflow,
-} from "@orchestration/hypothesis-verification";
-import { createHypothesis } from "@domain/objects/hypothesis";
-import { createResearchGap } from "@domain/objects/gap";
-import { createEvidence } from "@domain/objects/evidence";
-import type { WorkflowPhase } from "@runtime/workflows/engine";
-import { createEmptyManifest } from "@orchestration/manifest";
+} from "@pf/research/hypothesis-verification";
+import { createHypothesis } from "@pf/schema/objects/hypothesis";
+import { createResearchGap } from "@pf/schema/objects/gap";
+import { createEvidence } from "@pf/schema/objects/evidence";
+import type { WorkflowPhase } from "@pf/core/runtime/workflows/engine";
+import { createEmptyManifest } from "@pf/research/manifest";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

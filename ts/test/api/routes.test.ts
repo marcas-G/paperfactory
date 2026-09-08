@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import * as Effect from "effect/Effect";
-import { APIRouter, APIRequest, createHonoApp, HonoApp } from "@api/routes";
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { InMemoryEventStore } from "@persistence/event-store";
-import { ResearchController } from "@control/controller";
-import { TransitionEngine } from "@control/engine";
-import { ActionRegistry } from "@control/registry";
-import { MockProvider } from "@runtime/provider";
-import { DeterministicProvider } from "@runtime/provider-deterministic";
+import { APIRouter, APIRequest, createHonoApp, HonoApp } from "@pf/server/routes";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { InMemoryEventStore } from "@pf/core/persistence/event-store";
+import { ResearchController } from "@pf/core/control/controller";
+import { TransitionEngine } from "@pf/core/control/engine";
+import { ActionRegistry } from "@pf/core/control/registry";
+import { MockProvider } from "@pf/core/runtime/provider";
+import { DeterministicProvider } from "@pf/core/runtime/provider-deterministic";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */

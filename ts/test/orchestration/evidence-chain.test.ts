@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { createEvidence } from "@domain/objects/evidence";
-import { createHypothesis } from "@domain/objects/hypothesis";
-import { buildEvidenceChain } from "@orchestration/evidence-chain";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { createEvidence } from "@pf/schema/objects/evidence";
+import { createHypothesis } from "@pf/schema/objects/hypothesis";
+import { buildEvidenceChain } from "@pf/research/evidence-chain";
 
 describe("buildEvidenceChain", () => {
   let store: InMemoryObjectStore;

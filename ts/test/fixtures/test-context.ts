@@ -1,10 +1,10 @@
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { InMemoryEventStore } from "@persistence/event-store";
-import { ResearchController } from "@control/controller";
-import { TransitionEngine } from "@control/engine";
-import { ActionRegistry } from "@control/registry";
-import type { Provider } from "@runtime/provider";
-import { MockProvider } from "@runtime/provider";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { InMemoryEventStore } from "@pf/core/persistence/event-store";
+import { ResearchController } from "@pf/core/control/controller";
+import { TransitionEngine } from "@pf/core/control/engine";
+import { ActionRegistry } from "@pf/core/control/registry";
+import type { Provider } from "@pf/core/runtime/provider";
+import { MockProvider } from "@pf/core/runtime/provider";
 
 export interface TestContext {
   objectStore: InMemoryObjectStore;

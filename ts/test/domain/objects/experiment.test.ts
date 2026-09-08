@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Experiment, createExperiment } from "../../../src/domain/objects/experiment";
+import { Experiment, createExperiment } from "@pf/schema/objects/experiment";
 
 const anotherUUID = "11111111-1111-4111-a111-111111111111";
 

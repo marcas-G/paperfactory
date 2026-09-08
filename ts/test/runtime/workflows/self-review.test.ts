@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { selfReview } from "../../../src/runtime/workflows/self-review";
-import { MockProvider } from "../../../src/runtime/provider";
+import { selfReview } from "@pf/core/runtime/workflows/self-review";
+import { MockProvider } from "@pf/core/runtime/provider";
 
 describe("selfReview", () => {
   it("passes when output has no issues", async () => {

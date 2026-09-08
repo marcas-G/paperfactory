@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Submission, createSubmission } from "../../../src/domain/objects/submission";
+import { Submission, createSubmission } from "@pf/schema/objects/submission";
 
 const REPORT_ID = "55555555-aaaa-4555-aaaa-555555555555";
 

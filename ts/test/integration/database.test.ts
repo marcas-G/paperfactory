@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql } from "drizzle-orm";
-import * as Schema from "../../src/persistence/drizzle/schema";
+import * as Schema from "@pf/core/persistence/drizzle/schema";
 
 const DB_URL =
   process.env.DATABASE_URL ??

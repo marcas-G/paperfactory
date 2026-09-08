@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { InMemoryEventStore } from "@persistence/event-store";
-import { ResearchController } from "@control/controller";
-import { TransitionEngine } from "@control/engine";
-import { ActionRegistry } from "@control/registry";
-import { ToolRegistry } from "@runtime/tools/registry";
-import type { Provider, ToolDefinition, Message } from "@runtime/provider";
-import type { AgentEvent } from "@runtime/agent/loop";
-import { runAgentDrivenResearch } from "@orchestration/agent-research";
-import { PHASE_CONTRACTS } from "@orchestration/phase-contracts";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { InMemoryEventStore } from "@pf/core/persistence/event-store";
+import { ResearchController } from "@pf/core/control/controller";
+import { TransitionEngine } from "@pf/core/control/engine";
+import { ActionRegistry } from "@pf/core/control/registry";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
+import type { Provider, ToolDefinition, Message } from "@pf/core/runtime/provider";
+import type { AgentEvent } from "@pf/core/runtime/agent/loop";
+import { runAgentDrivenResearch } from "@pf/research/agent-research";
+import { PHASE_CONTRACTS } from "@pf/research/phase-contracts";
 
 class SequentialProvider implements Provider {
   private index = 0;

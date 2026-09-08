@@ -3,7 +3,7 @@ import * as Schema from "@effect/schema/Schema";
 import {
   ResearchFailure,
   createResearchFailure,
-} from "../../../src/domain/objects/failure";
+} from "@pf/schema/objects/failure";
 
 const HYP_ID = "dddddddd-dddd-4ddd-dddd-dddddddddddd";
 

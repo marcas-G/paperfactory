@@ -10,7 +10,7 @@ describe("Sandbox Execution", () => {
     }) as any;
 
     try {
-      const { Sandbox } = await import("@runtime/sandbox/sandbox");
+      const { Sandbox } = await import("@pf/core/runtime/sandbox/sandbox");
       const sandbox = new Sandbox();
 
       const result = await sandbox.execute({
@@ -37,7 +37,7 @@ describe("Sandbox Execution", () => {
     }) as any;
 
     try {
-      const { Sandbox } = await import("@runtime/sandbox/sandbox");
+      const { Sandbox } = await import("@pf/core/runtime/sandbox/sandbox");
       const sandbox = new Sandbox();
 
       const result = await sandbox.execute({
@@ -59,7 +59,7 @@ describe("Sandbox Execution", () => {
     }) as any;
 
     try {
-      const { Sandbox } = await import("@runtime/sandbox/sandbox");
+      const { Sandbox } = await import("@pf/core/runtime/sandbox/sandbox");
       const sandbox = new Sandbox();
 
       const result = await sandbox.execute({
@@ -83,7 +83,7 @@ describe("Sandbox Execution", () => {
     }) as any;
 
     try {
-      const { Sandbox } = await import("@runtime/sandbox/sandbox");
+      const { Sandbox } = await import("@pf/core/runtime/sandbox/sandbox");
       const sandbox = new Sandbox();
 
       const result = await sandbox.execute({

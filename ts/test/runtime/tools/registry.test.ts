@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { ToolRegistry } from "../../../src/runtime/tools/registry";
-import { searchTool } from "../../../src/runtime/tools/builtins/search";
-import { codeTool } from "../../../src/runtime/tools/builtins/code";
-import { InMemoryFilesystem, createFilesystemTool } from "../../../src/runtime/tools/builtins/filesystem";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
+import { searchTool } from "@pf/core/runtime/tools/builtins/search";
+import { codeTool } from "@pf/core/runtime/tools/builtins/code";
+import { InMemoryFilesystem, createFilesystemTool } from "@pf/core/runtime/tools/builtins/filesystem";
 
 describe("ToolRegistry", () => {
   let registry: ToolRegistry;

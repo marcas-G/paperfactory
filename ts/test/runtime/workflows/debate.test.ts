@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { debate } from "../../../src/runtime/workflows/debate";
-import { createDeterministicProvider } from "../../../src/runtime/provider-deterministic";
-import type { Provider, Message, ProviderOptions } from "../../../src/runtime/provider";
+import { debate } from "@pf/core/runtime/workflows/debate";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
+import type { Provider, Message, ProviderOptions } from "@pf/core/runtime/provider";
 
 /**
  * Records every sendMessages call (system + user) while delegating responses

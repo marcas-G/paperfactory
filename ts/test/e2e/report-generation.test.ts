@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
 import { createApp, AppConfig } from "@app/index";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
-import { createResearchGap } from "@domain/objects/gap";
-import { createHypothesis } from "@domain/objects/hypothesis";
-import { runWorkflow, createHypothesisVerificationWorkflow } from "@orchestration/hypothesis-verification";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
+import { createResearchGap } from "@pf/schema/objects/gap";
+import { createHypothesis } from "@pf/schema/objects/hypothesis";
+import { runWorkflow, createHypothesisVerificationWorkflow } from "@pf/research/hypothesis-verification";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {

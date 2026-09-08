@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { WorkflowEngine } from "../../../src/runtime/workflows/engine";
+import { WorkflowEngine } from "@pf/core/runtime/workflows/engine";
 
 describe("WorkflowEngine", () => {
   it("executes sequential pipeline", async () => {

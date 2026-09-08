@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { DomainEvent, ControlEventType, createDomainEvent } from "../../src/domain/events";
+import { DomainEvent, ControlEventType, createDomainEvent } from "@pf/schema/events";
 
 const validUUID = "00000000-0000-4000-a000-000000000000";
 

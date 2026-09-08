@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { beamSearch } from "@runtime/workflows/tot-engine";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
+import { beamSearch } from "@pf/core/runtime/workflows/tot-engine";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
 
 describe("Tree of Thoughts Engine", () => {
   it("generates multiple candidate thoughts and selects best", async () => {
@@ -265,7 +265,7 @@ describe("Tree of Thoughts Engine", () => {
   });
 
   it("uses custom system prompt when provided", async () => {
-    let receivedMessages: ReadonlyArray<import("@runtime/provider").Message> | null = null;
+    let receivedMessages: ReadonlyArray<import("@pf/core/runtime/provider").Message> | null = null;
     const provider = createDeterministicProvider({
       name: "tot-custom-prompt",
       responses: [

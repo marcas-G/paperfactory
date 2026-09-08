@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Claim, createClaim, validateClaimScope } from "../../../src/domain/objects/claim";
-import { Evidence, createEvidence } from "../../../src/domain/objects/evidence";
+import { Claim, createClaim, validateClaimScope } from "@pf/schema/objects/claim";
+import { Evidence, createEvidence } from "@pf/schema/objects/evidence";
 
 const anotherUUID = "11111111-1111-4111-a111-111111111111";
 

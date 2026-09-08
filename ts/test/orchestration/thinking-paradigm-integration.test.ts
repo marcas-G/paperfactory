@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { ToolRegistry } from "@runtime/tools/registry";
-import type { Provider } from "@runtime/provider";
-import type { AgentEvent } from "@runtime/agent/loop";
-import { buildPhaseContext, runPhase, PHASE_CONTRACTS } from "@orchestration/phase-contracts";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
+import type { Provider } from "@pf/core/runtime/provider";
+import type { AgentEvent } from "@pf/core/runtime/agent/loop";
+import { buildPhaseContext, runPhase, PHASE_CONTRACTS } from "@pf/research/phase-contracts";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
 
 describe("Thinking paradigm integration in research phases", () => {
   let objectStore: InMemoryObjectStore;

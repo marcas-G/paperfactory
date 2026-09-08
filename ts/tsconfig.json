@@ -13,18 +13,15 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@domain/*": ["src/domain/*"],
-      "@cognition/*": ["src/cognition/*"],
-      "@persistence/*": ["src/persistence/*"],
-      "@control/*": ["src/control/*"],
-      "@runtime/*": ["src/runtime/*"],
-      "@orchestration/*": ["src/orchestration/*"],
-      "@api/*": ["src/api/*"],
-      "@app/*": ["src/app/*"],
-      "@observability/*": ["src/observability/*"],
-      "@evals/*": ["src/evals/*"]
+      "@pf/schema/*": ["./packages/schema/src/*"],
+      "@pf/core/*": ["./packages/core/src/*"],
+      "@pf/research/*": ["./packages/research/src/*"],
+      "@pf/server/*": ["./packages/server/src/*"],
+      "@pf/client": ["./packages/client/src/index.ts"],
+      "@pf/tui": ["./packages/tui/src/index.ts"],
+      "@app/*": ["./src/app/*"]
     }
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "packages/*/src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NoOpTracer } from "@observability/tracer";
+import { NoOpTracer } from "@pf/core/observability/tracer";
 
 describe("Tracer", () => {
   let tracer: NoOpTracer;

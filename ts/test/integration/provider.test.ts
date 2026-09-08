@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import * as Chunk from "effect/Chunk";
 import { createServer } from "node:http";
-import { OpenAIProvider, StreamEvent } from "@runtime/provider";
+import { OpenAIProvider, StreamEvent } from "@pf/core/runtime/provider";
 
 describe("OpenAIProvider Integration", () => {
   let server: ReturnType<typeof createServer>;

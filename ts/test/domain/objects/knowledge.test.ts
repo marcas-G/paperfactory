@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { KnowledgeItem, createKnowledgeItem } from "../../../src/domain/objects/knowledge";
+import { KnowledgeItem, createKnowledgeItem } from "@pf/schema/objects/knowledge";
 
 const anotherUUID = "11111111-1111-4111-a111-111111111111";
 

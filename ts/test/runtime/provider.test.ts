@@ -8,7 +8,7 @@ import {
   StreamEvent,
   OpenAIProvider,
   OpenAIProviderConfig,
-} from "@runtime/provider";
+} from "@pf/core/runtime/provider";
 
 describe("MockProvider", () => {
   it("returns correct responses", async () => {

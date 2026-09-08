@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryEventStore } from "../../src/persistence/event-store";
-import { createDomainEvent } from "@domain/events";
+import { InMemoryEventStore } from "@pf/core/persistence/event-store";
+import { createDomainEvent } from "@pf/schema/events";
 import * as Effect from "effect/Effect";
 
 describe("EventStore", () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { sampleConsensus } from "@runtime/workflows/self-consistency";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
-import type { Message } from "@runtime/provider";
+import { sampleConsensus } from "@pf/core/runtime/workflows/self-consistency";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
+import type { Message } from "@pf/core/runtime/provider";
 
 describe("Self-Consistency Engine", () => {
   it("generates multiple independent paths and returns consensus", async () => {

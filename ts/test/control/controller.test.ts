@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ResearchController } from "../../src/control/controller";
-import { InMemoryObjectStore } from "../../src/persistence/object-store";
-import { InMemoryEventStore } from "../../src/persistence/event-store";
-import { createQuestion } from "@domain/objects/question";
-import { createProtocol } from "@domain/objects/protocol";
-import { createHypothesis } from "@domain/objects/hypothesis";
+import { ResearchController } from "@pf/core/control/controller";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { InMemoryEventStore } from "@pf/core/persistence/event-store";
+import { createQuestion } from "@pf/schema/objects/question";
+import { createProtocol } from "@pf/schema/objects/protocol";
+import { createHypothesis } from "@pf/schema/objects/hypothesis";
 import * as Effect from "effect/Effect";
 
 describe("ResearchController", () => {

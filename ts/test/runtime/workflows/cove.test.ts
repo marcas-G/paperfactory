@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { chainOfVerification } from "../../../src/runtime/workflows/cove";
-import { Provider } from "../../../src/runtime/provider";
-import { ToolRegistry } from "../../../src/runtime/tools/registry";
+import { chainOfVerification } from "@pf/core/runtime/workflows/cove";
+import { Provider } from "@pf/core/runtime/provider";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
 import * as Effect from "effect/Effect";
 
 /*

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { HookSystem } from "../../../src/runtime/hooks/system";
+import { HookSystem } from "@pf/core/runtime/hooks/system";
 
 describe("HookSystem", () => {
   let system: HookSystem;

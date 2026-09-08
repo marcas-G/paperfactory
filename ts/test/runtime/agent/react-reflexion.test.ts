@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { runAgentLoop } from "@runtime/agent/loop";
-import { MockProvider } from "@runtime/provider";
-import { ToolRegistry } from "@runtime/tools/registry";
-import { getCognitiveModeByName } from "@cognition/modes";
+import { runAgentLoop } from "@pf/core/runtime/agent/loop";
+import { MockProvider } from "@pf/core/runtime/provider";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
+import { getCognitiveModeByName } from "@pf/core/cognition/modes";
 
 describe("ReAct + Reflexion in Agent Loop", () => {
   it("emits thinking event before each iteration", async () => {

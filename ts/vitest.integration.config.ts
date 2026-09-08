@@ -12,7 +12,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json"],
       reportsDirectory: "./coverage-integration",
-      include: ["src/persistence/**/*.ts"],
+      include: ["packages/core/src/persistence/**/*.ts"],
       thresholds: {
         lines: 50,
         branches: 50,
@@ -23,16 +23,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@domain": "/src/domain",
-      "@cognition": "/src/cognition",
-      "@persistence": "/src/persistence",
-      "@control": "/src/control",
-      "@runtime": "/src/runtime",
-      "@orchestration": "/src/orchestration",
-      "@api": "/src/api",
+      "@pf/schema": "/packages/schema/src",
+      "@pf/core": "/packages/core/src",
+      "@pf/research": "/packages/research/src",
+      "@pf/server": "/packages/server/src",
+      "@pf/client": "/packages/client/src",
+      "@pf/tui": "/packages/tui/src",
       "@app": "/src/app",
-      "@observability": "/src/observability",
-      "@evals": "/src/evals",
     },
   },
 });

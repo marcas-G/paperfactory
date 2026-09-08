@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     // global ignores must live in an object with no other keys (flat config)
-    ignores: ["dist/**", "coverage/**", "node_modules/**", "src/api/static/**"],
+    ignores: ["dist/**", "coverage/**", "node_modules/**", "packages/server/src/static/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

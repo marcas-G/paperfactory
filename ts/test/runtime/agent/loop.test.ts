@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { runAgentLoop } from "../../../src/runtime/agent/loop";
-import { MockProvider } from "../../../src/runtime/provider";
-import { ToolRegistry } from "../../../src/runtime/tools/registry";
-import { searchTool } from "../../../src/runtime/tools/builtins/search";
-import { codeTool } from "../../../src/runtime/tools/builtins/code";
+import { runAgentLoop } from "@pf/core/runtime/agent/loop";
+import { MockProvider } from "@pf/core/runtime/provider";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
+import { searchTool } from "@pf/core/runtime/tools/builtins/search";
+import { codeTool } from "@pf/core/runtime/tools/builtins/code";
 
 describe("Agent Loop", () => {
   it("basic loop without tool calls", async () => {

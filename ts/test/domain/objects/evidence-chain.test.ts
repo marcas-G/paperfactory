@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { EvidenceChain, createEvidenceChain } from "../../../src/domain/objects/evidence-chain";
+import { EvidenceChain, createEvidenceChain } from "@pf/schema/objects/evidence-chain";
 
 const chainUUID = "11111111-1111-4111-a111-111111111111";
 const projectUUID = "22222222-2222-4222-a222-222222222222";

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
-import { TransitionEngine } from "../../src/control/engine";
+import { TransitionEngine } from "@pf/core/control/engine";
 
 describe("TransitionEngine", () => {
   let engine: TransitionEngine;

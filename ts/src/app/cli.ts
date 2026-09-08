@@ -1,9 +1,9 @@
 import { createApp, loadConfig, AppDependencies } from "./index";
 import * as Effect from "effect/Effect";
-import { OpenAIProvider } from "@runtime/provider";
-import { createHypothesis } from "@domain/objects/hypothesis";
-import { createHypothesisVerificationWorkflow, runWorkflow } from "@orchestration/hypothesis-verification";
-import type { HypothesisVerificationContext } from "@orchestration/hypothesis-verification";
+import { OpenAIProvider } from "@pf/core/runtime/provider";
+import { createHypothesis } from "@pf/schema/objects/hypothesis";
+import { createHypothesisVerificationWorkflow, runWorkflow } from "@pf/research/hypothesis-verification";
+import type { HypothesisVerificationContext } from "@pf/research/hypothesis-verification";
 
 function generateUuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -203,7 +203,7 @@ export async function runCLI(
       const server = createAdaptorServer({ fetch: app.honoApp.fetch });
 
       // Attach WebSocket event broadcaster
-      const { EventBroadcaster } = await import("@api/ws/events");
+      const { EventBroadcaster } = await import("@pf/server/ws/events");
       const broadcaster = new EventBroadcaster();
       broadcaster.attach(server);
 

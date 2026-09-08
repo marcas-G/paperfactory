@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { ResearchGap, createResearchGap } from "../../../src/domain/objects/gap";
+import { ResearchGap, createResearchGap } from "@pf/schema/objects/gap";
 
 
 describe("ResearchGap Schema", () => {

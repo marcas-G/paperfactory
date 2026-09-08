@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { scoreCandidates } from "../../src/control/policy";
-import { ALL_ACTIONS, getActionsByTarget } from "../../src/control/actions";
+import { scoreCandidates } from "@pf/core/control/policy";
+import { ALL_ACTIONS, getActionsByTarget } from "@pf/core/control/actions";
 
 describe("Policy", () => {
   it("scores and ranks candidates", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Protocol, createProtocol } from "../../../src/domain/objects/protocol";
+import { Protocol, createProtocol } from "@pf/schema/objects/protocol";
 
 const HYP_ID = "dddddddd-dddd-4ddd-dddd-dddddddddddd";
 

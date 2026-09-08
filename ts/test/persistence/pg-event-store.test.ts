@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PgEventStore } from "../../src/persistence/pg-event-store";
-import { createDomainEvent } from "@domain/events";
+import { PgEventStore } from "@pf/core/persistence/pg-event-store";
+import { createDomainEvent } from "@pf/schema/events";
 import * as Effect from "effect/Effect";
-import { getDb } from "@persistence/drizzle/db";
-import { db as dbModule } from "@persistence/index";
+import { getDb } from "@pf/core/persistence/drizzle/db";
+import { db as dbModule } from "@pf/core/persistence/index";
 import { Pool } from "pg";
 import { sql } from "drizzle-orm";
-import * as _Schema from "@persistence/drizzle/schema";
+import * as _Schema from "@pf/core/persistence/drizzle/schema";
 
 const DB_URL =
   process.env.DATABASE_URL ??

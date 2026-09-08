@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COGNITIVE_MODES, getCognitiveModeByName } from "@cognition/modes";
+import { COGNITIVE_MODES, getCognitiveModeByName } from "@pf/core/cognition/modes";
 
 describe("Cognitive Modes", () => {
   it("has exactly 13 cognitive modes", () => {

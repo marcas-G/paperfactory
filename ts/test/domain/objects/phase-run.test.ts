@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { PhaseRun, createPhaseRun } from "../../../src/domain/objects/phase-run";
+import { PhaseRun, createPhaseRun } from "@pf/schema/objects/phase-run";
 
 const runUUID = "11111111-1111-4111-a111-111111111111";
 const projectUUID = "22222222-2222-4222-a222-222222222222";

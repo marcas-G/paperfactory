@@ -6,7 +6,7 @@ import {
   FALSIFICATION_GATE,
   EVIDENCE_SUFFICIENCY_GATE,
   getGateByName,
-} from "../../src/control/gates";
+} from "@pf/core/control/gates";
 
 describe("Gates", () => {
   it("has 3 gates", () => {

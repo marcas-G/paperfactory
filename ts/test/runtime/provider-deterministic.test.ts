@@ -5,7 +5,7 @@ import * as Chunk from "effect/Chunk";
 import {
   DeterministicProvider,
   DeterministicScenario,
-} from "@runtime/provider-deterministic";
+} from "@pf/core/runtime/provider-deterministic";
 
 describe("DeterministicProvider", () => {
   it("streamResponse replays scenario content word by word", async () => {

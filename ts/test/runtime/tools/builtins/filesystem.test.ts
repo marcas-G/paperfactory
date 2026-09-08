@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import {
   InMemoryFilesystem,
   createFilesystemTool,
-} from "@runtime/tools/builtins/filesystem";
+} from "@pf/core/runtime/tools/builtins/filesystem";
 
 describe("InMemoryFilesystem", () => {
   it("reads a file", () => {

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryObjectStore } from "@persistence/object-store";
-import { PgObjectStore } from "@persistence/pg-object-store";
+import { InMemoryObjectStore } from "@pf/core/persistence/object-store";
+import { PgObjectStore } from "@pf/core/persistence/pg-object-store";
 import * as Effect from "effect/Effect";
-import { createPhaseRun } from "@domain/objects/phase-run";
-import { createEvidenceChain } from "@domain/objects/evidence-chain";
+import { createPhaseRun } from "@pf/schema/objects/phase-run";
+import { createEvidenceChain } from "@pf/schema/objects/evidence-chain";
 
 describe("Integration: ObjectStore PhaseRun/EvidenceChain/Citation persistence", () => {
   describe("InMemoryObjectStore", () => {

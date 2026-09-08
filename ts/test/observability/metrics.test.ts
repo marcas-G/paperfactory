@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryMetrics } from "@observability/metrics";
+import { InMemoryMetrics } from "@pf/core/observability/metrics";
 
 describe("Metrics", () => {
   let metrics: InMemoryMetrics;

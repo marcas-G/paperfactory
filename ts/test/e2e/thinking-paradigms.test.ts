@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { runAgentLoop } from "@runtime/agent/loop";
-import { beamSearch } from "@runtime/workflows/tot-engine";
-import { sampleConsensus } from "@runtime/workflows/self-consistency";
-import { debate } from "@runtime/workflows/debate";
-import { chainOfVerification } from "@runtime/workflows/cove";
-import { createDeterministicProvider } from "@runtime/provider-deterministic";
-import { ToolRegistry } from "@runtime/tools/registry";
+import { runAgentLoop } from "@pf/core/runtime/agent/loop";
+import { beamSearch } from "@pf/core/runtime/workflows/tot-engine";
+import { sampleConsensus } from "@pf/core/runtime/workflows/self-consistency";
+import { debate } from "@pf/core/runtime/workflows/debate";
+import { chainOfVerification } from "@pf/core/runtime/workflows/cove";
+import { createDeterministicProvider } from "@pf/core/runtime/provider-deterministic";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
 
 describe("E2E: Thinking Paradigms Integration", () => {
   it("ReAct loop produces thinking events", async () => {

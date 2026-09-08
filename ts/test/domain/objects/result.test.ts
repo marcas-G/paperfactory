@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Schema from "@effect/schema/Schema";
-import { Result, createResult } from "../../../src/domain/objects/result";
+import { Result, createResult } from "@pf/schema/objects/result";
 
 
 describe("Result Schema", () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryObjectStore, Option } from "../../src/persistence/object-store";
-import { createQuestion, ResearchQuestion } from "@domain/objects/question";
-import { createKnowledgeItem, KnowledgeItem } from "@domain/objects/knowledge";
-import { createResearchGap, ResearchGap } from "@domain/objects/gap";
+import { InMemoryObjectStore, Option } from "@pf/core/persistence/object-store";
+import { createQuestion, ResearchQuestion } from "@pf/schema/objects/question";
+import { createKnowledgeItem, KnowledgeItem } from "@pf/schema/objects/knowledge";
+import { createResearchGap, ResearchGap } from "@pf/schema/objects/gap";
 import * as Effect from "effect/Effect";
 
 describe("ObjectStore", () => {

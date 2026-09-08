@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { BaseTool, ToolInput, ToolOutput } from "../../../src/runtime/tools/contracts";
+import { BaseTool, ToolInput, ToolOutput } from "@pf/core/runtime/tools/contracts";
 
 describe("Tool Contracts", () => {
   const mockTool: BaseTool = {

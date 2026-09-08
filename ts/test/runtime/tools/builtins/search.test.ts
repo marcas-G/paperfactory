@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { createSearchTool } from "@runtime/tools/builtins/search";
+import { createSearchTool } from "@pf/core/runtime/tools/builtins/search";
 
 describe("Search Tool", () => {
   it("returns results from Semantic Scholar by default", async () => {

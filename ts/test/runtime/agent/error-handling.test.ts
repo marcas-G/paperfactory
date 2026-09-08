@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { MockProvider, Provider } from "@runtime/provider";
-import { runAgentLoop } from "@runtime/agent/loop";
-import { ToolRegistry } from "@runtime/tools/registry";
+import { MockProvider, Provider } from "@pf/core/runtime/provider";
+import { runAgentLoop } from "@pf/core/runtime/agent/loop";
+import { ToolRegistry } from "@pf/core/runtime/tools/registry";
 
 describe("Error Handling and Timeout Recovery", () => {
   it("agent loop handles provider error gracefully", async () => {

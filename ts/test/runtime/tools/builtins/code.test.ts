@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Effect from "effect/Effect";
-import { createCodeTool, CodeToolConfig } from "@runtime/tools/builtins/code";
+import { createCodeTool, CodeToolConfig } from "@pf/core/runtime/tools/builtins/code";
 
 describe("Code Tool", () => {
   it("executes javascript code", async () => {

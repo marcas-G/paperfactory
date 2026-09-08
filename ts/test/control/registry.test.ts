@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ActionRegistry } from "@control/registry";
-import { ActionDefinition } from "@control/actions";
+import { ActionRegistry } from "@pf/core/control/registry";
+import { ActionDefinition } from "@pf/core/control/actions";
 
 describe("ActionRegistry", () => {
   it("auto-registers ALL_ACTIONS on construction", () => {
