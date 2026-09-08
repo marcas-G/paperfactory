@@ -20,7 +20,7 @@ describe("App", () => {
 
   it("registers default tools", () => {
     const app = createApp();
-    expect(app.toolRegistry.list().length).toBe(3);
+    expect(app.toolRegistry.list().length).toBe(4); // search+code+filesystem+literature_search
     expect(app.toolRegistry.has("search")).toBe(true);
     expect(app.toolRegistry.has("code")).toBe(true);
     expect(app.toolRegistry.has("filesystem")).toBe(true);
