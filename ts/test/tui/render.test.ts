@@ -1,99 +1,234 @@
 /**
- * TUI 时间线渲染单测 —— render.ts 是纯函数（事件数组 → 行文本），
- * 断言对照 docs/PROTOCOL.md 事件目录与规定的行格式：
- * run:start → phase:start → thinking → tool:result(N papers) → phase:complete → run:complete
+ * render.ts 单测 —— 纯函数断言（宽度/截断/阶段头/活动行/文献/状态栏/Markdown）。
+ * 所有断言先 stripAnsi 再比文本结构（颜色只在关键用例里断言存在）。
  */
 import { describe, it, expect } from "vitest";
-import { PHASE_LABELS, renderTimeline, truncate } from "../../packages/tui/src/render";
-import type { DomainEvent } from "../../packages/client/src";
+import {
+  ANSI,
+  PHASE_LABELS,
+  approvalCard,
+  emptyModel,
+  hypothesisCard,
+  paperEntries,
+  phaseHeader,
+  phaseLabel,
+  promptHint,
+  renderMarkdown,
+  renderModel,
+  renderTimeline,
+  statusLine,
+  stripAnsi,
+  thinkingLine,
+  toolLine,
+  truncate,
+  visibleWidth,
+  padEndDisplay,
+  type PhaseState,
+  type RunModel,
+} from "../../packages/tui/src/render";
 
-function ev(type: string, extra: Partial<DomainEvent> = {}): DomainEvent {
-  return { type, projectId: "p1", runId: "r1", ...extra };
-}
-
-const SMOKE_EVENTS: DomainEvent[] = [
-  ev("run:start", { data: { question: "tui smoke test" } }),
-  ev("phase:start", { phase: "literature_search" }),
-  ev("thinking", { phase: "literature_search", data: { content: "第 1 轮推理中...", iteration: 1 } }),
-  ev("tool:result", {
-    phase: "literature_search",
-    data: {
-      toolName: "literature_search",
-      toolResult: { content: "[...]", papers: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }], source: "arxiv" },
-    },
-  }),
-  ev("phase:complete", { phase: "literature_search" }),
-  ev("run:complete", { data: { evidenceCount: 3, knowledgeCount: 5, reportCount: 1 } }),
-];
-
-describe("TUI renderTimeline", () => {
-  it("渲染完整事件链：run 头/阶段头/子行树/阶段完成/run 完成", () => {
-    const lines = renderTimeline(SMOKE_EVENTS, "p1");
-    const out = lines.join("\n");
-
-    expect(out).toContain("● run:start  research started: tui smoke test");
-    expect(out).toContain("● 文献调研");
-    expect(out).toMatch(/│ {2}├ thinking\s+第 1 轮推理中\.\.\./);
-    expect(out).toContain("│  └ literature_search  5 papers ✓");
-    expect(out).toContain("● 文献调研 ✓");
-    expect(out).toContain("● run:complete ✓  3 evidence, 5 knowledge, 1 reports");
-    expect(out).toContain("reports → GET /api/projects/p1/reports");
+describe("宽度与截断（CJK 感知）", () => {
+  it("visibleWidth：ASCII=1、CJK=2、ANSI 转义=0", () => {
+    expect(visibleWidth("abc")).toBe(3);
+    expect(visibleWidth("文献调研")).toBe(8);
+    expect(visibleWidth(`${ANSI.green}文献${ANSI.reset}`)).toBe(4);
+    expect(visibleWidth("● 文献")).toBe(1 + 1 + 4);
   });
 
-  it("阶段内非末子行用 ├，末子行用 └", () => {
-    const lines = renderTimeline(SMOKE_EVENTS, "p1");
-    const thinking = lines.find((l) => l.includes("thinking"));
-    const toolResult = lines.find((l) => l.includes("literature_search"));
-    expect(thinking).toMatch(/^│ {2}├ /);
-    expect(toolResult).toMatch(/^│ {2}└ /);
+  it("truncate：按显示宽度截断并补 …（CJK 边界不劈半字）", () => {
+    expect(truncate("abcdef", 10)).toBe("abcdef");
+    expect(truncate("abcdefgh", 5)).toBe("abcd…");
+    expect(truncate("文献调研缺口识别", 9)).toBe("文献调研…"); // 8+1
+    expect(visibleWidth(truncate("文献调研缺口识别", 9))).toBe(9);
   });
 
-  it("stream:ready 与未知事件不产生行", () => {
-    const lines = renderTimeline([
-      ev("stream:ready"),
-      ...SMOKE_EVENTS,
-      ev("mystery:event", { data: { content: "x" } }),
-    ]);
-    expect(lines.every((l) => !l.includes("stream:ready"))).toBe(true);
-    expect(lines.every((l) => !l.includes("mystery"))).toBe(true);
+  it("padEndDisplay：按显示宽度补空格", () => {
+    expect(padEndDisplay("ab", 5)).toBe("ab   ");
+    expect(padEndDisplay("文献", 6)).toBe("文献  ");
+    expect(padEndDisplay("abcdef", 3)).toBe("abcdef");
+  });
+});
+
+describe("阶段头 phaseHeader", () => {
+  it("完成态：✓ + 耗时 + 绿色", () => {
+    const line = phaseHeader("literature_search", "complete", 120_000, 60);
+    const plain = stripAnsi(line);
+    expect(plain).toContain("● 文献调研");
+    expect(plain).toContain("✓ 2m 00s");
+    expect(plain).toMatch(/─+ ✓/);
+    expect(line).toContain(ANSI.green);
   });
 
-  it("run:error 渲染错误摘要", () => {
-    const lines = renderTimeline([
-      ev("run:start", { data: { question: "q" } }),
-      ev("run:error", { data: { error: "LLM provider unreachable: connect ECONNREFUSED" } }),
-    ]);
-    expect(lines.join("\n")).toContain("● run:error  LLM provider unreachable: connect ECONNREFUSED");
+  it("运行态：spinner + running + 黄色", () => {
+    const line = phaseHeader("gap_identification", "running", 5000, 60, 3);
+    const plain = stripAnsi(line);
+    expect(plain).toContain("● 缺口识别");
+    expect(plain).toContain("running");
+    expect(line).toContain(ANSI.yellow);
+    expect(line).toContain("⠸"); // tick=3 帧
   });
 
-  it("phase:error 渲染 ✗ 与原因，tool:result 无 papers 数组时只显示工具名", () => {
-    const lines = renderTimeline([
-      ev("phase:start", { phase: "gap_identification" }),
-      ev("thinking", { phase: "gap_identification", data: { content: "第 1 轮推理中..." } }),
-      ev("tool:result", { phase: "gap_identification", data: { toolName: "search", content: "ok" } }),
-      ev("phase:error", { phase: "gap_identification", data: { content: "provider timeout" } }),
-    ]);
-    const out = lines.join("\n");
-    expect(out).toContain("● 缺口识别");
-    expect(out).toContain("│  └ search");
-    expect(out).toContain("● 缺口识别 ✗ provider timeout");
+  it("错误态：✗；跳过态：○ 跳过", () => {
+    expect(stripAnsi(phaseHeader("confirmation", "error", 900, 60))).toContain("✗");
+    expect(stripAnsi(phaseHeader("confirmation", "skipped", 0, 60))).toContain("○ 跳过");
   });
 
-  it("长问题截断到 60 字符", () => {
-    const long = "x".repeat(100);
-    const line = renderTimeline([ev("run:start", { data: { question: long } })])[0];
-    expect(line.length).toBeLessThanOrEqual("● run:start  research started: ".length + 60);
-    expect(line.endsWith("…")).toBe(true);
-  });
-
-  it("8 个阶段名都有中文映射", () => {
+  it("未知阶段名原样透出", () => {
+    expect(phaseLabel("weird_phase")).toBe("weird_phase");
+    expect(phaseLabel(undefined)).toContain("unknown");
     expect(Object.keys(PHASE_LABELS)).toHaveLength(8);
-    expect(PHASE_LABELS.literature_search).toBe("文献调研");
-    expect(PHASE_LABELS.report_generation).toBe("报告生成");
+  });
+});
+
+describe("活动行", () => {
+  it("thinkingLine：spinner + 轮次 + 备注 + 等待时长", () => {
+    const line = thinkingLine(3, "正在比较两篇 scaling law", 12_000, 0);
+    const plain = stripAnsi(line);
+    expect(plain).toContain("第 3 轮");
+    expect(plain).toContain("正在比较两篇 scaling law");
+    expect(plain).toContain("(12s)");
+    expect(line).toContain("⠋");
   });
 
-  it("truncate：短文本原样，长文本截断带省略号", () => {
-    expect(truncate("abc", 5)).toBe("abc");
-    expect(truncate("abcdef", 5)).toBe("abcd…");
+  it("toolLine：calling 带 ⚙ 与参数摘要；done 带 ✓ 与结果摘要；failed 带 ✗", () => {
+    const calling = stripAnsi(toolLine("literature_search", "calling", '"scaling law"', undefined));
+    expect(calling).toContain("⚙");
+    expect(calling).toContain("literature_search");
+    expect(calling).toContain('"scaling law"');
+    const done = stripAnsi(toolLine("literature_search", "done", undefined, "5 papers"));
+    expect(done).toContain("✓");
+    expect(done).toContain("5 papers");
+    const failed = stripAnsi(toolLine("code", "failed", undefined, "Error: timeout"));
+    expect(failed).toContain("✗");
+  });
+
+  it("paperEntries：编号 + 标题行 + URL 行", () => {
+    const lines = paperEntries([
+      { title: "Neural Scaling Laws Rooted in Dimensionality", url: "https://arxiv.org/abs/2412.07942" },
+      { title: "Scaling Laws for Upcycling", url: "https://arxiv.org/abs/2503.10198" },
+    ]);
+    const plain = lines.map(stripAnsi);
+    expect(plain[0]).toContain("[1] Neural Scaling Laws Rooted");
+    expect(plain[1]).toContain("arxiv.org/abs/2412.07942");
+    expect(plain[2]).toContain("[2] Scaling Laws for Upcycling");
+    expect(plain[3]).toContain("arxiv.org/abs/2503.10198");
+  });
+
+  it("hypothesisCard / approvalCard：盒线与按键提示", () => {
+    const hyp = hypothesisCard("RAG 减少 hallucination").map(stripAnsi);
+    expect(hyp[0]).toMatch(/┌ hypothesis ─+┐/);
+    expect(hyp[1]).toContain("RAG 减少 hallucination");
+    expect(hyp[2]).toMatch(/└─+┘/);
+
+    const card = approvalCard("找到 3 个关键发现").map(stripAnsi);
+    expect(card[0]).toContain("⚠ 等待审批");
+    expect(card[0]).toContain("3 个关键发现");
+    expect(card[1]).toContain("[a] 批准  [m] 修改  [r] 拒绝");
+  });
+});
+
+describe("状态栏与提示", () => {
+  function fixtureModel(): RunModel {
+    const m = emptyModel();
+    m.status = "running";
+    m.startedAt = 1000;
+    m.phases = [
+      { name: "literature_search", status: "complete", startedAt: 1000, endedAt: 3000, lines: [] },
+      { name: "gap_identification", status: "running", startedAt: 3000, lines: [] },
+    ];
+    m.tokens = 1234;
+    return m;
+  }
+
+  it("statusLine：阶段进度 n/8、耗时、token、模式", () => {
+    const line = stripAnsi(statusLine(fixtureModel(), 8000));
+    expect(line).toContain("1/8 阶段");
+    expect(line).toContain("7s");
+    expect(line).toContain("~1.2k tok");
+    expect(line).toContain("auto");
+    expect(line).toContain("缺口识别");
+  });
+
+  it("statusLine：审批等待时带 ⏸ 待审批前缀", () => {
+    const m = fixtureModel();
+    m.approval = { phaseRunId: "pr-1", summary: "s" };
+    expect(stripAnsi(statusLine(m, 8000))).toContain("⏸ 待审批");
+  });
+
+  it("promptHint：空闲/运行/审批三种语境", () => {
+    const m = fixtureModel();
+    expect(promptHint(m)).toContain("Enter 排队");
+    m.status = "idle";
+    expect(promptHint(m)).toContain("Enter 发送");
+    m.approval = { phaseRunId: "pr-1", summary: "s" };
+    expect(promptHint(m)).toContain("a/m/r");
+  });
+});
+
+describe("renderModel 与 Markdown", () => {
+  it("renderModel：问题行 + 阶段顺序 + epilogue + notice", () => {
+    const m = emptyModel();
+    m.question = "scaling law 的维度根源?";
+    m.status = "complete";
+    const phase: PhaseState = {
+      name: "literature_search",
+      status: "complete",
+      startedAt: 0,
+      endedAt: 1000,
+      lines: [
+        { kind: "thinking", iteration: 1, note: "第 1 轮推理中...", since: 0 },
+        { kind: "tool", toolName: "literature_search", state: "done", resultSummary: "5 papers" },
+        { kind: "papers", papers: [{ title: "Paper A", url: "https://arxiv.org/abs/1" }] },
+      ],
+    };
+    m.phases = [phase];
+    m.epilogue = ["● run:complete ✓"];
+    m.notice = "已排队";
+    const lines = renderModel(m, 2000, 0, 76).map(stripAnsi);
+    const out = lines.join("\n");
+    expect(out).toContain("scaling law 的维度根源?");
+    expect(out).toContain("● 文献调研");
+    expect(out).toContain("thinking");
+    expect(out).toContain("5 papers");
+    expect(out).toContain("[1] Paper A");
+    expect(out).toContain("arxiv.org/abs/1");
+    expect(out).toContain("● run:complete ✓");
+    expect(out).toContain("已排队");
+    // 树前缀：thinking 非末行 ├，papers 末行 └
+    expect(out).toContain("│  ├ ⠋ thinking");
+    expect(out).toContain("│  └ [1] Paper A");
+  });
+
+  it("renderMarkdown：# 粗体大写、- → •、``` 缩进块", () => {
+    const lines = renderMarkdown("# Conclusion\n- strong evidence\n```\ny=1\n```\n").map(stripAnsi);
+    expect(lines[0]).toBe("CONCLUSION");
+    expect(lines[1]).toBe("• strong evidence");
+    expect(lines[2]).toContain("┌ code");
+    expect(lines[3]).toBe("  y=1");
+    expect(lines[4]).toContain("└ end");
+  });
+
+  it("旧版 renderTimeline 兼容：事件数组 → 时间线行", () => {
+    const lines = renderTimeline(
+      [
+        { type: "run:start", data: { question: "q1" } },
+        { type: "phase:start", phase: "literature_search" },
+        { type: "thinking", phase: "literature_search", data: { content: "第 1 轮推理中..." } },
+        {
+          type: "tool:result",
+          phase: "literature_search",
+          data: { toolName: "literature_search", toolResult: { papers: [{ id: 1 }, { id: 2 }] } },
+        },
+        { type: "phase:complete", phase: "literature_search" },
+        { type: "run:complete", data: { evidenceCount: 1, knowledgeCount: 2, reportCount: 1 } },
+      ],
+      "p1",
+    );
+    const out = lines.join("\n");
+    expect(out).toContain("● run:start  research started: q1");
+    expect(out).toContain("● 文献调研 ✓");
+    expect(out).toContain("2 papers");
+    expect(out).toContain("1 evidence, 2 knowledge, 1 reports");
+    expect(out).toContain("reports → GET /api/projects/p1/reports");
   });
 });
