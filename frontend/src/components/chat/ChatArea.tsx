@@ -9,6 +9,9 @@ interface ChatAreaProps {
   onApprove?: (runId: string) => void;
   onModify?: (runId: string, feedback: string) => void;
   onReject?: (runId: string, reason: string) => void;
+  /** 证据链下钻入口（REQ-G3） */
+  onOpenHypothesisChain?: (statement: string, hypothesisId?: string) => void;
+  onOpenReportChain?: (reportId: string) => void;
 }
 
 const EXAMPLES = [
@@ -17,7 +20,7 @@ const EXAMPLES = [
   'How effective is chain-of-thought prompting on small models?',
 ];
 
-export default function ChatArea({ messages, onApprove, onModify, onReject }: ChatAreaProps) {
+export default function ChatArea({ messages, onApprove, onModify, onReject, onOpenHypothesisChain, onOpenReportChain }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 新消息/活动更新时自动滚到底部
@@ -58,7 +61,7 @@ export default function ChatArea({ messages, onApprove, onModify, onReject }: Ch
           msg.role === 'user' ? (
             <UserMessage key={msg.id} content={msg.content} />
           ) : (
-            <AIMessage key={msg.id} msg={msg} onApprove={onApprove} onModify={onModify} onReject={onReject} />
+            <AIMessage key={msg.id} msg={msg} onApprove={onApprove} onModify={onModify} onReject={onReject} onOpenHypothesisChain={onOpenHypothesisChain} onOpenReportChain={onOpenReportChain} />
           )
         )}
       </div>

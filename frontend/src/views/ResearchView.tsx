@@ -5,6 +5,7 @@ import { Send, Square, X } from 'lucide-react';
 import PhaseBar from '@/components/layout/PhaseBar';
 import ChatArea from '@/components/chat/ChatArea';
 import PhaseDetailDrawer from '@/components/layout/PhaseDetailDrawer';
+import EvidenceChainDrawer, { type ChainTarget } from '@/components/layout/EvidenceChainDrawer';
 import { useStore } from '@/store/useStore';
 import client from '@/api/client';
 import { pf, subscribeEvents } from '@/api/pfClient';
@@ -35,6 +36,7 @@ export default function ResearchView() {
   const [phases, setPhases] = useState<PhaseRun[]>([]);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [selectedPhase, setSelectedPhase] = useState<PhaseRun | null>(null);
+  const [chainTarget, setChainTarget] = useState<ChainTarget | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   let msgId = 0;
 
@@ -135,7 +137,7 @@ export default function ResearchView() {
       } else if (event === 'phase:awaiting_approval') {
         next.push({ id: msgId++, role: 'assistant', needsApproval: true, approvalSummary: String(data.summary ?? ''), approvalRunId: String(data.runId ?? '') });
       } else if (event === 'hypothesis:proposed') {
-        next.push({ id: msgId++, role: 'assistant', hypothesis: String(data.statement ?? '') });
+        next.push({ id: msgId++, role: 'assistant', hypothesis: String(data.statement ?? ''), hypothesisId: data.hypothesisId ? String(data.hypothesisId) : undefined });
       } else if (event === 'self:review') {
         if (lastStage) { touch(); lastStage.activities!.push({ kind: 'review', label: `Self-review ${data.passed ? 'passed' : 'found issues'}`, status: data.passed ? 'done' : 'error' }); }
       } else if (event === 'run:complete') {
@@ -147,9 +149,9 @@ export default function ResearchView() {
           pf.getProjectReports(pid).then((res: unknown) => {
           const reports = ((res as { data?: unknown[] }).data ?? (res as unknown[])) as unknown[];
             const arr = Array.isArray(reports) ? reports : [];
-            const latest = arr[arr.length - 1] as { content?: string; title?: string } | undefined;
+            const latest = arr[arr.length - 1] as { content?: string; title?: string; reportId?: string } | undefined;
             if (latest?.content) {
-              setMessages((p2) => [...p2, { id: (p2.length ? Math.max(...p2.map((m) => m.id)) : 0) + 1, role: 'assistant' as const, isReport: true, reportTitle: latest.title ?? 'Research Report', content: latest.content }]);
+              setMessages((p2) => [...p2, { id: (p2.length ? Math.max(...p2.map((m) => m.id)) : 0) + 1, role: 'assistant' as const, isReport: true, reportTitle: latest.title ?? 'Research Report', content: latest.content, reportId: latest.reportId }]);
             }
           }).catch(() => {});
         }
@@ -209,12 +211,35 @@ export default function ResearchView() {
     } catch {}
   };
 
+  /**
+   * 假设卡片 → 证据链下钻（REQ-G3）。
+   * 事件流不带 hypothesisId 时按 statement 反查项目假设列表，仍取不到则不开抽屉。
+   */
+  const openHypothesisChain = async (statement: string, hypothesisId?: string) => {
+    if (!projectId) return;
+    let id = hypothesisId;
+    if (!id) {
+      try {
+        const res = (await pf.getProjectHypotheses(projectId)) as unknown;
+        const arr = Array.isArray(res) ? res : ((res as { data?: unknown[] }).data ?? []);
+        const hyps = arr as Array<{ hypothesisId?: string; statement?: string }>;
+        const match = hyps.find((h) => h.statement === statement) ?? hyps[hyps.length - 1];
+        id = match?.hypothesisId;
+      } catch { /* 拉取失败视为无链可下钻 */ }
+    }
+    if (id) setChainTarget({ objectType: 'Hypothesis', objectId: id });
+  };
+
+  const openReportChain = (reportId: string) => {
+    setChainTarget({ objectType: 'Report', objectId: reportId });
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
           <PhaseBar phases={phases} onSelectPhase={setSelectedPhase} />
-          <ChatArea messages={messages} onApprove={(rid) => submitDecision(rid, 'approve')} onModify={(rid, fb) => submitDecision(rid, 'modify', fb)} onReject={(rid, reason) => submitDecision(rid, 'reject', reason)} />
+          <ChatArea messages={messages} onApprove={(rid) => submitDecision(rid, 'approve')} onModify={(rid, fb) => submitDecision(rid, 'modify', fb)} onReject={(rid, reason) => submitDecision(rid, 'reject', reason)} onOpenHypothesisChain={openHypothesisChain} onOpenReportChain={openReportChain} />
           <div className="px-6 pb-4 pt-2 bg-bg-base">
             {isRunning && (
               <div className="flex items-center justify-between px-1 mb-2">
@@ -252,6 +277,9 @@ export default function ResearchView() {
         </div>
         {selectedPhase && (
           <PhaseDetailDrawer phase={selectedPhase} projectId={projectId!} onClose={() => setSelectedPhase(null)} />
+        )}
+        {chainTarget && projectId && (
+          <EvidenceChainDrawer target={chainTarget} projectId={projectId} onClose={() => setChainTarget(null)} />
         )}
       </div>
     </div>

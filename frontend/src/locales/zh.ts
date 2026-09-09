@@ -50,4 +50,15 @@ export default {
     unknownError: '未知错误',
     decisionFailed: '操作失败',
   },
+  evidenceChain: {
+    title: '证据链',
+    chain: '链路',
+    downstream: '支撑来源',
+    upstream: '派生去向',
+    empty: '暂无链路数据',
+    loadFailed: '链路加载失败',
+    viewOrigin: '查看原始对象',
+    hideOrigin: '收起原始对象',
+    visited: '已展示',
+  },
 };

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Download, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, Download, ExternalLink, ChevronDown, ChevronRight, Link2 } from 'lucide-react';
 import client from '@/api/client';
 import { pf } from '@/api/pfClient';
+import EvidenceChainDrawer, { type ChainTarget } from '@/components/layout/EvidenceChainDrawer';
 import type { Paper } from '@/api/types';
 
 export default function PapersView() {
@@ -14,6 +15,7 @@ export default function PapersView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [chainTarget, setChainTarget] = useState<ChainTarget | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -33,7 +35,8 @@ export default function PapersView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-border-base/50 bg-bg-layer1">
         <div className="flex items-center justify-between mb-3">
@@ -98,6 +101,10 @@ export default function PapersView() {
                         <Download size={12} />
                         <span>PDF</span>
                       </button>
+                      <button onClick={() => setChainTarget({ objectType: 'Citation', objectId: paper.citationId })} className="flex items-center gap-1 text-[12px] text-accent hover:text-accentHover cursor-pointer">
+                        <Link2 size={12} />
+                        <span>{t('evidenceChain.chain')}</span>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -106,6 +113,10 @@ export default function PapersView() {
           </div>
         )}
       </div>
+      </div>
+      {chainTarget && projectId && (
+        <EvidenceChainDrawer target={chainTarget} projectId={projectId} onClose={() => setChainTarget(null)} />
+      )}
     </div>
   );
 }

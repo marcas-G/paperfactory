@@ -33,6 +33,8 @@ export interface ChatMessage {
 
   /** 假设卡片 */
   hypothesis?: string;
+  /** 假设对象 id（证据链下钻入口用；缺失时按 statement 反查） */
+  hypothesisId?: string;
 
   /** 活动时间线：同一阶段的 thinking/工具调用聚合展示 */
   activities?: ActivityItem[];
@@ -40,6 +42,8 @@ export interface ChatMessage {
   /** 报告文档容器模式（带标题栏的文档卡片） */
   isReport?: boolean;
   reportTitle?: string;
+  /** 报告对象 id（证据链下钻入口用） */
+  reportId?: string;
 
   /** 人工审批 */
   needsApproval?: boolean;

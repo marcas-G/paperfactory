@@ -50,4 +50,15 @@ export default {
     unknownError: 'Unknown error',
     decisionFailed: 'Decision failed',
   },
+  evidenceChain: {
+    title: 'Evidence Chain',
+    chain: 'Chain',
+    downstream: 'Supported By',
+    upstream: 'Derives From',
+    empty: 'No chain data yet',
+    loadFailed: 'Failed to load chain',
+    viewOrigin: 'View raw object',
+    hideOrigin: 'Hide raw object',
+    visited: 'shown',
+  },
 };

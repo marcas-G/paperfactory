@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ChevronDown, ChevronRight, FileText, Lightbulb, ExternalLink,
-  Loader2, CheckCircle2, XCircle, Brain, Wrench, CheckCheck, Sparkles,
+  Loader2, CheckCircle2, XCircle, Brain, Wrench, CheckCheck, Sparkles, Link2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,6 +12,9 @@ interface AIMessageProps {
   onApprove?: (runId: string) => void;
   onModify?: (runId: string, feedback: string) => void;
   onReject?: (runId: string, reason: string) => void;
+  /** 证据链下钻入口（REQ-G3） */
+  onOpenHypothesisChain?: (statement: string, hypothesisId?: string) => void;
+  onOpenReportChain?: (reportId: string) => void;
 }
 
 const activityIcon = (a: ActivityItem) => {
@@ -146,7 +149,7 @@ function PapersCard({ papers }: { papers: NonNullable<ChatMessage['papers']> }) 
   );
 }
 
-export default function AIMessage({ msg, onApprove, onModify, onReject }: AIMessageProps) {
+export default function AIMessage({ msg, onApprove, onModify, onReject, onOpenHypothesisChain, onOpenReportChain }: AIMessageProps) {
   const hasBody = Boolean(msg.content) || Boolean(msg.papers?.length) || Boolean(msg.hypothesis) || Boolean(msg.activities?.length);
 
   if (!hasBody) return null;
@@ -165,6 +168,15 @@ export default function AIMessage({ msg, onApprove, onModify, onReject }: AIMess
               <span className="text-[12.5px] font-medium text-text-strong truncate flex-1">
                 {msg.reportTitle || 'Research Report'}
               </span>
+              {msg.reportId && onOpenReportChain && (
+                <button
+                  onClick={() => msg.reportId && onOpenReportChain(msg.reportId)}
+                  className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-md bg-bg-layer3 text-text-muted hover:text-accent hover:bg-accent/10 transition-colors cursor-pointer flex-shrink-0"
+                >
+                  <Link2 size={11} />
+                  <span>Evidence Chain</span>
+                </button>
+              )}
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-success/15 text-success uppercase tracking-wide">Final</span>
             </div>
             <div className="px-5 py-4 max-h-[640px] overflow-y-auto [&_h1]:text-[19px] [&_h1]:font-semibold [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:text-[16px] [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1.5 [&_p]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_a]:text-accent [&_a]:underline [&_code]:text-[12.5px] [&_code]:bg-bg-layer2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:bg-bg-layer2 [&_pre]:p-3.5 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_table]:my-3 [&_table]:w-full [&_th]:border [&_th]:border-border-base [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_td]:border [&_td]:border-border-base [&_td]:px-2.5 [&_td]:py-1.5 [&_blockquote]:border-l-2 [&_blockquote]:border-accent/50 [&_blockquote]:pl-3 [&_blockquote]:text-text-muted [&_hr]:border-border-base [&_hr]:my-4 text-[13.5px] leading-relaxed text-text-strong">
@@ -206,8 +218,19 @@ export default function AIMessage({ msg, onApprove, onModify, onReject }: AIMess
         {msg.hypothesis && (
           <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-info/25 bg-info/5 px-3.5 py-3">
             <Lightbulb size={14} className="text-info flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-wide text-info mb-1">Hypothesis</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-info">Hypothesis</div>
+                {onOpenHypothesisChain && (
+                  <button
+                    onClick={() => onOpenHypothesisChain(msg.hypothesis!, msg.hypothesisId)}
+                    className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-bg-layer3 text-text-muted hover:text-accent hover:bg-accent/10 transition-colors cursor-pointer"
+                  >
+                    <Link2 size={11} />
+                    <span>Evidence Chain</span>
+                  </button>
+                )}
+              </div>
               <div className="text-[13px] text-text-strong leading-relaxed">{msg.hypothesis}</div>
             </div>
           </div>

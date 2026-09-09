@@ -15,7 +15,7 @@
 | REQ-R6 | 实测 | SSE 事件流完整（thinking/tool:calling/result 逐条） | ✅ PASS |
 | REQ-G1 | e2e 测试（test/server/approval-flow） | manual：阶段完成挂起→awaiting_approval 事件→decision(approve)→研究恢复推进，全链 86ms 可回归 | ✅ PASS |
 | REQ-G2 | 单测（test/core/control/gates 等） | gates 三态判定用例 | ✅ 对象层 PASS |
-| REQ-G3 | API 端点存在（chain） | 前端下钻未打通 | 🟡 PARTIAL |
+| REQ-G3 | 前端下钻实测（2026-09-09） | EvidenceChainDrawer 递归下钻（结论→证据→实验→文献，一跳 chain 端点逐层懒加载+环路防护）；入口三处：AIMessage Hypothesis 卡片（statement 反查 hypothesisId）/报告标题栏（reportId）/PapersView 文献行（Citation）；tsc 零新增错误；冒烟：3014 后端 chain 端点返回 JSON（空链 `{"upstream":[],"downstream":[]}`）+ vite 5175 首页 200 且 /api 代理连通 | ✅ PASS |
 | REQ-G4 | 实测 | 网关 502/断线场景重试+降级记录（fallback 警告实证） | ✅ PASS |
 | REQ-REC1 | **杀进程实测** | 重启后 19 事件按 seq 补发 | ✅ PASS |
 | REQ-REC2 | 杀进程实测（2026-09-09） | 轮1建项目→杀→轮2 GET /api/projects 返回该项目（投影重建：object:mutated 事件入账本+启动重放） | ✅ PASS |
@@ -41,8 +41,8 @@
 ## 汇总
 
 ```text
-PASS 21 · PARTIAL 1 · FAIL 1
-剩余：G3(前端下钻) 🟡 / REC4(断点续跑) ❌
+PASS 22 · PARTIAL 0 · FAIL 1
+剩余：REC4(断点续跑) ❌
 FAIL 即路线图：R5b(报告正文落库) > REC4(断点续跑)
 PARTIAL 补验：M3/M2b(视图迁移)
 FAIL 即路线图：REC2(投影重建) > E3/E4(文档遗产) > REC4(断点续跑)
