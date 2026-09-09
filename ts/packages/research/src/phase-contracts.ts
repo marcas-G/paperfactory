@@ -13,6 +13,7 @@ import { createExperiment } from "@pf/schema/objects/experiment";
 import { createResult } from "@pf/schema/objects/result";
 import { createEvidence } from "@pf/schema/objects/evidence";
 import { createReport } from "@pf/schema/objects/report";
+import { collectKnownSources, enforceCitationGate } from "./citation-gate";
 import { selfReview, SelfReviewResult } from "@pf/core/runtime/workflows/self-review";
 import { chainOfVerification, CoVeResult } from "@pf/core/runtime/workflows/cove";
 import { beamSearch } from "@pf/core/runtime/workflows/tot-engine";
@@ -742,11 +743,24 @@ export async function runPhase(
   }
 
   if (parsed && contract.name === "report_generation") {
+    // REQ-R5b：报告正文落库（原为空壳）；REQ-R5：接通引用门
     const reportId = generateUuid();
+    const knowledgeItems = await Effect.runPromise(store.list("KnowledgeItem")) as Array<Record<string, unknown>>;
+    const gate = enforceCitationGate(rawOutput ?? "", collectKnownSources(knowledgeItems));
+    if (gate.unsourced > 0) {
+      onEvent({
+        type: "phase:progress",
+        content: `引用门：剥离 ${gate.unsourced} 条未入库引用（${gate.removed.slice(0, 3).join(", ")}${gate.removed.length > 3 ? " ..." : ""}）`,
+        phase: contract.name,
+        timestamp: new Date().toISOString(),
+      });
+    }
     await Effect.runPromise(store.save(createReport({
       reportId, projectId, branchId: generateUuid(),
       title: `研究报告: ${question}`,
       status: "DRAFT",
+      content: gate.content,
+      metadata: { citationStats: { sourced: gate.sourced, unsourced: gate.unsourced, removed: gate.removed } },
     })));
     savedIds.reportIds = [reportId];
   }

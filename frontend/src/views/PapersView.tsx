@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Download, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import client from '@/api/client';
+import { pf } from '@/api/pfClient';
 import type { Paper } from '@/api/types';
 
 export default function PapersView() {
@@ -17,18 +18,18 @@ export default function PapersView() {
   useEffect(() => {
     if (!projectId) return;
     setLoading(true);
-    client.get<Paper[]>(`/api/projects/${projectId}/papers`)
-      .then(({ data }) => setPapers(Array.isArray(data) ? data : []))
+    pf.getProjectPapers(projectId)
+      .then((data) => setPapers(Array.isArray(data) ? data : []))
       .catch(() => setPapers([]))
       .finally(() => setLoading(false));
   }, [projectId]);
 
   const filtered = papers.filter((p) =>
-    !search || p.sourceTitle.toLowerCase().includes(search.toLowerCase()) || (p.authors?.join('') ?? '').toLowerCase().includes(search.toLowerCase())
+    !search || p.sourceTitle.toLowerCase().includes(search.toLowerCase()) || (((p as unknown as Record<string, unknown>).authors as string[] | undefined)?.join('') ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   const downloadPdf = async (citationId: string) => {
-    try { await client.post(`/api/papers/${citationId}/download-pdf`); } catch {}
+    try { await pf.downloadPaperPdf(citationId); } catch {}
   };
 
   return (

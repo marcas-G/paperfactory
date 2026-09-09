@@ -11,7 +11,7 @@
 | REQ-R2 | 实测 | CS 错配文献对教育心理学问题 0 入库（LLM 评估过滤） | ✅ PASS |
 | REQ-R3 | 单测+代码检查 | hypothesis 工厂含 falsificationCondition；research 命令真落库 | ✅ PASS |
 | REQ-R4 | 实测 | sandbox 真执行（print→2 实测；LLM 协议实验 SUPPORTING 0.85） | ✅ PASS |
-| REQ-R5 | 单测（test/research/citation-gate） | enforceCitationGate：报告引用⊆知识库来源（arXiv 版本归一/中文标点安全/非学术链接放行）；**接入点待 REQ-R5b** | 🟡 PARTIAL(函数就绪) |
+| REQ-R5 | 单测+接入（report_generation 实调 gate） | 未入库引用剥离 + phase:progress 审计事件 + stats 落 report.metadata | ✅ PASS |
 | REQ-R6 | 实测 | SSE 事件流完整（thinking/tool:calling/result 逐条） | ✅ PASS |
 | REQ-G1 | e2e 测试（test/server/approval-flow） | manual：阶段完成挂起→awaiting_approval 事件→decision(approve)→研究恢复推进，全链 86ms 可回归 | ✅ PASS |
 | REQ-G2 | 单测（test/core/control/gates 等） | gates 三态判定用例 | ✅ 对象层 PASS |
@@ -24,7 +24,7 @@
 | REQ-REC5 | 单测+代码审查（2026-09-09） | agent loop 三刹车：LLM 超时(120s 可env)/工具超时(30s)/工具输出回填截断(8k chars)；core 214 测试绿 | ✅ PASS（持续集成防回归） |
 | REQ-M1 | 双终端实测 | POST 202 秒回 + 事件流收到 run:start/phase:start | ✅ PASS |
 | REQ-M2 | **一致性测试+幂等实测** | test/protocol（46 用例双向对齐）；codegen md5 复验 | ✅ PASS |
-| REQ-M3 | 浏览器走查 | ResearchView 链路通；其余视图旧栈 | 🟡 PARTIAL |
+| REQ-M3 | tsc+调用面清零（2026-09-09） | 全部视图/抽屉走 @pf/client 生成 SDK（pf.getProjectPapers/getPhaseVersions/stopResearchRun/submitPhaseDecision/getProjectReports/getProjectPhases）；旧 axios 直调=0 | ✅ PASS（浏览器走查待用户） |
 | REQ-M4 | **亲手终端实测** | TUI 渲染 8 阶段时间线（含 error 事件入账渲染） | ✅ PASS |
 | REQ-M5 | 文档审查 | PROTOCOL.md 覆盖 33 端点+13 事件 | ✅ PASS |
 | REQ-E1 | **注入实测** | 违规 import → 红（含文件:行）；撤销 → 绿 | ✅ PASS |
@@ -36,12 +36,13 @@
 
 | REQ | 能力 | 状态 |
 |---|---|---|
-| REQ-R5b | agent-research 版报告正文落库（当前 Report 对象仅 title/status 空壳，正文未持久化——citation gate 的接入前提） | ❌ 未实现 |
+| REQ-R5b | 代码+回归（2026-09-09） | report_generation 落库 content（经 citation gate 清洗）+ metadata.citationStats；530/530 绿 | ✅ PASS |
 
 ## 汇总
 
 ```text
-PASS 17 · PARTIAL 2 · FAIL 1（+新登记 R5b）
+PASS 20 · PARTIAL 1 · FAIL 1
+剩余：G3(前端下钻) 🟡 / REC3(PG实测) 🟡 / REC4(断点续跑) ❌
 FAIL 即路线图：R5b(报告正文落库) > REC4(断点续跑)
 PARTIAL 补验：M3/M2b(视图迁移)
 FAIL 即路线图：REC2(投影重建) > E3/E4(文档遗产) > REC4(断点续跑)

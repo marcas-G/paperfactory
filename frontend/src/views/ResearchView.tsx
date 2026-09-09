@@ -56,7 +56,7 @@ export default function ResearchView() {
   const loadPhases = async () => {
     if (!projectId) return;
     try {
-      const { data } = await client.get<PhaseRun[]>(`/projects/${projectId}/phases`);
+      const data = (await pf.getProjectPhases(projectId)) as unknown as PhaseRun[];
       const runs = Array.isArray(data) ? data : [];
       setPhases(runs);
       // If no saved messages, rebuild from phases
@@ -144,7 +144,8 @@ export default function ResearchView() {
         next.push({ id: msgId++, role: 'assistant', content: t('common.complete', { defaultValue: 'Research complete' }) as string });
         const pid = String(data.projectId ?? '');
         if (pid) {
-          client.get<unknown[]>(`/projects/${pid}/reports`).then(({ data: reports }) => {
+          pf.getProjectReports(pid).then((res: unknown) => {
+          const reports = ((res as { data?: unknown[] }).data ?? (res as unknown[])) as unknown[];
             const arr = Array.isArray(reports) ? reports : [];
             const latest = arr[arr.length - 1] as { content?: string; title?: string } | undefined;
             if (latest?.content) {
@@ -193,7 +194,7 @@ export default function ResearchView() {
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
     if (currentRunId) {
-      try { await client.post(`/api/research/${currentRunId}/stop`); } catch {}
+      try { await pf.stopResearchRun(currentRunId); } catch {}
     }
     setIsRunning(false);
     setStatus('error');
@@ -204,7 +205,7 @@ export default function ResearchView() {
   const submitDecision = async (runId: string, decision: string, feedback: string = '') => {
     if (!projectId) return;
     try {
-      await client.post(`/api/projects/${projectId}/phases/${runId}/decision`, { decision, feedback });
+      await pf.submitPhaseDecision(projectId, runId, { decision: decision as 'approve' | 'modify' | 'reject', feedback });
     } catch {}
   };
 

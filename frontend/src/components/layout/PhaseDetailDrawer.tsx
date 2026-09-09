@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Clock, CheckCircle2, AlertCircle, Play, ChevronDown, ChevronRight, FileText, Search, Shield } from 'lucide-react';
 import client from '@/api/client';
+import { pf } from '@/api/pfClient';
 import type { PhaseRun } from '@/api/types';
 
 interface Props {
@@ -9,24 +10,15 @@ interface Props {
   onClose: () => void;
 }
 
-interface VersionInfo {
-  runId: string;
-  version: number;
-  summary: string;
-  status: string;
-  active: boolean;
-  createdAt: string;
-}
-
 export default function PhaseDetailDrawer({ phase, projectId, onClose }: Props) {
-  const [versions, setVersions] = useState<VersionInfo[]>([]);
+  const [versions, setVersions] = useState<Array<Parameters<typeof pf.getPhaseVersions>[1] extends never ? never : any>>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>('output');
 
   useEffect(() => {
     setLoading(true);
-    client.get<VersionInfo[]>(`/api/projects/${projectId}/phases/${phase.phaseName}/versions`)
-      .then(({ data }) => setVersions(Array.isArray(data) ? data : []))
+    pf.getPhaseVersions(projectId, phase.phaseName)
+      .then((data) => setVersions(Array.isArray(data) ? data : []))
       .catch(() => setVersions([]))
       .finally(() => setLoading(false));
   }, [projectId, phase.phaseName]);
