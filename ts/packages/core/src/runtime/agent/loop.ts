@@ -53,6 +53,20 @@ function emit(onEvent: AgentLoopOptions["onEvent"], event: AgentEvent) {
   onEvent?.(event);
 }
 
+/** REQ-REC5 预算刹车：LLM/工具超时 + 工具输出回填截断（防上下文爆炸与失控烧钱）。 */
+const LLM_TIMEOUT_MS = Number(process.env.AGENT_LLM_TIMEOUT_MS ?? 120_000);
+const TOOL_TIMEOUT_MS = Number(process.env.AGENT_TOOL_TIMEOUT_MS ?? 30_000);
+const TOOL_OUTPUT_MAX_CHARS = Number(process.env.AGENT_TOOL_OUTPUT_MAX_CHARS ?? 8_000);
+
+function raceTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | { content: string }> {
+  return Promise.race([
+    promise,
+    new Promise<{ content: string }>((resolve) =>
+      setTimeout(() => resolve({ content: `Error: ${label} timed out after ${ms}ms` }), ms),
+    ),
+  ]);
+}
+
 export async function runAgentLoop(
   provider: Provider,
   toolRegistry: ToolRegistry,
@@ -81,10 +95,19 @@ export async function runAgentLoop(
 
     realEmit({ type: "thinking", content: `第 ${iteration} 轮推理中...`, iteration });
 
-    const responseOpt = await Effect.runPromise(
-      Effect.either(provider.sendMessages(messages, { tools }))
+    // REC5: LLM 调用超时刹车（超时分支返回 {content}，正常分支返回 Either）
+    const responseOpt = await raceTimeout(
+      Effect.runPromise(Effect.either(provider.sendMessages(messages, { tools }))),
+      LLM_TIMEOUT_MS,
+      "LLM call",
     );
 
+    if (!("_tag" in responseOpt)) {
+      const err = `Error: ${(responseOpt as { content: string }).content}`;
+      realEmit({ type: "error", content: err });
+      messages.push({ role: "assistant", content: err });
+      return { finalContent: err, messages, toolCalls, events };
+    }
     if (responseOpt._tag === "Left") {
       const err = `Error: ${responseOpt.left}`;
       realEmit({ type: "error", content: err });
@@ -119,9 +142,12 @@ export async function runAgentLoop(
         toolArgs: toolCall.arguments,
       });
 
-      const toolOutput = await Effect.runPromise(
-        toolRegistry.execute(toolCall.toolName, toolCall.arguments)
-      ).catch((err) => ({ content: `Error: ${err}` } as ToolOutput));
+      // REC5: 工具执行超时刹车
+      const toolOutput = (await raceTimeout(
+        Effect.runPromise(toolRegistry.execute(toolCall.toolName, toolCall.arguments)),
+        TOOL_TIMEOUT_MS,
+        `tool ${toolCall.toolName}`,
+      ).catch((err) => ({ content: `Error: ${err}` }))) as ToolOutput;
 
       realEmit({
         type: "tool:result",
@@ -136,9 +162,14 @@ export async function runAgentLoop(
         output: toolOutput,
       });
 
+      // REC5: 工具输出回填截断（事件已截 2000，这里防喂模型的上下文爆炸）
+      const rawToolContent = toolOutput.content || "";
       messages.push({
         role: "tool" as const,
-        content: toolOutput.content || "",
+        content:
+          rawToolContent.length > TOOL_OUTPUT_MAX_CHARS
+            ? `${rawToolContent.slice(0, TOOL_OUTPUT_MAX_CHARS)}\n[output truncated at ${TOOL_OUTPUT_MAX_CHARS} chars]`
+            : rawToolContent,
       });
     }
 
