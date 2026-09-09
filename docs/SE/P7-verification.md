@@ -20,7 +20,7 @@
 | REQ-REC1 | **杀进程实测** | 重启后 19 事件按 seq 补发 | ✅ PASS |
 | REQ-REC2 | 杀进程实测（2026-09-09） | 轮1建项目→杀→轮2 GET /api/projects 返回该项目（投影重建：object:mutated 事件入账本+启动重放） | ✅ PASS |
 | REQ-REC3 | 实测（2026-09-09，docker postgres:16） | ensurePgSchema 运行时建 18 表（零迁移文件）；PG 模式 POST→psql 直查 count=1；杀进程重启后对象在场 | ✅ PASS |
-| REQ-REC4 | 无实现 | — | ❌ FAIL(未实现) |
+| REQ-REC4 | 单测+杀进程实测（2026-09-09） | **phase 级断点续跑**：`lastCompletedPhase`（PhaseRun COMPLETED 记录里取契约序列最靠后阶段）→ `POST /api/research/resume {projectId}`（202 秒回 runId+resumeFromPhase；404=项目不存在；契约表+codegen 同步，SDK `resumeResearch`）→ `resumeFromPhase` 跳过已完成阶段、发 `恢复：跳过已完成阶段 X-Y` 事件、从下一阶段继续（不重跑：无新增同阶段版本）。单测 test/server/resume（9 用例：断点判定/跳过分支/400/404/202+事件流）；冒烟：PF_DATA_DIR 账本注入 PhaseRun(literature_search COMPLETED) → 杀进程重启账本重放 → resume 202 resumeFromPhase=literature_search → SSE 收"恢复：跳过"且无 literature_search phase:start、后续 7 阶段推进至 run:complete(resumed) | ✅ PASS |
 | REQ-REC5 | 单测+代码审查（2026-09-09） | agent loop 三刹车：LLM 超时(120s 可env)/工具超时(30s)/工具输出回填截断(8k chars)；core 214 测试绿 | ✅ PASS（持续集成防回归） |
 | REQ-M1 | 双终端实测 | POST 202 秒回 + 事件流收到 run:start/phase:start | ✅ PASS |
 | REQ-M2 | **一致性测试+幂等实测** | test/protocol（46 用例双向对齐）；codegen md5 复验 | ✅ PASS |
@@ -41,12 +41,9 @@
 ## 汇总
 
 ```text
-PASS 22 · PARTIAL 0 · FAIL 1
-剩余：REC4(断点续跑) ❌
-FAIL 即路线图：R5b(报告正文落库) > REC4(断点续跑)
-PARTIAL 补验：M3/M2b(视图迁移)
-FAIL 即路线图：REC2(投影重建) > E3/E4(文档遗产) > REC4(断点续跑)
-PARTIAL 补验顺序：G1(manual 实测) → REC5(刹车) → R5(引用 gate) → M3/M2b(视图迁移)
+PASS 23 · PARTIAL 0 · FAIL 0
+剩余：无——REC4(断点续跑，phase 级) 已于 2026-09-09 消除
+历史路线图（全部消完）：R5b(报告正文落库) → REC2(投影重建) → E3/E4(文档遗产) → REC4(断点续跑)
 ```
 
 ## 回归防线（已固化）

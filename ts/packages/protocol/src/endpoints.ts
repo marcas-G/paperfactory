@@ -301,6 +301,22 @@ export interface ResearchStreamQuery {
 }
 
 /* ------------------------------------------------------------------ */
+/*  research resume（REQ-REC4 断点续跑）                                */
+/* ------------------------------------------------------------------ */
+
+export interface ResumeResearchRequest {
+  projectId: string;
+}
+
+export interface ResumeResearchResponse {
+  runId: string;
+  projectId: string;
+  /** 断点：已完成的最靠后阶段（null = 无完成记录，全量重跑） */
+  resumeFromPhase: string | null;
+  status: string;
+}
+
+/* ------------------------------------------------------------------ */
 /*  agent                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -327,7 +343,7 @@ export interface EventsQuery {
 }
 
 /* ------------------------------------------------------------------ */
-/*  契约表（34 端点）                                                    */
+/*  契约表（34 端点，含 REQ-REC4 resume）                                */
 /* ------------------------------------------------------------------ */
 
 export const ENDPOINTS: readonly EndpointDef[] = [
@@ -518,6 +534,14 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     request: "StartResearchRequest",
     response: "StartResearchResponse",
     summary: "发起研究（202 秒回 runId；全部进度经 /api/events 广播）",
+  },
+  {
+    name: "resumeResearch",
+    method: "POST",
+    path: "/api/research/resume",
+    request: "ResumeResearchRequest",
+    response: "ResumeResearchResponse",
+    summary: "断点续跑（202；依据 PhaseRun 跳过已完成阶段，从下一阶段继续；404 = 项目不存在）",
   },
   {
     name: "startResearchStream",

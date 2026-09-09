@@ -143,6 +143,116 @@ export function createResearchRunRoutes(
     return c.json({ runId, projectId, questionId, status: "started" }, 202);
   });
 
+  // REQ-REC4：断点续跑——中断（崩溃/stop）的 run 从未完成阶段继续，已完成阶段不重跑。
+  // body { projectId }：查原项目（404 = 不存在）→ 取 question（Project.name）→
+  // 依据 PhaseRun 记录算 resumeFromPhase → 复用原 projectId/branchId 后台执行。
+  // 异步模式同 /api/research/run：202 秒回 runId，事件进 eventBus，stop/approval 纳入 researchRuns。
+  router.post("/api/research/resume", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const projectId = validateString(body?.projectId, 128);
+    if (!projectId) {
+      return c.json(apiError("VALIDATION_ERROR", "projectId is required (max 128 chars)"), 400);
+    }
+
+    const projectOpt = await Effect.runPromise(objectStore.get(projectId, "Project"));
+    if (projectOpt.isNone()) {
+      return c.json(apiError("NOT_FOUND", "Project not found"), 404);
+    }
+    const project = projectOpt.value as Record<string, unknown>;
+    const question = (project.name as string | undefined) ?? "";
+
+    const { lastCompletedPhase } = await import("@pf/research/agent-research");
+    const resumeFromPhase = await lastCompletedPhase(objectStore, projectId);
+
+    // 复用原 branchId（run 时存在 Hypothesis 上；无则新开）
+    const hypotheses = (await Effect.runPromise(objectStore.list("Hypothesis"))) as Array<Record<string, unknown>>;
+    const originalBranchId = hypotheses.find((h) => h.projectId === projectId)?.branchId as string | undefined;
+    const branchId = originalBranchId ?? generateUuid();
+
+    const runId = generateUuid();
+    let stopped = false;
+    researchRuns.set(runId, {
+      stopped: () => stopped,
+      setStopped: (v: boolean) => { stopped = v; },
+      approvalResolve: null,
+      approvalPhase: null,
+      approvalRunId: null,
+    });
+
+    eventBus.emit("run:start", { runId, projectId, data: { question, resumed: true, resumeFromPhase } });
+
+    void (async () => {
+      try {
+        const { runAgentDrivenResearch } = await import("@pf/research/agent-research");
+        const toolDefinitions = buildToolDefs(toolRegistry);
+        const researchResult = await runAgentDrivenResearch({
+          projectId,
+          branchId,
+          question,
+          provider,
+          objectStore,
+          eventStore: controller.eventStore,
+          controller,
+          toolRegistry,
+          toolDefinitions,
+          resumeFromPhase: resumeFromPhase ?? undefined,
+          mode: body?.mode === "manual" ? "manual" : "auto",
+          onEvent: (event) => {
+            eventBus.emit(event.type, {
+              runId,
+              projectId,
+              phase: event.phase,
+              data: {
+                content: event.content,
+                toolName: event.toolName,
+                toolArgs: event.toolArgs,
+                toolResult: event.toolResult,
+                iteration: event.iteration,
+                passed: event.passed,
+              },
+            });
+          },
+          onApprovalNeeded: async (rid: string, phaseName: string, summary: string) => {
+            if (body?.mode === "manual") {
+              eventBus.emit("phase:awaiting_approval", { runId: rid, projectId, phase: phaseName, data: { summary } });
+              return new Promise<PhaseDecision>((resolve) => {
+                const runState = researchRuns.get(runId);
+                if (runState) {
+                  runState.approvalPhase = phaseName;
+                  runState.approvalRunId = rid;
+                  runState.approvalResolve = resolve;
+                } else {
+                  resolve("approve");
+                }
+              });
+            }
+            return "approve";
+          },
+          shouldStop: () => stopped,
+        });
+
+        eventBus.emit("run:complete", {
+          runId,
+          projectId,
+          data: {
+            resumed: true,
+            resumeFromPhase,
+            hypothesisStatements: researchResult.hypothesisStatements,
+            evidenceCount: researchResult.evidence.length,
+            knowledgeCount: researchResult.knowledgeItems.length,
+            reportCount: researchResult.reports.length,
+          },
+        });
+      } catch (err: unknown) {
+        eventBus.emit("run:error", { runId, projectId, data: { error: String(err) } });
+      } finally {
+        researchRuns.delete(runId);
+      }
+    })();
+
+    return c.json({ runId, projectId, resumeFromPhase, status: "started" }, 202);
+  });
+
   const startResearchStream = (question: string, mode: "manual" | "auto") => {
     const runId = generateUuid();
     const projectId = generateUuid();

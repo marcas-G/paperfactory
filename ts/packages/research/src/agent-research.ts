@@ -23,11 +23,35 @@ export interface ResearchRunContext {
   shouldStop: () => boolean;
   requiresReview?: boolean;
   startFromPhase?: string;
+  /** REQ-REC4 断点续跑：该阶段（含）之前的所有阶段视为已完成，跳过并从下一阶段继续 */
+  resumeFromPhase?: string;
   mode?: "manual" | "auto";
   onApprovalNeeded?: (runId: string, phaseName: string, summary: string) => Promise<"approve" | "modify" | "reject">;
 }
 
 import { generateUuid } from "./shared";
+
+/**
+ * REQ-REC4 断点判定：项目在 PHASE_CONTRACTS 序列中已完成（COMPLETED）的最靠后阶段。
+ *
+ * 依据 objectStore 里的 PhaseRun 记录：过滤 projectId + status==="COMPLETED"、
+ * 且 phaseName 属于契约序列，取序列位置最靠后的阶段名；无任何完成记录返回 null
+ * （调用方据此全量重跑）。
+ */
+export async function lastCompletedPhase(
+  store: ObjectStore,
+  projectId: string,
+): Promise<string | null> {
+  const runs = (await Effect.runPromise(store.list("PhaseRun"))) as Array<Record<string, unknown>>;
+  let lastIdx = -1;
+  for (const run of runs) {
+    if (run.projectId !== projectId) continue;
+    if (run.status !== "COMPLETED") continue;
+    const idx = PHASE_CONTRACTS.findIndex((p) => p.name === run.phaseName);
+    if (idx > lastIdx) lastIdx = idx;
+  }
+  return lastIdx >= 0 ? PHASE_CONTRACTS[lastIdx].name : null;
+}
 
 function buildPhaseSummary(phaseName: string, result: { output?: Record<string, unknown> | null }): string {
   if (!result?.output) return "阶段完成";
@@ -85,12 +109,34 @@ export async function runAgentDrivenResearch(
   const phaseVersions: Record<string, number> = {};
   const phaseRunIds: Record<string, string> = {};
 
-  const contractsToRun = ctx.startFromPhase
-    ? PHASE_CONTRACTS.filter((c) => {
-        const idx = PHASE_CONTRACTS.findIndex((p) => p.name === ctx.startFromPhase);
-        return PHASE_CONTRACTS.findIndex((p) => p.name === c.name) >= idx;
-      })
-    : PHASE_CONTRACTS;
+  const contractsToRun = PHASE_CONTRACTS.filter((c) => {
+    const idx = PHASE_CONTRACTS.findIndex((p) => p.name === c.name);
+    const startIdx = ctx.startFromPhase
+      ? PHASE_CONTRACTS.findIndex((p) => p.name === ctx.startFromPhase)
+      : -1;
+    const resumeIdx = ctx.resumeFromPhase
+      ? PHASE_CONTRACTS.findIndex((p) => p.name === ctx.resumeFromPhase)
+      : -1;
+    return idx >= startIdx && idx > resumeIdx;
+  });
+
+  // REQ-REC4：断点续跑——发一条恢复事件说明跳过范围（X-Y），已完成阶段不重跑
+  if (ctx.resumeFromPhase) {
+    const resumeIdx = PHASE_CONTRACTS.findIndex((p) => p.name === ctx.resumeFromPhase);
+    if (resumeIdx >= 0) {
+      const firstSkipped = PHASE_CONTRACTS[0].name;
+      const lastSkipped = PHASE_CONTRACTS[resumeIdx].name;
+      onEvent({
+        type: "phase:progress",
+        content:
+          firstSkipped === lastSkipped
+            ? `恢复：跳过已完成阶段 ${firstSkipped}`
+            : `恢复：跳过已完成阶段 ${firstSkipped}-${lastSkipped}`,
+        phase: ctx.resumeFromPhase,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 
   for (const contract of contractsToRun) {
     if (shouldStop()) {

@@ -4,9 +4,9 @@
  */
 
 import type { ClientAdapter } from "../adapter";
-import type { AgentRunRequest, AgentRunResponse, ComparePhasesQuery, CreateProjectRequest, CreateProjectResponse, CreateQuestionRequest, DeleteProjectResponse, DeleteResearchObjectResponse, DownloadPdfResponse, EventsQuery, EvidenceChainLink, HealthResponse, Paper, PhaseDecisionRequest, PhaseRunDTO, PhaseRunRecord, PhaseRunsGrouped, ProjectBundle, ProjectDetail, ProjectSummary, ResearchObject, ResearchObjectList, ResearchQuestionRecord, ResearchStreamQuery, RunPhaseRequest, RunPhaseResponse, RunStatusResponse, StartResearchRequest, StartResearchResponse, StopRunResponse, UpdateProjectRequest, UpdateProjectResponse, UpdateResearchObjectRequest, VersionCompare } from "../../../protocol/src";
+import type { AgentRunRequest, AgentRunResponse, ComparePhasesQuery, CreateProjectRequest, CreateProjectResponse, CreateQuestionRequest, DeleteProjectResponse, DeleteResearchObjectResponse, DownloadPdfResponse, EventsQuery, EvidenceChainLink, HealthResponse, Paper, PhaseDecisionRequest, PhaseRunDTO, PhaseRunRecord, PhaseRunsGrouped, ProjectBundle, ProjectDetail, ProjectSummary, ResearchObject, ResearchObjectList, ResearchQuestionRecord, ResearchStreamQuery, ResumeResearchRequest, ResumeResearchResponse, RunPhaseRequest, RunPhaseResponse, RunStatusResponse, StartResearchRequest, StartResearchResponse, StopRunResponse, UpdateProjectRequest, UpdateProjectResponse, UpdateResearchObjectRequest, VersionCompare } from "../../../protocol/src";
 
-export const SDK_GENERATED_ENDPOINT_COUNT = 33;
+export const SDK_GENERATED_ENDPOINT_COUNT = 34;
 
 /** 拼 query string（跳过 undefined/null 值） */
 function buildQuery(query?: object): string {
@@ -222,6 +222,18 @@ export function startResearch(client: ClientAdapter, body: StartResearchRequest)
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }) as Promise<StartResearchResponse>;
+}
+
+/**
+ * POST /api/research/resume
+ * 断点续跑（202；依据 PhaseRun 跳过已完成阶段，从下一阶段继续；404 = 项目不存在）
+ */
+export function resumeResearch(client: ClientAdapter, body: ResumeResearchRequest): Promise<ResumeResearchResponse> {
+  return client.fetch(`/api/research/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }) as Promise<ResumeResearchResponse>;
 }
 
 /**
