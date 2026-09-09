@@ -21,12 +21,27 @@ describe("KeyDecoder 控制键", () => {
     expect(d.push("\x01\x02")).toEqual([{ type: "ignored" }, { type: "ignored" }]);
   });
 
-  it("CSI 方向键/功能键序列整体吞掉，不影响后续文本", () => {
+  it("CSI 方向键解出语义键（up/down/left/right），不影响后续文本", () => {
     const d = new KeyDecoder();
     const keys = d.push("\x1b[A\x1b[Cx");
-    expect(keys).toEqual([{ type: "text", text: "x" }]);
-    const keys2 = d.push("\x1b[1;5Dy");
-    expect(keys2).toEqual([{ type: "text", text: "y" }]);
+    expect(keys).toEqual([{ type: "up" }, { type: "right" }, { type: "text", text: "x" }]);
+    const keys2 = d.push("\x1b[B\x1b[D");
+    expect(keys2).toEqual([{ type: "down" }, { type: "left" }]);
+  });
+
+  it("Home/End/Delete/PageUp/PageDown（CSI 字母与 ~ 数字两种形态）", () => {
+    const d = new KeyDecoder();
+    expect(d.push("\x1b[H\x1b[F")).toEqual([{ type: "home" }, { type: "end" }]);
+    const d2 = new KeyDecoder();
+    expect(d2.push("\x1b[1~\x1b[4~")).toEqual([{ type: "home" }, { type: "end" }]);
+    const d3 = new KeyDecoder();
+    expect(d3.push("\x1b[3~\x1b[5~\x1b[6~")).toEqual([{ type: "delete" }, { type: "pageup" }, { type: "pagedown" }]);
+  });
+
+  it("修饰键组合序列（Ctrl+Right 等）整体吞掉，不影响后续文本", () => {
+    const d = new KeyDecoder();
+    const keys = d.push("\x1b[1;5Dy");
+    expect(keys).toEqual([{ type: "text", text: "y" }]);
   });
 
   it("单字节 Esc chunk（真实 Esc 键）立即解出", () => {

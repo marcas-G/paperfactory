@@ -2,7 +2,7 @@
  * screen.ts 单测 —— ANSI 序列正确性与盒模型完整性（注入 write/size，无需 TTY）。
  */
 import { describe, it, expect } from "vitest";
-import { Screen, clampSize } from "../../packages/tui/src/screen";
+import { Screen, clampSize, diffLines } from "../../packages/tui/src/screen";
 import { stripAnsi, visibleWidth } from "../../packages/tui/src/render";
 
 function makeScreen(rows: number, cols: number): { screen: Screen; out: string[] } {
@@ -111,5 +111,79 @@ describe("Screen 盒模型", () => {
     const { screen } = makeScreen(24, 80);
     expect(screen.mainRows).toBe(18);
     expect(screen.contentCols).toBe(76);
+  });
+});
+
+describe("Screen 增量渲染（diff）", () => {
+  it("首帧全量：\\x1b[H 开头 + 整屏行", () => {
+    const { screen, out } = makeScreen(24, 80);
+    screen.frame(FRAME);
+    expect(out).toHaveLength(1);
+    expect(out[0].startsWith("\x1b[H")).toBe(true);
+    expect(out[0].split("\r\n")).toHaveLength(24);
+  });
+
+  it("第二帧只改一行：输出不含 \\x1b[H，只带该行的绝对定位 \\x1b[{row};1H", () => {
+    const { screen, out } = makeScreen(24, 80);
+    screen.frame(FRAME);
+    out.length = 0;
+    // 主区域第 1 行变化（逻辑行 → 物理行 offset 1）
+    screen.frame({ ...FRAME, mainLines: ["● 文献调研 ✗", ...FRAME.mainLines.slice(1)] });
+    expect(out).toHaveLength(1);
+    const write = out[0];
+    expect(write.startsWith("\x1b[H")).toBe(false); // 不整帧重画
+    expect(write).toContain("\x1b[2;1H\x1b[K"); // 物理第 2 行 = 主区域首行
+    expect(write).toMatch(/\x1b\[23;\d+H$/); // 末尾光标定位输入行
+  });
+
+  it("状态栏单独变化：只重写倒数第 4 物理行", () => {
+    const { screen, out } = makeScreen(24, 80);
+    screen.frame(FRAME);
+    out.length = 0;
+    screen.frame({ ...FRAME, status: "缺口识别 → 假设生成 · 2/8 阶段 · 42s · ~1.2k tok · auto" });
+    expect(out[0]).toContain("\x1b[21;1H\x1b[K"); // rows-3 = 状态栏物理行
+    expect(out[0]).not.toContain("\x1b[2;1H"); // 主区域没动
+  });
+
+  it("完全无变化：只发光标定位序列（零字节重绘）", () => {
+    const { screen, out } = makeScreen(24, 80);
+    screen.frame(FRAME);
+    out.length = 0;
+    screen.frame(FRAME);
+    expect(out[0]).toMatch(/^\x1b\[23;\d+H$/);
+  });
+
+  it("invalidate() 后下一帧回到全量（Ctrl+L / 覆盖层切换路径）", () => {
+    const { screen, out } = makeScreen(24, 80);
+    screen.frame(FRAME);
+    screen.invalidate();
+    out.length = 0;
+    screen.frame(FRAME);
+    expect(out[0].startsWith("\x1b[H")).toBe(true);
+  });
+
+  it("resize（TTY 尺寸变化）触发全帧重绘", () => {
+    const out: string[] = [];
+    const screen = new Screen({ write: (s) => out.push(s) });
+    let rows = 24;
+    // 非 TTY 测试环境没有 rows/columns 属性，直接定义 getter 模拟 TTY
+    Object.defineProperty(process.stdout, "rows", { configurable: true, get: () => rows });
+    Object.defineProperty(process.stdout, "columns", { configurable: true, get: () => 80 });
+    try {
+      screen.frame(FRAME);
+      out.length = 0;
+      rows = 30; // resize 到 30 行
+      screen.frame(FRAME);
+      expect(out[0].startsWith("\x1b[H")).toBe(true);
+      expect(out[0].split("\r\n")).toHaveLength(30);
+    } finally {
+      delete (process.stdout as { rows?: number }).rows;
+      delete (process.stdout as { columns?: number }).columns;
+    }
+  });
+
+  it("diffLines：首帧(null) 全变；公共前缀跳过", () => {
+    expect(diffLines(null, ["a", "b"])).toEqual([0, 1]);
+    expect(diffLines(["a", "b", "c"], ["a", "x", "c"])).toEqual([1]);
   });
 });

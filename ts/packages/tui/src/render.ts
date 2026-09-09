@@ -109,6 +109,19 @@ export function padEndDisplay(text: string, width: number): string {
   return gap > 0 ? text + " ".repeat(gap) : text;
 }
 
+/** 按显示宽度在 col 处切分（[前段, 后段]；不处理内嵌 ANSI——输入缓冲为纯文本） */
+export function splitAtDisplay(text: string, col: number): [string, string] {
+  let w = 0;
+  let i = 0;
+  for (const ch of text) {
+    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    if (w + cw > col) break;
+    w += cw;
+    i += ch.length;
+  }
+  return [text.slice(0, i), text.slice(i)];
+}
+
 /* ------------------------------------------------------------------ */
 /*  视图模型类型（stream.ts 维护，render 只读）                          */
 /* ------------------------------------------------------------------ */
@@ -123,7 +136,7 @@ export interface PaperItem {
 
 export type PhaseLine =
   | { kind: "thinking"; iteration: number; note: string; since: number }
-  | { kind: "tool"; toolName: string; state: "calling" | "done" | "failed"; argSummary?: string; resultSummary?: string }
+  | { kind: "tool"; toolName: string; state: "calling" | "done" | "failed"; argSummary?: string; resultSummary?: string; since?: number }
   | { kind: "papers"; papers: PaperItem[] }
   | { kind: "progress"; text: string }
   | { kind: "self-review"; passed: boolean; text: string }
@@ -159,6 +172,8 @@ export interface RunModel {
   mode: "auto" | "manual";
   /** 等待审批（manual 模式） */
   approval: ApprovalState | null;
+  /** 运行中排队的问题（主区域 ◇ 行可视化，下一轮自动发送） */
+  queued: string[];
   /** 一次性状态提示（排队/停止等），渲染在主区域末尾 */
   notice?: string;
   /** run 级收尾行（统计/假设卡片），渲染在全部阶段之后 */
@@ -168,7 +183,7 @@ export interface RunModel {
 }
 
 export function emptyModel(mode: "auto" | "manual" = "auto"): RunModel {
-  return { status: "idle", phases: [], tokens: 0, mode, approval: null, epilogue: [] };
+  return { status: "idle", phases: [], tokens: 0, mode, approval: null, queued: [], epilogue: [] };
 }
 
 /* ------------------------------------------------------------------ */
@@ -226,26 +241,35 @@ function padLabel(label: string): string {
   return w >= LABEL_WIDTH ? label + " " : label + " ".repeat(LABEL_WIDTH - w);
 }
 
-/** thinking 行：`│  ├ thinking    ⠋ 第 3 轮推理中... (12s)` */
+/** thinking 行的渐进点动画（1-3 个点循环，随 tick 变化给出"在打字"的流式感） */
+export function thinkingDots(tick: number): string {
+  return ".".repeat((tick % 3) + 1);
+}
+
+/** thinking 行：`│  ├ thinking    ⠋ 第 3 轮推理中... (12s)`（dots 随 tick 流动） */
 export function thinkingLine(iteration: number, note: string, waitedMs: number, tick: number): string {
   const spin = spinnerFrame(tick);
   const wait = waitedMs > 3000 ? ` ${ANSI.dim}(${formatDuration(waitedMs)})${ANSI.reset}` : "";
   // note 自带轮次前缀（后端原样发"第 N 轮推理中..."）时去重
   const body = /^第\s*\d+\s*轮/.test(note) ? note : `第 ${iteration} 轮${note ? ` — ${note}` : ""}`;
-  return `${ANSI.yellow}${spin}${ANSI.reset} ${padLabel("thinking")}${truncate(body, 60)}${wait}`;
+  return `${ANSI.yellow}${spin}${ANSI.reset} ${padLabel("thinking")}${truncate(body, 60)}${ANSI.dim}${thinkingDots(tick)}${ANSI.reset}${wait}`;
 }
 
-/** 工具行：calling `⚙ literature_search  "query"...` / result `├ literature_search  5 papers ✓` */
+/** 工具行：calling `⠙ literature_search  "query"... (3s)` / result `├ literature_search  5 papers ✓`
+ *  calling 态带 spinner + 等待时长（tool:calling → tool:result 之间的持续视觉反馈） */
 export function toolLine(
   toolName: string,
   state: "calling" | "done" | "failed",
   argSummary: string | undefined,
   resultSummary: string | undefined,
+  waitedMs = 0,
+  tick = 0,
 ): string {
   const label = padLabel(toolName);
   if (state === "calling") {
     const arg = argSummary ? ` ${truncate(argSummary, 48)}` : "";
-    return `${ANSI.cyan}⚙${ANSI.reset} ${label}${ANSI.dim}${arg}...${ANSI.reset}`;
+    const wait = waitedMs > 3000 ? ` ${ANSI.dim}(${formatDuration(waitedMs)})${ANSI.reset}` : "";
+    return `${ANSI.cyan}${spinnerFrame(tick)}${ANSI.reset} ${label}${ANSI.dim}${arg}...${ANSI.reset}${wait}`;
   }
   const mark = state === "done" ? `${ANSI.green}✓${ANSI.reset}` : `${ANSI.red}✗${ANSI.reset}`;
   const summary = resultSummary ? ` ${truncate(resultSummary, 48)}` : "";
@@ -315,7 +339,14 @@ function renderPhaseLine(line: PhaseLine, now: number, tick: number): string | s
     case "thinking":
       return thinkingLine(line.iteration, line.note, now - line.since, tick);
     case "tool":
-      return toolLine(line.toolName, line.state, line.argSummary, line.resultSummary);
+      return toolLine(
+        line.toolName,
+        line.state,
+        line.argSummary,
+        line.resultSummary,
+        line.since !== undefined ? now - line.since : 0,
+        tick,
+      );
     case "papers":
       return paperEntries(line.papers);
     case "progress":
@@ -377,7 +408,13 @@ export function statusLine(model: RunModel, now: number): string {
 export function promptHint(model: RunModel): string {
   if (model.approval) return "a/m/r 审批 · Esc 停止";
   if (model.status === "running") return "Enter 排队 · Esc 停止";
-  return "Enter 发送 · Tab 切模式 · :help";
+  if (model.reportLines) return "Enter 发送 · r 读报告 · Tab 切模式";
+  return "Enter 发送 · Tab 切模式 · ? 帮助";
+}
+
+/** 排队问题行：`◇ 已排队: {text}`（主区域可视化，下一轮开始自动转为正式输入） */
+export function queuedLine(text: string): string {
+  return `${ANSI.cyan}◇${ANSI.reset} ${ANSI.dim}已排队:${ANSI.reset} ${truncate(text, 66)}`;
 }
 
 /** 完整模型 → 主区域逻辑行 */
@@ -396,8 +433,56 @@ export function renderModel(model: RunModel, now: number, tick: number, contentW
   if (model.reportLines) {
     lines.push("", ...model.reportLines);
   }
+  if (model.queued.length > 0) {
+    lines.push("");
+    for (const q of model.queued) lines.push(queuedLine(q));
+  }
   if (model.notice) {
     lines.push("", colorNote(model.notice, "warn"));
+  }
+  return lines;
+}
+
+/* ------------------------------------------------------------------ */
+/*  键盘帮助覆盖层（? / :help）                                         */
+/* ------------------------------------------------------------------ */
+
+export interface HelpEntry {
+  key: string;
+  desc: string;
+}
+
+/** 帮助条目（覆盖层主体；index.ts 组装 dim 化的主内容 + 浮层） */
+export const HELP_ENTRIES: HelpEntry[] = [
+  { key: "Enter", desc: "发送问题（运行中 = 排队下一轮）" },
+  { key: "Esc", desc: "停止当前 run" },
+  { key: "Tab", desc: "切换 auto / manual 模式" },
+  { key: "↑ / ↓", desc: "输入历史（翻阅已发送的问题）" },
+  { key: "← / →", desc: "移动输入光标" },
+  { key: "Home / End", desc: "跳到输入行首 / 行尾" },
+  { key: "Backspace / Del", desc: "删除光标前 / 后的字符" },
+  { key: "Ctrl+C", desc: "连按两次退出（防误触）" },
+  { key: "Ctrl+L", desc: "强制整屏重绘" },
+  { key: "?", desc: "显示本帮助" },
+  { key: "r", desc: "阅读完整报告（run 完成后）" },
+  { key: "a / m / r", desc: "审批：批准 / 修改 / 拒绝" },
+  { key: ":chain <type> <id>", desc: "查看证据链" },
+  { key: ":resume [projectId]", desc: "恢复最近的项目（可数字选择）" },
+  { key: ":mode auto|manual", desc: "直接设定模式" },
+  { key: ":report", desc: "进入报告阅读模式" },
+  { key: ":stop / :clear / :quit", desc: "停止 / 清屏 / 退出" },
+];
+
+/** 帮助覆盖层行（主内容 dim 后浮在上面；按任意键关闭） */
+export function helpOverlayLines(contentWidth: number): string[] {
+  const keyWidth = 24;
+  const lines: string[] = [
+    `${ANSI.bold}${ANSI.cyan}  键盘快捷键 ─ 按任意键关闭${ANSI.reset}`,
+    "",
+  ];
+  for (const e of HELP_ENTRIES) {
+    const key = padEndDisplay(e.key, keyWidth);
+    lines.push(`  ${ANSI.yellow}${key}${ANSI.reset}${truncate(e.desc, contentWidth - keyWidth - 4)}`);
   }
   return lines;
 }

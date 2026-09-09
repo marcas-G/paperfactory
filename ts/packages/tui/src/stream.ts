@@ -39,9 +39,11 @@ export class RunTracker {
     this.model = emptyModel(mode);
   }
 
-  /** 重置为下一次 run（保留 mode） */
+  /** 重置为下一次 run（保留 mode；排队问题是用户待发意图，跨 run 保留） */
   reset(): void {
+    const queued = this.model.queued;
     this.model = emptyModel(this.model.mode);
+    this.model.queued = queued;
   }
 
   private currentPhase(): PhaseState | null {
@@ -150,6 +152,7 @@ export class RunTracker {
       toolName: name,
       state: "calling",
       argSummary: summarizeArgs(args),
+      since: this.now(),
     });
   }
 
@@ -301,6 +304,21 @@ export class RunTracker {
 
   setNotice(text: string | undefined): void {
     this.model.notice = text;
+  }
+
+  /** 运行中排队一条问题（主区域 ◇ 行；下一轮开始时 dequeue 转正式输入） */
+  enqueueQuestion(text: string): void {
+    this.model.queued.push(text);
+    this.model.notice = "已排队：当前运行结束后自动发送";
+  }
+
+  /** 取出最早排队的问题（FIFO）；无排队返回 undefined */
+  dequeueQuestion(): string | undefined {
+    return this.model.queued.shift();
+  }
+
+  clearQueued(): void {
+    this.model.queued.length = 0;
   }
 }
 

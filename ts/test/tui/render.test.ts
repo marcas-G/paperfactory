@@ -8,16 +8,20 @@ import {
   PHASE_LABELS,
   approvalCard,
   emptyModel,
+  helpOverlayLines,
   hypothesisCard,
   paperEntries,
   phaseHeader,
   phaseLabel,
   promptHint,
+  queuedLine,
   renderMarkdown,
   renderModel,
   renderTimeline,
+  splitAtDisplay,
   statusLine,
   stripAnsi,
+  thinkingDots,
   thinkingLine,
   toolLine,
   truncate,
@@ -90,11 +94,13 @@ describe("活动行", () => {
     expect(line).toContain("⠋");
   });
 
-  it("toolLine：calling 带 ⚙ 与参数摘要；done 带 ✓ 与结果摘要；failed 带 ✗", () => {
+  it("toolLine：calling 带 spinner 与参数摘要（等待超 3s 显时长）；done 带 ✓；failed 带 ✗", () => {
     const calling = stripAnsi(toolLine("literature_search", "calling", '"scaling law"', undefined));
-    expect(calling).toContain("⚙");
     expect(calling).toContain("literature_search");
     expect(calling).toContain('"scaling law"');
+    expect(calling).toContain("⠋"); // tick=0 首帧 spinner（calling 态持续视觉反馈）
+    const waiting = stripAnsi(toolLine("literature_search", "calling", '"q"', undefined, 5200, 3));
+    expect(waiting).toContain("(5s)");
     const done = stripAnsi(toolLine("literature_search", "done", undefined, "5 papers"));
     expect(done).toContain("✓");
     expect(done).toContain("5 papers");
@@ -230,5 +236,67 @@ describe("renderModel 与 Markdown", () => {
     expect(out).toContain("2 papers");
     expect(out).toContain("1 evidence, 2 knowledge, 1 reports");
     expect(out).toContain("reports → GET /api/projects/p1/reports");
+  });
+});
+
+describe("流式 thinking / 动画行（OpenCode 对标）", () => {
+  it("thinkingDots：1-3 个点随 tick 循环（流式打字感）", () => {
+    expect(thinkingDots(0)).toBe(".");
+    expect(thinkingDots(1)).toBe("..");
+    expect(thinkingDots(2)).toBe("...");
+    expect(thinkingDots(3)).toBe("."); // 循环
+  });
+
+  it("thinkingLine：不同 tick 产出不同文本（随时间更新而非静态）", () => {
+    const a = stripAnsi(thinkingLine(1, "第 1 轮推理中", 0, 0));
+    const b = stripAnsi(thinkingLine(1, "第 1 轮推理中", 0, 1));
+    expect(a).not.toBe(b);
+    expect(a.endsWith(".")).toBe(true);
+    expect(b.endsWith("..")).toBe(true);
+  });
+
+  it("splitAtDisplay：按显示宽度切分（CJK 边界对齐）", () => {
+    expect(splitAtDisplay("abcdef", 3)).toEqual(["abc", "def"]);
+    expect(splitAtDisplay("文献a", 2)).toEqual(["文", "献a"]);
+    expect(splitAtDisplay("文献a", 5)).toEqual(["文献a", ""]);
+    expect(splitAtDisplay("abc", 9)).toEqual(["abc", ""]);
+  });
+});
+
+describe("排队可视化与帮助覆盖层", () => {
+  it("queuedLine：◇ 已排队 + 文本", () => {
+    const line = stripAnsi(queuedLine("下一轮做什么"));
+    expect(line).toContain("◇");
+    expect(line).toContain("已排队:");
+    expect(line).toContain("下一轮做什么");
+  });
+
+  it("renderModel：queued 数组渲染为 ◇ 行（在 notice 之前）", () => {
+    const model = emptyModel();
+    model.status = "running";
+    model.question = "主问题";
+    model.queued = ["排一", "排二"];
+    model.notice = "已排队：当前运行结束后自动发送";
+    const out = stripAnsi(renderModel(model, 0, 0, 76).join("\n"));
+    expect(out).toContain("◇ 已排队: 排一");
+    expect(out).toContain("◇ 已排队: 排二");
+    expect(out.indexOf("排一")).toBeLessThan(out.indexOf("已排队：当前运行")); // queued 在 notice 前
+  });
+
+  it("helpOverlayLines：标题 + 全部条目 + 关闭提示", () => {
+    const lines = helpOverlayLines(76);
+    const out = stripAnsi(lines.join("\n"));
+    expect(out).toContain("按任意键关闭");
+    expect(out).toContain("Enter");
+    expect(out).toContain("↑ / ↓");
+    expect(out).toContain("Ctrl+C");
+    expect(out).toContain(":resume");
+  });
+
+  it("promptHint：报告就绪后提示 r 阅读模式", () => {
+    const model = emptyModel();
+    model.status = "complete";
+    model.reportLines = ["报告"];
+    expect(promptHint(model)).toContain("r 读报告");
   });
 });

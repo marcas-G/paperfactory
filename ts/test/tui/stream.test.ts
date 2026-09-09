@@ -167,3 +167,36 @@ describe("载荷工具", () => {
     expect(brief("\n\nfirst line here\nsecond")).toBe("first line here");
   });
 });
+
+describe("排队问题（跨 run 可视化）", () => {
+  it("enqueueQuestion → model.queued 追加 + notice；dequeueQuestion FIFO", () => {
+    const t = tracker();
+    t.handle(ev("run:start", { data: { question: "q" } }));
+    t.enqueueQuestion("第一问");
+    t.enqueueQuestion("第二问");
+    expect(t.model.queued).toEqual(["第一问", "第二问"]);
+    expect(t.model.notice).toContain("已排队");
+    expect(t.dequeueQuestion()).toBe("第一问");
+    expect(t.dequeueQuestion()).toBe("第二问");
+    expect(t.dequeueQuestion()).toBeUndefined();
+  });
+
+  it("reset 保留 queued（排队意图跨 run 不丢）", () => {
+    const t = tracker();
+    t.handle(ev("run:start", { data: { question: "q" } }));
+    t.enqueueQuestion("待发");
+    t.reset();
+    expect(t.model.queued).toEqual(["待发"]);
+    // run:start 内部也 reset —— 排队仍应在
+    t.handle(ev("run:start", { data: { question: "q2" } }));
+    expect(t.model.queued).toEqual(["待发"]);
+    expect(t.model.question).toBe("q2");
+  });
+
+  it("clearQueued 清空", () => {
+    const t = tracker();
+    t.enqueueQuestion("a");
+    t.clearQueued();
+    expect(t.model.queued).toEqual([]);
+  });
+});

@@ -1,7 +1,7 @@
 /**
  * Screen —— 纯 ANSI 屏幕管理（零依赖）。
  *
- * 布局（整帧单次 write，防闪烁）：
+ * 布局：
  * ```text
  * ┌─ PaperFactory Research Agent ──── auto ┐   ← 标题行
  * │  主滚动区（buffer 尾部 rows-6 行）        │
@@ -12,11 +12,15 @@
  * └────────────────────────────────────────┘
  * ```
  *
- * 策略：主区域内容在调用方维护为行数组，frame() 取尾部
- * rows-6 行整帧重绘（逐行 \x1b[K 清行尾 + \r\n 分隔，不用 \x1b[2J 防闪）。
+ * 渲染策略（增量优先）：
+ *   - frame() 把逻辑行拆成物理行数组，与上一帧 diff —— 只重写变化的行
+ *     （`\x1b[{row};1H\x1b[K{line}`），spinner/状态栏更新不再触发整屏重绘，
+ *     快速事件流下无闪烁。
+ *   - 全帧重绘仅在首帧 / resize / invalidate() 后发生。
+ *   - 行尾统一 \x1b[K 清除，不用 \x1b[2J（防闪）。
  * write/size 可注入，单测无需 TTY。
  */
-import { padEndDisplay, truncate, visibleWidth, ANSI } from "./render";
+import { padEndDisplay, splitAtDisplay, truncate, visibleWidth, ANSI } from "./render";
 
 export interface FrameInput {
   /** 标题（左） */
@@ -29,8 +33,10 @@ export interface FrameInput {
   status: string;
   /** 输入行提示（dim 显示在输入后） */
   hint: string;
-  /** 当前输入内容 */
+  /** 当前输入内容（调用方已做水平滚动裁剪） */
   input: string;
+  /** 输入光标列偏移（相对 input 显示窗口；缺省 = 行尾） */
+  cursorCol?: number;
 }
 
 export interface ScreenOptions {
@@ -44,11 +50,28 @@ export function clampSize(rows: number, cols: number): { rows: number; cols: num
   return { rows: Math.max(8, rows), cols: Math.min(Math.max(20, cols), 200) };
 }
 
+/**
+ * 帧间 diff —— 返回需要重写的行指令。
+ * 行相等判定按整行字符串（含 ANSI），不变化则完全跳过。
+ */
+export function diffLines(prev: string[] | null, next: string[]): number[] {
+  if (prev === null) return next.map((_, i) => i);
+  const changed: number[] = [];
+  const n = Math.max(prev.length, next.length);
+  for (let i = 0; i < n; i++) {
+    if (prev[i] !== next[i]) changed.push(i);
+  }
+  return changed;
+}
+
 export class Screen {
   private write: (s: string) => void;
   private fixedSize: { rows: number; cols: number } | null;
   private rows = 24;
   private cols = 80;
+  private lastLines: string[] | null = null;
+  private lastRows = 0;
+  private lastCols = 0;
 
   constructor(opts: ScreenOptions = {}) {
     this.write = opts.write ?? ((s) => process.stdout.write(s));
@@ -89,22 +112,62 @@ export class Screen {
     this.write("\x1b[?25h\x1b[r\x1b[2J\x1b[H");
   }
 
-  /** 清除整屏（不动终端模式） */
+  /** 清除整屏（不动终端模式）；同时丢弃增量缓存（下一帧全画） */
   clear(): void {
     this.write("\x1b[2J\x1b[H");
+    this.invalidate();
   }
 
-  /** 整帧渲染：compose + 单次 write + 光标落输入行末 */
+  /** 丢弃增量缓存：下一帧强制全量重绘（resize / Ctrl+L / 覆盖层切换后调用） */
+  invalidate(): void {
+    this.lastLines = null;
+  }
+
+  /** 增量渲染：diff 后只写变化行；首帧/resize/失效时整帧（单次 write，防闪烁） */
   frame(input: FrameInput): void {
-    const composed = this.composeFrame(input);
-    this.write(composed.cursorTo + composed.frame);
+    const { rows, cols } = this.size();
+    const lines = this.buildRows(input, rows, cols);
+    const cursorTo = this.cursorSeq(input, rows, cols);
+    const sizeChanged = this.lastLines !== null && (this.lastRows !== rows || this.lastCols !== cols);
+
+    if (this.lastLines === null || sizeChanged || this.lastLines.length !== lines.length) {
+      this.write("\x1b[H" + lines.map((row) => "\x1b[K" + row).join("\r\n") + cursorTo);
+    } else {
+      const changed = diffLines(this.lastLines, lines);
+      if (changed.length === 0) {
+        this.write(cursorTo);
+      } else if (changed.length >= lines.length) {
+        // 全行变化：整帧更省字节
+        this.write("\x1b[H" + lines.map((row) => "\x1b[K" + row).join("\r\n") + cursorTo);
+      } else {
+        const parts = changed.map((i) => `\x1b[${i + 1};1H\x1b[K${lines[i]}`);
+        this.write(parts.join("") + cursorTo);
+      }
+    }
+    this.lastLines = lines;
+    this.lastRows = rows;
+    this.lastCols = cols;
   }
 
-  /** 组帧（返回 frame 供单测断言 ANSI 序列；cursorTo 为光标定位序列） */
+  /** 组帧（返回整帧字符串供单测断言 ANSI 序列；cursorTo 为光标定位序列） */
   composeFrame(input: FrameInput): { frame: string; cursorTo: string } {
     const { rows, cols } = this.size();
+    const lines = this.buildRows(input, rows, cols);
+    const frame = "\x1b[H" + lines.map((row) => "\x1b[K" + row).join("\r\n");
+    return { frame, cursorTo: this.cursorSeq(input, rows, cols) };
+  }
+
+  /** 光标 → 输入行（倒数第 2 行）光标列（画不上真光标时也无所谓，块光标已画） */
+  private cursorSeq(input: FrameInput, rows: number, cols: number): string {
+    const inputRow = rows - 1;
+    const inputCol = Math.min(cols - 1, 3 + (input.cursorCol ?? visibleWidth(input.input)) + 1);
+    return `\x1b[${inputRow};${inputCol}H`;
+  }
+
+  /** 逻辑帧 → 物理行数组（长度恒等于 rows，主区域贴底） */
+  private buildRows(input: FrameInput, rows: number, cols: number): string[] {
     const inner = cols - 2; // 边框内侧宽度
-    const content = this.contentCols;
+    const content = Math.max(1, cols - 4);
 
     // ── 顶框：┌─ title ──── suffix ┐（整行填满 cols 宽）
     const titleLeft = `┌─ ${input.title} `;
@@ -112,7 +175,7 @@ export class Screen {
     const titleRow =
       titleLeft + "─".repeat(Math.max(1, cols - visibleWidth(titleLeft) - visibleWidth(titleRight))) + titleRight;
 
-    // ── 主区域：取尾部 mainRows 行，顶补空行（聊天 log 语义：内容贴底）
+    // ── 主区域：取尾部 rows-6 行，顶补空行（聊天 log 语义：内容贴底）
     const budget = Math.max(1, rows - 6);
     const tail = input.mainLines.slice(-budget);
     const mainRows: string[] = [];
@@ -121,13 +184,15 @@ export class Screen {
       mainRows.push(line === undefined ? "" : truncate(line, content));
     }
 
-    // ── 输入行：`> {input}▊   {hint}`
+    // ── 输入行：`> {before}▊{after}   {hint}`（块光标落在 cursorCol 处）
     const cursorBlock = `${ANSI.dim}▊${ANSI.reset}`;
-    let inputBody = `> ${input.input}`;
+    const cursorCol = input.cursorCol ?? visibleWidth(input.input);
+    const [before, after] = splitAtDisplay(input.input, cursorCol);
+    let inputBody = `> ${before}${cursorBlock}${after}`;
     const hintPart = `  ${ANSI.dim}${truncate(input.hint, Math.max(1, content - visibleWidth(inputBody) - 4))}${ANSI.reset}`;
     const hintFits = content - visibleWidth(inputBody) - visibleWidth(cursorBlock) - 4 > 8;
-    if (hintFits) inputBody += cursorBlock + hintPart;
-    else inputBody = truncate(`> ${input.input}${cursorBlock}`, content);
+    if (hintFits) inputBody += hintPart;
+    else inputBody = truncate(inputBody, content);
 
     // ── 组帧
     const parts: string[] = [titleRow];
@@ -139,14 +204,6 @@ export class Screen {
     parts.push("├" + "─".repeat(inner) + "┤");
     parts.push("│ " + padEndDisplay(truncate(inputBody, content), content) + " │");
     parts.push("└" + "─".repeat(inner) + "┘");
-
-    const frame = "\x1b[H" + parts.map((row) => "\x1b[K" + row).join("\r\n");
-
-    // 光标 → 输入行（倒数第 2 行）文本末尾（画不上真光标时也无所谓，块光标已画）
-    const inputRow = rows - 1;
-    const inputCol = Math.min(cols - 1, 3 + visibleWidth(input.input) + 1);
-    const cursorTo = `\x1b[${inputRow};${inputCol}H`;
-
-    return { frame, cursorTo };
+    return parts;
   }
 }

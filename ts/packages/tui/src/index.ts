@@ -6,10 +6,12 @@
  *   pf-tui                                        # 交互模式（默认）
  *   pf-tui "研究问题"                              # 一次性研究，完成即退出
  *   pf-tui --list
+ *   pf-tui --resume                               # 从最近项目恢复（数字选择）
  *
- * 按键：Enter 发送/排队 · Esc 停止 run · Tab 切 auto/manual · Ctrl+C 退出
+ * 按键：Enter 发送/排队 · Esc 停止 run · Tab 切 auto/manual · Ctrl+C 连按两次退出
+ *       ↑/↓ 输入历史 · ←/→ Home/End 光标移动 · r 报告阅读 · ? 帮助覆盖层
  * 审批等待时：a 批准 / m 修改 / r 拒绝
- * 命令：:help :mode :chain <objectType> <objectId> :resume <projectId> :stop :clear :quit
+ * 命令：:help :mode :chain <objectType> <objectId> :resume <projectId> :report :stop :clear :quit
  */
 import * as readline from "node:readline";
 import {
@@ -26,18 +28,22 @@ import type { ClientAdapter } from "@pf/client";
 import type { DomainEvent } from "@pf/client";
 import { subscribeSse } from "./sse";
 import type { SseSubscription } from "./sse";
-import { InputHandler } from "./input";
+import { InputHandler, type Key } from "./input";
 import { Screen } from "./screen";
 import { RunTracker, type Decision } from "./stream";
+import { createPager, pagerMove, pagerView, type PagerState } from "./pager";
 import {
   ANSI,
   PHASE_ORDER,
+  helpOverlayLines,
   promptHint,
   renderMarkdown,
   renderModel,
+  splitAtDisplay,
   statusLine,
   stripAnsi,
   truncate,
+  visibleWidth,
 } from "./render";
 
 /* ------------------------------------------------------------------ */
@@ -48,6 +54,7 @@ interface CliArgs {
   question?: string;
   url: string;
   list: boolean;
+  resume: boolean;
   timeoutMs: number;
   mode: "auto" | "manual";
   modelLabel?: string;
@@ -59,6 +66,7 @@ const HELP = `pf-tui — PaperFactory terminal client (OpenCode-style)
   pf-tui                                          交互模式
   pf-tui "<研究问题>"                              一次性研究（完成即退出）
   pf-tui --list                                   列出项目
+  pf-tui --resume                                 从最近项目恢复（数字选择）
 
 选项:
   --url <base>      API 根地址（默认 http://localhost:3001 或 PF_URL）
@@ -71,6 +79,7 @@ export function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     url: process.env.PF_URL ?? "http://localhost:3001",
     list: false,
+    resume: false,
     timeoutMs: 30_000,
     mode: "auto",
   };
@@ -78,6 +87,7 @@ export function parseArgs(argv: string[]): CliArgs {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--list") args.list = true;
+    else if (a === "--resume") args.resume = true;
     else if (a === "--url") args.url = argv[++i] ?? args.url;
     else if (a === "--mode") args.mode = argv[++i] === "manual" ? "manual" : "auto";
     else if (a === "--model") args.modelLabel = argv[++i];
@@ -106,10 +116,178 @@ async function listProjects(url: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
+/*  输入行编辑（码点安全）+ 历史浏览                                     */
+/* ------------------------------------------------------------------ */
+
+const MAX_INPUT_CP = 200;
+const HISTORY_LIMIT = 100;
+
+export interface InputView {
+  /** 显示窗口文本（已按宽度裁剪） */
+  text: string;
+  /** 光标列（相对窗口起点） */
+  cursorCol: number;
+}
+
+/** 输入缓冲 + 光标 + 历史的可编辑状态（index.ts 拆出的纯逻辑，单测直测） */
+export class InputState {
+  buf = "";
+  /** 光标（码点索引；0..len） */
+  cursor = 0;
+  private history: string[] = [];
+  private historyIdx = -1;
+  private draft = "";
+
+  get length(): number {
+    return Array.from(this.buf).length;
+  }
+
+  setText(text: string): void {
+    this.buf = Array.from(text).slice(0, MAX_INPUT_CP).join("");
+    this.cursor = Array.from(this.buf).length;
+  }
+
+  insert(text: string): void {
+    const cps = Array.from(this.buf);
+    const add = Array.from(text);
+    if (cps.length + add.length > MAX_INPUT_CP) add.splice(MAX_INPUT_CP - cps.length);
+    cps.splice(this.cursor, 0, ...add);
+    this.buf = cps.join("");
+    this.cursor += add.length;
+  }
+
+  backspace(): void {
+    if (this.cursor === 0) return;
+    const cps = Array.from(this.buf);
+    cps.splice(this.cursor - 1, 1);
+    this.buf = cps.join("");
+    this.cursor--;
+  }
+
+  /** Delete 键：删光标后字符 */
+  deleteForward(): void {
+    const cps = Array.from(this.buf);
+    if (this.cursor >= cps.length) return;
+    cps.splice(this.cursor, 1);
+    this.buf = cps.join("");
+  }
+
+  move(delta: number): void {
+    this.cursor = Math.min(Math.max(0, this.cursor + delta), this.length);
+  }
+
+  home(): void {
+    this.cursor = 0;
+  }
+
+  end(): void {
+    this.cursor = this.length;
+  }
+
+  /** 提交：进历史、清缓冲（返回提交文本） */
+  commit(): string {
+    const line = this.buf;
+    this.buf = "";
+    this.cursor = 0;
+    if (line && this.history[this.history.length - 1] !== line) {
+      this.history.push(line);
+      if (this.history.length > HISTORY_LIMIT) this.history.shift();
+    }
+    this.historyIdx = -1;
+    return line;
+  }
+
+  /** ↑：向旧翻历史（首次进入暂存草稿） */
+  prevHistory(): string | null {
+    if (this.history.length === 0) return null;
+    if (this.historyIdx === -1) {
+      this.draft = this.buf;
+      this.historyIdx = this.history.length - 1;
+    } else if (this.historyIdx > 0) {
+      this.historyIdx--;
+    }
+    this.setText(this.history[this.historyIdx]);
+    return this.buf;
+  }
+
+  /** ↓：向新翻历史，翻出尽头恢复草稿 */
+  nextHistory(): string | null {
+    if (this.historyIdx === -1) return null;
+    this.historyIdx++;
+    if (this.historyIdx >= this.history.length) {
+      this.historyIdx = -1;
+      this.setText(this.draft);
+    } else {
+      this.setText(this.history[this.historyIdx]);
+    }
+    return this.buf;
+  }
+
+  get historyLength(): number {
+    return this.history.length;
+  }
+
+  /** 历史快照（测试用） */
+  historySnapshot(): readonly string[] {
+    return this.history;
+  }
+}
+
+/** 长输入的水平滚动窗口：光标尽量保持在窗口内（居中倾向） */
+export function computeInputView(buf: string, cursor: number, maxCols: number): InputView {
+  const cps = Array.from(buf);
+  const widths = cps.map((c) => visibleWidth(c));
+  const total = widths.reduce((a, b) => a + b, 0);
+  if (total <= maxCols) return { text: buf, cursorCol: total };
+  let before = 0;
+  for (let i = 0; i < Math.min(cursor, cps.length); i++) before += widths[i];
+  // 窗口起点：光标居中，钳到 [0, total-maxCols]，对齐码点边界
+  let acc = 0;
+  let startIdx = 0;
+  const wantStart = Math.max(0, Math.min(before - Math.floor(maxCols / 2), total - maxCols));
+  for (let i = 0; i < cps.length; i++) {
+    if (acc + widths[i] > wantStart) break;
+    acc += widths[i];
+    startIdx = i + 1;
+  }
+  const startCol = acc;
+  let out = "";
+  let w = 0;
+  for (let i = startIdx; i < cps.length; i++) {
+    if (w + widths[i] > maxCols) break;
+    out += cps[i];
+    w += widths[i];
+  }
+  return { text: out, cursorCol: Math.max(0, before - startCol) };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ctrl+C 优雅降级（纯逻辑，单测直测）                                  */
+/* ------------------------------------------------------------------ */
+
+export const CTRL_C_WINDOW_MS = 3000;
+
+/** 第一次按 → 记时间返回 false（显示提示）；窗口内再按 → true（退出） */
+export function ctrlCPressed(lastAt: number, now: number): boolean {
+  return lastAt > 0 && now - lastAt <= CTRL_C_WINDOW_MS;
+}
+
+/* ------------------------------------------------------------------ */
 /*  交互应用                                                            */
 /* ------------------------------------------------------------------ */
 
-const REPAINT_MS = 120;
+/** 渲染节流（≈60fps）：事件再多也合并到一帧 */
+const RENDER_THROTTLE_MS = 16;
+/** 动画帧间隔：spinner / thinking dots */
+const ANIM_MS = 120;
+
+/** resume 选择器条目 */
+interface PickerItem {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
 
 export class TuiApp {
   readonly client: ClientAdapter;
@@ -117,13 +295,22 @@ export class TuiApp {
   private screen: Screen;
   private input: InputHandler;
   private sub: SseSubscription | null = null;
-  private timer: NodeJS.Timeout | null = null;
-  private inputBuf = "";
-  private queued: string | null = null;
+  private animTimer: NodeJS.Timeout | null = null;
+  private renderTimer: NodeJS.Timeout | null = null;
+  private renderScheduled = false;
+  private state = new InputState();
   private tick = 0;
   private dirty = true;
   private exiting = false;
   private onExit: (code: number) => void;
+  /** Ctrl+C 双击窗口起点（0 = 未按） */
+  private ctrlCAt = 0;
+  /** 键盘帮助覆盖层（任意键关闭） */
+  private overlay: "help" | null = null;
+  /** 报告全屏阅读模式 */
+  private pager: PagerState | null = null;
+  /** :resume 项目选择器 */
+  private picker: PickerItem[] | null = null;
 
   constructor(
     readonly url: string,
@@ -134,15 +321,22 @@ export class TuiApp {
     this.tracker = new RunTracker(mode);
     this.screen = new Screen();
     this.input = new InputHandler({
-      onText: (t) => this.onText(t),
-      onEnter: () => this.onEnter(),
-      onEsc: () => this.onEsc(),
-      onTab: () => this.onTab(),
-      onBackspace: () => this.onBackspace(),
-      onCtrlC: () => this.quit(0),
-      onCtrlL: () => {
-        this.dirty = true;
-      },
+      onText: (t) => this.handleKey({ type: "text", text: t }),
+      onEnter: () => this.handleKey({ type: "enter" }),
+      onEsc: () => this.handleKey({ type: "esc" }),
+      onTab: () => this.handleKey({ type: "tab" }),
+      onBackspace: () => this.handleKey({ type: "backspace" }),
+      onDelete: () => this.handleKey({ type: "delete" }),
+      onLeft: () => this.handleKey({ type: "left" }),
+      onRight: () => this.handleKey({ type: "right" }),
+      onUp: () => this.handleKey({ type: "up" }),
+      onDown: () => this.handleKey({ type: "down" }),
+      onHome: () => this.handleKey({ type: "home" }),
+      onEnd: () => this.handleKey({ type: "end" }),
+      onPageUp: () => this.handleKey({ type: "pageup" }),
+      onPageDown: () => this.handleKey({ type: "pagedown" }),
+      onCtrlC: () => this.handleKey({ type: "ctrl-c" }),
+      onCtrlL: () => this.handleKey({ type: "ctrl-l" }),
     });
     this.modelLabel = opts.modelLabel;
     this.onExit = opts.onExit ?? ((code) => process.exit(code));
@@ -158,7 +352,7 @@ export class TuiApp {
 
   start(): void {
     this.screen.enter();
-    this.frame();
+    this.renderNow();
     if (process.stdin.isTTY) {
       this.input.start();
     } else {
@@ -166,13 +360,11 @@ export class TuiApp {
       const rl = readline.createInterface({ input: process.stdin, terminal: false });
       rl.on("line", (line) => this.handleLine(line));
     }
-    this.timer = setInterval(() => {
+    this.animTimer = setInterval(() => {
       this.tick++;
-      if (this.dirty || this.model.status === "running" || this.model.approval) {
-        this.dirty = false;
-        this.frame();
-      }
-    }, REPAINT_MS);
+      // 仅在需要动画时标记脏（空闲静态界面不重绘）
+      if (this.model.status === "running" || this.model.approval) this.scheduleRender();
+    }, ANIM_MS);
 
     process.on("SIGINT", () => this.quit(130));
     process.on("SIGTERM", () => this.quit(143));
@@ -185,7 +377,8 @@ export class TuiApp {
     this.exiting = true;
     this.sub?.close();
     this.input.stop();
-    if (this.timer) clearInterval(this.timer);
+    if (this.animTimer) clearInterval(this.animTimer);
+    if (this.renderTimer) clearTimeout(this.renderTimer);
     this.restoreTerminal();
     this.onExit(code);
   }
@@ -199,25 +392,176 @@ export class TuiApp {
     process.stdout.write("\x1b[?25h\x1b[r\x1b[2J\x1b[H");
   }
 
-  /* ---------------- 渲染 ---------------- */
+  /* ---------------- 渲染调度（16ms 节流 + dirty） ---------------- */
 
-  private frame(): void {
+  /** 标脏 + 合并渲染：事件风暴被压到 ≤60fps 的帧内，diff 后只写变化行 */
+  private scheduleRender(): void {
+    this.dirty = true;
+    if (this.renderScheduled || this.exiting) return;
+    this.renderScheduled = true;
+    this.renderTimer = setTimeout(() => {
+      this.renderScheduled = false;
+      this.renderTimer = null;
+      if (this.exiting) return;
+      if (this.dirty) {
+        this.dirty = false;
+        this.renderNow();
+      }
+    }, RENDER_THROTTLE_MS);
+  }
+
+  private renderNow(): void {
     const now = Date.now();
+    const cols = this.screen.contentCols;
+    const inputView = computeInputView(
+      this.state.buf,
+      this.state.cursor,
+      Math.max(10, this.screen.contentCols - 8),
+    );
+
+    if (this.pager) {
+      const view = pagerView(this.pager);
+      this.screen.frame({
+        title: "PaperFactory Report",
+        titleSuffix: "阅读模式",
+        mainLines: ["", ...view.slice, "", `${ANSI.dim}${view.footer}${ANSI.reset}`],
+        status: "空格 下一页 · b 上一页 · g/G 首末页 · q 退出",
+        hint: "",
+        input: "",
+        cursorCol: 0,
+      });
+      return;
+    }
+
+    let mainLines = renderModel(this.model, now, this.tick, cols);
+    let title = "PaperFactory Research Agent";
+    if (this.overlay === "help") {
+      // 半透明效果：主内容剥色变暗，帮助浮层居中盖在上面
+      const dimmed = mainLines.map((l) => `${ANSI.dim}${stripAnsi(l)}${ANSI.reset}`);
+      const help = helpOverlayLines(cols);
+      const budget = this.screen.mainRows;
+      const startRow = Math.max(0, Math.floor((budget - help.length) / 2));
+      mainLines = [
+        ...dimmed.slice(0, startRow),
+        ...help,
+        ...dimmed.slice(startRow + help.length),
+      ].slice(0, budget);
+      title = "Keyboard Shortcuts";
+    } else if (this.picker) {
+      mainLines = this.pickerLines(cols);
+      title = "Resume Project";
+    }
+
     this.screen.frame({
-      title: "PaperFactory Research Agent",
+      title,
       titleSuffix: this.modelLabel ? `${this.model.mode} · ${this.modelLabel}` : this.model.mode,
-      mainLines: renderModel(this.model, now, this.tick, this.screen.contentCols),
+      mainLines,
       status: statusLine(this.model, now),
       hint: promptHint(this.model),
-      input: this.inputBuf,
+      input: inputView.text,
+      cursorCol: inputView.cursorCol,
     });
   }
 
-  private touch(): void {
-    this.dirty = true;
+  private pickerLines(cols: number): string[] {
+    if (!this.picker) return [];
+    const lines: string[] = [
+      `${ANSI.bold}${ANSI.cyan}  选择要恢复的项目${ANSI.reset}  ${ANSI.dim}（数字键选择 · q 取消）${ANSI.reset}`,
+      "",
+    ];
+    this.picker.forEach((p, i) => {
+      const num = `${ANSI.yellow}${i + 1}${ANSI.reset}`;
+      lines.push(
+        `  ${num} ${ANSI.gray}${p.id.slice(0, 8)}${ANSI.reset} ${p.status.padEnd(8)} ${truncate(p.name, Math.max(10, cols - 30))}`,
+      );
+    });
+    return lines;
   }
 
-  /* ---------------- 按键 ---------------- */
+  /* ---------------- 按键总路由 ---------------- */
+
+  /** 统一按键入口（InputHandler 回调与非 TTY 行模式共用；覆盖层优先级最高） */
+  handleKey(key: Key): void {
+    // Ctrl+C 永远可达（防止覆盖层里卡死），走双击降级
+    if (key.type === "ctrl-c") {
+      this.onCtrlC();
+      return;
+    }
+    if (key.type === "ctrl-l") {
+      this.screen.invalidate();
+      this.scheduleRender();
+      return;
+    }
+    if (this.pager) {
+      this.pagerKey(key);
+      return;
+    }
+    if (this.picker) {
+      this.pickerKey(key);
+      return;
+    }
+    if (this.overlay) {
+      // 帮助覆盖层：任意键关闭
+      this.overlay = null;
+      this.scheduleRender();
+      return;
+    }
+    this.routeKey(key);
+  }
+
+  /** 主界面按键（输入编辑 / 提交 / 历史翻阅） */
+  private routeKey(key: Key): void {
+    switch (key.type) {
+      case "text":
+        this.onText(key.text);
+        break;
+      case "enter":
+        this.onSubmit();
+        break;
+      case "esc":
+        void this.stopRun();
+        break;
+      case "tab":
+        this.model.mode = this.model.mode === "auto" ? "manual" : "auto";
+        this.tracker.setNotice(`模式已切换为 ${this.model.mode}（下一个 run 生效）`);
+        this.scheduleRender();
+        break;
+      case "backspace":
+        this.state.backspace();
+        this.scheduleRender();
+        break;
+      case "delete":
+        this.state.deleteForward();
+        this.scheduleRender();
+        break;
+      case "left":
+        this.state.move(-1);
+        this.scheduleRender();
+        break;
+      case "right":
+        this.state.move(1);
+        this.scheduleRender();
+        break;
+      case "up":
+        this.state.prevHistory();
+        this.scheduleRender();
+        break;
+      case "down":
+        this.state.nextHistory();
+        this.scheduleRender();
+        break;
+      case "home":
+        this.state.home();
+        this.scheduleRender();
+        break;
+      case "end":
+        this.state.end();
+        this.scheduleRender();
+        break;
+      default:
+        break; // pageup/pagedown/ignored 主界面无操作
+    }
+  }
 
   private onText(text: string): void {
     // 审批等待：单键 a/m/r 直达（不进输入缓冲）
@@ -225,29 +569,180 @@ export class TuiApp {
       void this.decide(text === "a" ? "approve" : text === "m" ? "modify" : "reject");
       return;
     }
-    this.inputBuf = truncate(this.inputBuf + text, 200);
-    this.touch();
+    // 空输入时 `?` 打开帮助覆盖层（非空时是普通文本）
+    if (text === "?" && this.state.buf === "") {
+      this.overlay = "help";
+      this.scheduleRender();
+      return;
+    }
+    // 空输入 + 空闲 + 已有报告：`r` 进入阅读模式
+    if (text === "r" && this.state.buf === "" && this.model.reportLines && !this.model.approval && this.model.status !== "running") {
+      this.openPager();
+      return;
+    }
+    this.state.insert(text);
+    this.scheduleRender();
   }
 
-  private onBackspace(): void {
-    this.inputBuf = this.inputBuf.slice(0, -1);
-    this.touch();
+  /** Ctrl+C 优雅降级：第一次提示，3 秒内第二次退出 */
+  private onCtrlC(): void {
+    const now = Date.now();
+    if (ctrlCPressed(this.ctrlCAt, now)) {
+      this.quit(130);
+      return;
+    }
+    this.ctrlCAt = now;
+    this.tracker.setNotice("再按一次 Ctrl+C 退出（3 秒内）");
+    this.scheduleRender();
+    const at = now;
+    setTimeout(() => {
+      // 提示自动消退（未被第二次按下覆盖时）
+      if (!this.exiting && this.ctrlCAt === at) {
+        this.ctrlCAt = 0;
+        this.tracker.setNotice(undefined);
+        this.scheduleRender();
+      }
+    }, CTRL_C_WINDOW_MS + 200);
   }
 
-  private onTab(): void {
-    this.model.mode = this.model.mode === "auto" ? "manual" : "auto";
-    this.tracker.setNotice(`模式已切换为 ${this.model.mode}（下一个 run 生效）`);
-    this.touch();
+  /* ---------------- 报告阅读模式 ---------------- */
+
+  private openPager(): void {
+    const raw = this.rawReport;
+    if (!raw) {
+      this.tracker.setNotice("报告尚未就绪（run 完成后自动拉取）");
+      this.scheduleRender();
+      return;
+    }
+    const rows = Math.max(4, this.screen.size().rows - 6);
+    this.pager = createPager(renderMarkdown(raw, 400), rows);
+    this.screen.invalidate();
+    this.scheduleRender();
   }
 
-  private onEsc(): void {
-    void this.stopRun();
+  private closePager(): void {
+    this.pager = null;
+    this.screen.invalidate();
+    this.scheduleRender();
   }
 
-  private onEnter(): void {
-    this.submit(this.inputBuf);
-    this.inputBuf = "";
-    this.touch();
+  private rawReport: string | null = null;
+
+  private pagerKey(key: Key): void {
+    const pager = this.pager;
+    if (!pager) return;
+    switch (key.type) {
+      case "text":
+        switch (key.text) {
+          case " ":
+            if (pagerView(pager).atEnd) this.closePager();
+            else pagerMove(pager, "next");
+            break;
+          case "b":
+            pagerMove(pager, "prev");
+            break;
+          case "j":
+            pagerMove(pager, "next");
+            break;
+          case "k":
+            pagerMove(pager, "prev");
+            break;
+          case "g":
+            pagerMove(pager, "first");
+            break;
+          case "G":
+            pagerMove(pager, "last");
+            break;
+          case "q":
+            this.closePager();
+            break;
+          default:
+            break;
+        }
+        break;
+      case "enter":
+      case "pagedown":
+        pagerMove(pager, "next");
+        break;
+      case "pageup":
+        pagerMove(pager, "prev");
+        break;
+      case "up":
+        pagerMove(pager, "prev");
+        break;
+      case "down":
+        pagerMove(pager, "next");
+        break;
+      case "home":
+        pagerMove(pager, "first");
+        break;
+      case "end":
+        pagerMove(pager, "last");
+        break;
+      case "esc":
+        this.closePager();
+        break;
+      default:
+        break;
+    }
+    this.scheduleRender();
+  }
+
+  /* ---------------- resume 选择器 ---------------- */
+
+  /** 拉最近项目列表并打开数字选择器（:resume 无参数 / --resume 入口） */
+  async openResumePicker(): Promise<void> {
+    try {
+      const projects = await getProjects(this.client);
+      if (projects.length === 0) {
+        this.tracker.setNotice("没有可恢复的项目（先跑一次研究）");
+        this.scheduleRender();
+        return;
+      }
+      this.picker = projects.slice(0, 9).map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status,
+        createdAt: p.createdAt,
+      }));
+      this.screen.invalidate();
+      this.scheduleRender();
+    } catch (err) {
+      this.tracker.setNotice(`项目列表拉取失败: ${String(err).slice(0, 80)}`);
+      this.scheduleRender();
+    }
+  }
+
+  private pickerKey(key: Key): void {
+    if (key.type === "esc") {
+      this.picker = null;
+      this.screen.invalidate();
+      this.scheduleRender();
+      return;
+    }
+    if (key.type === "text") {
+      if (key.text === "q") {
+        this.picker = null;
+        this.screen.invalidate();
+        this.scheduleRender();
+        return;
+      }
+      const n = Number.parseInt(key.text, 10);
+      if (Number.isInteger(n) && n >= 1 && this.picker && n <= this.picker.length) {
+        const item = this.picker[n - 1];
+        this.picker = null;
+        this.screen.invalidate();
+        void this.resumeRun(item.id);
+        return;
+      }
+    }
+  }
+
+  /* ---------------- 提交 ---------------- */
+
+  private onSubmit(): void {
+    this.submit(this.state.commit());
+    this.scheduleRender();
   }
 
   /** 行输入统一入口（raw 模式 Enter 与非 TTY readline 共用） */
@@ -263,8 +758,7 @@ export class TuiApp {
       return;
     }
     if (this.model.status === "running") {
-      this.queued = line;
-      this.tracker.setNotice("已排队：当前运行结束后自动发送");
+      this.tracker.enqueueQuestion(line);
       return;
     }
     void this.startRun(line);
@@ -273,6 +767,7 @@ export class TuiApp {
   private handleLine(line: string): void {
     // 非 TTY 行模式：Tab 无法输入（用 :mode 切换），Esc 用 :stop 替代
     this.submit(line);
+    this.scheduleRender();
   }
 
   /* ---------------- 命令 ---------------- */
@@ -282,7 +777,7 @@ export class TuiApp {
     switch (cmd) {
       case "help":
       case "?":
-        this.tracker.setNotice(":chain <objectType> <objectId> · :resume <projectId> · :mode auto|manual · :stop · :clear · :quit");
+        this.overlay = "help";
         break;
       case "mode": {
         const m = rest[0];
@@ -311,18 +806,22 @@ export class TuiApp {
       case "resume": {
         const projectId = rest[0];
         if (!projectId) {
-          this.tracker.setNotice("用法: :resume <projectId>");
+          await this.openResumePicker();
           break;
         }
         await this.resumeRun(projectId);
         break;
       }
+      case "report":
+        this.openPager();
+        break;
       case "stop":
         await this.stopRun();
         break;
       case "clear":
         this.tracker.reset();
         this.tracker.setNotice(undefined);
+        this.screen.invalidate();
         break;
       case "quit":
       case "exit":
@@ -331,28 +830,28 @@ export class TuiApp {
       default:
         this.tracker.setNotice(`未知命令 :${cmd}（:help 查看命令列表）`);
     }
-    this.touch();
+    this.scheduleRender();
   }
 
   /* ---------------- run 生命周期 ---------------- */
 
   async startRun(question: string): Promise<void> {
-    this.tracker.reset(); // reset 保留 mode
+    this.tracker.reset(); // reset 保留 mode + queued
     this.model.status = "running";
     this.model.question = question;
     this.model.startedAt = Date.now();
     this.tracker.setNotice(undefined);
-    this.touch();
+    this.scheduleRender();
     try {
       const res = await startResearch(this.client, { question, mode: this.model.mode });
       this.model.runId = res.runId;
       this.model.projectId = res.projectId;
       this.ensureSubscribed(res.projectId);
-      this.touch();
+      this.scheduleRender();
     } catch (err) {
       this.model.status = "error";
       this.tracker.setNotice(`发起研究失败: ${String(err).slice(0, 100)}`);
-      this.touch();
+      this.scheduleRender();
     }
   }
 
@@ -362,17 +861,17 @@ export class TuiApp {
     this.model.projectId = projectId;
     this.model.startedAt = Date.now();
     this.tracker.setNotice(undefined);
-    this.touch();
+    this.scheduleRender();
     try {
       const res = await resumeResearch(this.client, { projectId });
       this.model.runId = res.runId;
       this.model.question = `:resume ${projectId}（自 ${res.resumeFromPhase ?? "起点"} 续跑）`;
       this.ensureSubscribed(res.projectId);
-      this.touch();
+      this.scheduleRender();
     } catch (err) {
       this.model.status = "error";
       this.tracker.setNotice(`恢复失败: ${String(err).slice(0, 100)}`);
-      this.touch();
+      this.scheduleRender();
     }
   }
 
@@ -386,7 +885,7 @@ export class TuiApp {
         lastEventId: 0,
         onStatus: (status, detail) => {
           if (status === "reconnecting") this.tracker.setNotice(`SSE 重连中${detail ? `: ${detail.slice(0, 60)}` : ""}`);
-          this.touch();
+          this.scheduleRender();
         },
       },
     );
@@ -397,7 +896,7 @@ export class TuiApp {
     if (event.projectId && this.model.projectId && event.projectId !== this.model.projectId) return;
     const runId = this.model.runId;
     this.tracker.handle(event);
-    this.dirty = true;
+    this.scheduleRender();
 
     if (event.type === "run:complete") {
       if (this.model.notice === "正在停止 run…") this.tracker.setNotice(undefined);
@@ -409,10 +908,10 @@ export class TuiApp {
     }
   }
 
+  /** 上一轮结束：取出最早排队的问题自动开新 run（FIFO） */
   private maybeSendQueued(): void {
-    if (!this.queued) return;
-    const q = this.queued;
-    this.queued = null;
+    const q = this.tracker.dequeueQuestion();
+    if (!q) return;
     setTimeout(() => {
       if (!this.exiting && this.model.status !== "running") void this.startRun(q);
     }, 400);
@@ -421,17 +920,17 @@ export class TuiApp {
   async stopRun(): Promise<void> {
     if (this.model.status !== "running" || !this.model.runId) {
       this.tracker.setNotice("当前没有运行中的 run");
-      this.touch();
+      this.scheduleRender();
       return;
     }
     const runId = this.model.runId;
     this.tracker.setNotice("正在停止 run…");
-    this.touch();
+    this.scheduleRender();
     try {
       await stopResearchRun(this.client, runId);
     } catch (err) {
       this.tracker.setNotice(`停止请求失败: ${String(err).slice(0, 80)}`);
-      this.touch();
+      this.scheduleRender();
     }
   }
 
@@ -447,7 +946,7 @@ export class TuiApp {
     } catch (err) {
       this.tracker.setNotice(`审批提交失败: ${String(err).slice(0, 80)}`);
     }
-    this.touch();
+    this.scheduleRender();
   }
 
   /* ---------------- 报告 ---------------- */
@@ -464,12 +963,13 @@ export class TuiApp {
         (latest.data as { content?: unknown } | undefined)?.content;
       if (typeof raw !== "string" || !raw) return;
       if (this.model.runId !== runId || this.exiting) return; // run 已被替换
+      this.rawReport = raw;
       this.model.reportLines = [
         "",
-        `${ANSI.dim}── report (${stripAnsi(raw).split("\n").length} lines) ──${ANSI.reset}`,
+        `${ANSI.dim}── report (${stripAnsi(raw).split("\n").length} lines · 按 r 全屏阅读) ──${ANSI.reset}`,
         ...renderMarkdown(raw),
       ];
-      this.dirty = true;
+      this.scheduleRender();
     } catch {
       // 报告拉取失败不打断主流程
     }
@@ -491,6 +991,10 @@ async function main(): Promise<void> {
   const url = args.url.replace(/\/$/, "");
   const app = new TuiApp(url, args.mode, { modelLabel: args.modelLabel });
   app.start();
+
+  if (args.resume) {
+    void app.openResumePicker();
+  }
 
   if (args.question) {
     // 一次性模式：完成/超时即退出
@@ -524,4 +1028,4 @@ if (process.argv[1] !== undefined && process.argv[1].includes("packages/tui/src/
   });
 }
 
-export { main, PHASE_ORDER };
+export { main, PHASE_ORDER, splitAtDisplay };
