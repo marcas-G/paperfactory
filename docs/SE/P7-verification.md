@@ -19,7 +19,7 @@
 | REQ-G4 | 实测 | 网关 502/断线场景重试+降级记录（fallback 警告实证） | ✅ PASS |
 | REQ-REC1 | **杀进程实测** | 重启后 19 事件按 seq 补发 | ✅ PASS |
 | REQ-REC2 | 杀进程实测（2026-09-09） | 轮1建项目→杀→轮2 GET /api/projects 返回该项目（投影重建：object:mutated 事件入账本+启动重放） | ✅ PASS |
-| REQ-REC3 | 代码存在 | PG 模式未端到端实测 | 🟡 PARTIAL |
+| REQ-REC3 | 实测（2026-09-09，docker postgres:16） | ensurePgSchema 运行时建 18 表（零迁移文件）；PG 模式 POST→psql 直查 count=1；杀进程重启后对象在场 | ✅ PASS |
 | REQ-REC4 | 无实现 | — | ❌ FAIL(未实现) |
 | REQ-REC5 | 单测+代码审查（2026-09-09） | agent loop 三刹车：LLM 超时(120s 可env)/工具超时(30s)/工具输出回填截断(8k chars)；core 214 测试绿 | ✅ PASS（持续集成防回归） |
 | REQ-M1 | 双终端实测 | POST 202 秒回 + 事件流收到 run:start/phase:start | ✅ PASS |
@@ -41,8 +41,8 @@
 ## 汇总
 
 ```text
-PASS 20 · PARTIAL 1 · FAIL 1
-剩余：G3(前端下钻) 🟡 / REC3(PG实测) 🟡 / REC4(断点续跑) ❌
+PASS 21 · PARTIAL 1 · FAIL 1
+剩余：G3(前端下钻) 🟡 / REC4(断点续跑) ❌
 FAIL 即路线图：R5b(报告正文落库) > REC4(断点续跑)
 PARTIAL 补验：M3/M2b(视图迁移)
 FAIL 即路线图：REC2(投影重建) > E3/E4(文档遗产) > REC4(断点续跑)

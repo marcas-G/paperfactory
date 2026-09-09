@@ -199,6 +199,12 @@ export async function runCLI(
 
     case "run": {
       const config = loadConfig();
+      if (config.databaseUrl) {
+        // REC3: PG 模式运行时自建表（零迁移文件/零 CLI）
+        const { ensurePgSchema } = await import("@pf/core/persistence/ensure-pg-schema");
+        const tables = await ensurePgSchema();
+        console.log(`PG schema ensured: ${tables.length} tables`);
+      }
       const app = createApp(config);
       await app.rehydration; // 重放完成才 listen，保证重启后对象在场
       const port = config.port ?? 3000;
