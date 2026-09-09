@@ -29,8 +29,8 @@
 | REQ-M5 | 文档审查 | PROTOCOL.md 覆盖 33 端点+13 事件 | ✅ PASS |
 | REQ-E1 | **注入实测** | 违规 import → 红（含文件:行）；撤销 → 绿 | ✅ PASS |
 | REQ-E2 | 全量回归 | 523/523 + tsc 零错（多轮复验） | ✅ PASS |
-| REQ-E3 | — | README 仍为 Python 旧版 | ❌ FAIL |
-| REQ-E4 | — | Python 旧版滞留 | ❌ FAIL |
+| REQ-E3 | 文档审查（2026-09-09） | README 已重写为六包/协议/SE 现实（每节对照真实文件） | ✅ PASS |
+| REQ-E4 | git 验证 | tag python-legacy-final 后移除（packages/apps/tests/pyproject 等 158 文件）；ts 526/526 不受影响；compose 无悬空引用 | ✅ PASS |
 
 ## 汇总
 

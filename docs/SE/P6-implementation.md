@@ -32,7 +32,7 @@
 | B5 | 组装根手工 new（依赖图隐在函数体，非声明式） | 工程偏好 | 暂接受（架构测试守边界即可） |
 | B6 | 旧 /api/research/stream 端点与新架构并存 | 协议纯度 | 待废弃标注 |
 | B7 | 报告引用约束（REQ-R5）未程序化校验 | REQ-R5 🟡 | 待加 gate |
-| B8 | Python 旧版整层滞留、README 描述旧架构 | REQ-E3/E4 ❌ | 待退役 |
+| B8 | ~~滞留~~ **RESOLVED**（2026-09-09）：tag+移除，README 重写 | REQ-E3/E4 ✅ | 已闭环 |
 
 ## P6 Exit Gate 自查
 
