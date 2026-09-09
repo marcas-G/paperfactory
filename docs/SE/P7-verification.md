@@ -18,7 +18,7 @@
 | REQ-G3 | API 端点存在（chain） | 前端下钻未打通 | 🟡 PARTIAL |
 | REQ-G4 | 实测 | 网关 502/断线场景重试+降级记录（fallback 警告实证） | ✅ PASS |
 | REQ-REC1 | **杀进程实测** | 重启后 19 事件按 seq 补发 | ✅ PASS |
-| REQ-REC2 | 无实现 | — | ❌ FAIL(未实现) |
+| REQ-REC2 | 杀进程实测（2026-09-09） | 轮1建项目→杀→轮2 GET /api/projects 返回该项目（投影重建：object:mutated 事件入账本+启动重放） | ✅ PASS |
 | REQ-REC3 | 代码存在 | PG 模式未端到端实测 | 🟡 PARTIAL |
 | REQ-REC4 | 无实现 | — | ❌ FAIL(未实现) |
 | REQ-REC5 | 部分 | maxIterations 用例在；超时/截断无 | 🟡 PARTIAL |

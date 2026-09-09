@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { EventBus } from "@pf/server/events";
+import { EventBus } from "@pf/core/ledger/events";
 
 /**
  * 事件账本（SQLite append-only ledger）测试：

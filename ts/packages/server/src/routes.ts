@@ -10,7 +10,7 @@ import { createProjectRoutes } from "./routes/projects";
 import { createResearchObjectRoutes } from "./routes/research-objects";
 import { createAgentRoutes } from "./routes/agent";
 import { createResearchRunRoutes, ResearchRunState } from "./routes/research-runs";
-import { createEventRoutes } from "./events";
+import { createEventRoutes } from "@pf/core/ledger/events";
 import { createPhaseRoutes } from "./routes/phases";
 import { createPaperRoutes } from "./routes/papers";
 import * as fs from "node:fs";

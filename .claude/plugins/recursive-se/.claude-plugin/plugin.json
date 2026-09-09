@@ -1,0 +1,6 @@
+{
+  "name": "recursive-se",
+  "version": "0.1.0",
+  "description": "递归式需求驱动系统工程（NASA SE × V-Model）。任何系统任何层级，用同一套问题结构推进：问题→干系人→需求→逻辑→架构→（递归判断）→详设→实现→验证→确认。状态落盘在项目的 docs/SE/ 目录。",
+  "author": "lgao"
+}

@@ -1,7 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { beforeEach, afterEach, describe, it, expect } from "vitest";
 import { createApp, loadConfig } from "@app/index";
 
 describe("App", () => {
+  let dataDir: string;
+  beforeEach(() => {
+    dataDir = mkdtempSync(path.join(tmpdir(), "pf-app-test-"));
+    process.env.PF_DATA_DIR = dataDir;
+  });
+  afterEach(() => {
+    delete process.env.PF_DATA_DIR;
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+
   it("initializes all layers", () => {
     const app = createApp();
 

@@ -1,4 +1,5 @@
 import { InMemoryObjectStore, ObjectStore } from "@pf/core/persistence/object-store";
+import { ProjectingObjectStore, replayObjectsInto } from "@pf/core/persistence/projecting-store";
 import { InMemoryEventStore, EventStore } from "@pf/core/persistence/event-store";
 import { PgObjectStore } from "@pf/core/persistence/pg-object-store";
 import { PgEventStore } from "@pf/core/persistence/pg-event-store";
@@ -24,6 +25,8 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 export interface AppDependencies {
   objectStore: ObjectStore;
+  /** 内存模式：启动时从事件账本重放对象的 Promise（PG/vitest 为立即完成）。 */
+  rehydration: Promise<number>;
   eventStore: EventStore;
   controller: ResearchController;
   transitionEngine: TransitionEngine;
@@ -70,13 +73,17 @@ export function createApp(
 
   let objectStore: ObjectStore;
   let eventStore: EventStore;
+  let rehydration: Promise<number> = Promise.resolve(0); // PG 模式无重放，立即完成
 
   if (usePg) {
     objectStore = new PgObjectStore();
     eventStore = new PgEventStore();
   } else {
-    objectStore = new InMemoryObjectStore();
     eventStore = new InMemoryEventStore();
+    // REQ-REC2：wrap + 启动重放（重放到裸 store，绕过投影层防镜像）
+    const bare = new InMemoryObjectStore();
+    objectStore = new ProjectingObjectStore(bare);
+    rehydration = replayObjectsInto(bare);
   }
 
   const transitionEngine = new TransitionEngine();
@@ -166,6 +173,7 @@ export function createApp(
 
   return {
     objectStore,
+    rehydration,
     eventStore,
     controller,
     transitionEngine,

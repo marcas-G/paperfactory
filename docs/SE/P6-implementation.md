@@ -28,7 +28,7 @@
 | B1 | 审批链路代码在、**端到端从未实测**（manual 模式全流程） | REQ-G1 | 列入 P7 待验证 |
 | B2 | web 仅 ResearchView 用新 SDK；Projects/Papers 视图仍旧直调 | REQ-M3 🟡 | 待迁移 |
 | B3 | 预算刹车只有 maxIterations；无每动作超时/输出截断 | REQ-REC5 🟡 | 待补齐 |
-| B4 | **无投影重建**：对象存储与账本两张皮（内存模式重启丢对象） | REQ-REC2 ❌ | 最高优先缺口 |
+| B4 | ~~无投影重建~~ **RESOLVED**（2026-09-09）：ProjectingObjectStore 双写 + 启动重放；526 测试含 3 条投影用例 + 重启实测 | REQ-REC2 ✅ | 已闭环 |
 | B5 | 组装根手工 new（依赖图隐在函数体，非声明式） | 工程偏好 | 暂接受（架构测试守边界即可） |
 | B6 | 旧 /api/research/stream 端点与新架构并存 | 协议纯度 | 待废弃标注 |
 | B7 | 报告引用约束（REQ-R5）未程序化校验 | REQ-R5 🟡 | 待加 gate |

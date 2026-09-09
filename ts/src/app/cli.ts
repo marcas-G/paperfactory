@@ -170,6 +170,7 @@ export async function runCLI(
       const questionText = args[1];
       const config = loadConfig();
       const app = createApp(config);
+      await app.rehydration;
 
       if (questionText) {
         await initCommand(questionText, app);
@@ -191,6 +192,7 @@ export async function runCLI(
       }
       const config = loadConfig();
       const app = createApp(config);
+      await app.rehydration;
       await researchCommand(questionText, app);
       break;
     }
@@ -198,6 +200,7 @@ export async function runCLI(
     case "run": {
       const config = loadConfig();
       const app = createApp(config);
+      await app.rehydration; // 重放完成才 listen，保证重启后对象在场
       const port = config.port ?? 3000;
       const { createAdaptorServer } = await import("@hono/node-server");
       const server = createAdaptorServer({ fetch: app.honoApp.fetch });

@@ -169,6 +169,19 @@ export class EventBus {
     return this.history.filter((e) => e.seq > lastSeq);
   }
 
+  /** 测试专用：清空账本与内存历史（用例间隔离，防重放串台）。 */
+  clearForTest(): void {
+    if (this.db) {
+      try {
+        this.db.exec("DELETE FROM events");
+      } catch {
+        /* ignore */
+      }
+    }
+    this.history = [];
+    this.nextSeq = 1;
+  }
+
   /** 关闭账本连接（测试/优雅停机用；关闭后退化为纯内存模式） */
   close(): void {
     if (this.db) {
@@ -184,7 +197,9 @@ export class EventBus {
   }
 }
 
-export const eventBus = new EventBus();
+// vitest 多 worker 并行下，文件型 SQLite（WAL+文件锁+目录）与 vite 模块图组合会触发
+// native 层病态分配——测试环境全局单例用纯内存库；持久化语义由显式路径的单测覆盖。
+export const eventBus = new EventBus(process.env.VITEST ? ":memory:" : undefined);
 
 export function createEventRoutes(): Hono {
   const router = new Hono();

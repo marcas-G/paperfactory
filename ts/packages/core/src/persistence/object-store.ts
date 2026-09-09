@@ -89,15 +89,26 @@ export class InMemoryObjectStore implements ObjectStore {
   }
 
   private getIdKey(obj: ResearchObject): string {
-    for (const key of Object.keys(obj)) {
-      if (key.endsWith("Id") && typeof obj[key] === "string") {
-        return obj[key] as string;
-      }
-    }
-    return "";
+    return inferIdKey(obj);
   }
 
   private getType(obj: ResearchObject): string {
+    return inferType(obj);
+  }
+}
+
+/** 从对象第一个 *Id 字符串字段推断主键（与 InMemoryObjectStore 行为一致）。 */
+export function inferIdKey(obj: ResearchObject): string {
+  for (const key of Object.keys(obj)) {
+    if (key.endsWith("Id") && typeof obj[key] === "string") {
+      return obj[key] as string;
+    }
+  }
+  return "";
+}
+
+/** 按特征字段推断对象类型名。 */
+export function inferType(obj: Record<string, unknown>): string {
     if ("evidenceChainId" in obj) return "EvidenceChain";
     if ("phaseRunId" in obj) return "PhaseRun";
     if ("submissionId" in obj) return "Submission";
@@ -118,5 +129,4 @@ export class InMemoryObjectStore implements ObjectStore {
     if ("branchId" in obj && !("hypothesisId" in obj) && !("questionId" in obj) && !("gapId" in obj)) return "Branch";
     if ("projectId" in obj && !("branchId" in obj)) return "Project";
     return "Unknown";
-  }
 }

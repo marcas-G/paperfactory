@@ -5,7 +5,7 @@ import { ObjectStore } from "@pf/core/persistence/object-store";
 import { ResearchController } from "@pf/core/control/controller";
 import { ToolRegistry } from "@pf/core/runtime/tools/registry";
 import { apiError, generateUuid, buildToolDefs, validateString } from "../utils";
-import { eventBus } from "../events";
+import { eventBus } from "@pf/core/ledger/events";
 import type { AgentEvent } from "@pf/core/runtime/agent/loop";
 
 export type PhaseDecision = "approve" | "modify" | "reject";

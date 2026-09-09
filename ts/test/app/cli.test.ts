@@ -1,3 +1,4 @@
+import { eventBus } from "@pf/core/ledger/events";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as Effect from "effect/Effect";
 import { runCLI, initCommand, researchCommand } from "@app/cli";
@@ -29,6 +30,7 @@ describe("CLI init command", () => {
   let _logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    eventBus.clearForTest();
     _logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
@@ -92,6 +94,7 @@ describe("CLI research command", () => {
   let _logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    eventBus.clearForTest();
     _logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
