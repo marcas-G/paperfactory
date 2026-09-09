@@ -1,8 +1,20 @@
+/**
+ * PhaseDetailDrawer —— 阶段详情抽屉（output / tools / review / artifacts / versions / metadata）。
+ * 重构：由占位列改为右侧 fixed overlay，入口在 ArtifactPanel「阶段」tab。
+ */
 import { useEffect, useState } from 'react';
-import { X, Clock, CheckCircle2, AlertCircle, Play, ChevronDown, ChevronRight, FileText, Search, Shield } from 'lucide-react';
-import client from '@/api/client';
+import { X, Clock, CheckCircle2, AlertCircle, Play, ChevronDown, ChevronRight } from 'lucide-react';
 import { pf } from '@/api/pfClient';
 import type { PhaseRun } from '@/api/types';
+
+/** getPhaseVersions 返回 PhaseRunDTO 的历史版本子集 */
+interface PhaseVersion {
+  phaseRunId: string;
+  phaseVersion: number;
+  status: string;
+  active: boolean;
+  createdAt: string;
+}
 
 interface Props {
   phase: PhaseRun;
@@ -11,14 +23,14 @@ interface Props {
 }
 
 export default function PhaseDetailDrawer({ phase, projectId, onClose }: Props) {
-  const [versions, setVersions] = useState<Array<Parameters<typeof pf.getPhaseVersions>[1] extends never ? never : any>>([]);
+  const [versions, setVersions] = useState<PhaseVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>('output');
 
   useEffect(() => {
     setLoading(true);
     pf.getPhaseVersions(projectId, phase.phaseName)
-      .then((data) => setVersions(Array.isArray(data) ? data : []))
+      .then((data) => setVersions(Array.isArray(data) ? (data as PhaseVersion[]) : []))
       .catch(() => setVersions([]))
       .finally(() => setLoading(false));
   }, [projectId, phase.phaseName]);
@@ -54,7 +66,7 @@ export default function PhaseDetailDrawer({ phase, projectId, onClose }: Props) 
   };
 
   return (
-    <div className="w-[360px] min-w-[360px] flex flex-col bg-bg-layer1 border-l border-border-base/50 overflow-hidden">
+    <div className="fixed right-0 top-0 bottom-0 w-[380px] z-40 flex flex-col bg-bg-layer1 border-l border-border-base/50 shadow-2xl shadow-black/40 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-base/50">
         <div className="flex items-center gap-2">
@@ -136,8 +148,8 @@ export default function PhaseDetailDrawer({ phase, projectId, onClose }: Props) 
             <Section name="versions" title={`Versions (${versions.length})`} empty="true">
               <div className="space-y-2">
                 {versions.map((v) => (
-                  <div key={v.runId} className="flex items-center gap-2 text-[12px] py-1">
-                    <span className="font-medium text-text-strong">v{v.version}</span>
+                  <div key={v.phaseRunId} className="flex items-center gap-2 text-[12px] py-1">
+                    <span className="font-medium text-text-strong">v{v.phaseVersion}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${v.status === 'COMPLETED' ? 'bg-success/15 text-success' : v.status === 'ERROR' ? 'bg-danger/15 text-danger' : 'bg-bg-layer3 text-text-muted'}`}>
                       {v.status}
                     </span>

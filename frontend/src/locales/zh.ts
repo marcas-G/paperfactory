@@ -19,6 +19,7 @@ export default {
     evidence_evaluation: '证据评估',
     conclusion: '确认结论',
     report: '报告生成',
+    empty: '暂无阶段数据',
   },
   btn: {
     startResearch: '开始研究',
@@ -47,6 +48,8 @@ export default {
     complete: '研究完成。',
     running: '研究进行中',
     waiting: '研究中...',
+    resume: '恢复运行',
+    callingTool: '调用工具',
     unknownError: '未知错误',
     decisionFailed: '操作失败',
   },
@@ -60,5 +63,24 @@ export default {
     viewOrigin: '查看原始对象',
     hideOrigin: '收起原始对象',
     visited: '已展示',
+  },
+  artifact: {
+    evidence: '证据',
+    reports: '报告',
+    phases: '阶段',
+  },
+  evidence: {
+    empty: '暂无证据条目',
+    noProject: '先选择一个项目',
+    source: '来源',
+  },
+  reports: {
+    empty: '暂无报告',
+    noProject: '先选择一个项目',
+  },
+  papers: {
+    empty: '未找到文献',
+    noProject: '先选择一个项目',
+    searchPlaceholder: '搜索文献...',
   },
 };

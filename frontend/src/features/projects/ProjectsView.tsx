@@ -1,17 +1,26 @@
+/**
+ * ProjectsView —— 项目管理页：列表 / 新建 modal / 删除。
+ * 重构：数据源换 projectStore；点击项目直接进入三栏 chat 工作区。
+ */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import { useStore } from '@/store/useStore';
+import { useProjectStore } from '@/stores/projectStore';
 
 export default function ProjectsView() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { projects, fetchProjects, createProject, deleteProject } = useStore();
+  const projects = useProjectStore((s) => s.projects);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
+  const createProject = useProjectStore((s) => s.createProject);
+  const deleteProject = useProjectStore((s) => s.deleteProject);
   const [showNew, setShowNew] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    void fetchProjects();
+  }, [fetchProjects]);
 
   const handleCreate = async () => {
     if (!newQuestion.trim()) return;
@@ -28,12 +37,15 @@ export default function ProjectsView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       <div className="px-6 py-4 border-b border-border-base/50 bg-bg-layer1 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-text-strong">{t('nav.projects')}</h1>
-        <button onClick={() => setShowNew(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent text-white text-[13px] font-medium cursor-pointer hover:bg-accentHover transition-colors">
+        <button
+          onClick={() => setShowNew(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent text-white text-[13px] font-medium cursor-pointer hover:bg-accentHover transition-colors"
+        >
           <Plus size={14} />
-          <span>New</span>
+          <span>{t('common.new')}</span>
         </button>
       </div>
 
@@ -49,7 +61,10 @@ export default function ProjectsView() {
                   <div className="text-[13px] font-medium text-text-strong truncate">{p.name}</div>
                   <div className="text-[11px] text-text-muted">{new Date(p.createdAt).toLocaleDateString()}</div>
                 </button>
-                <button onClick={() => deleteProject(p.id)} className="text-text-muted hover:text-danger transition-colors cursor-pointer p-1">
+                <button
+                  onClick={() => deleteProject(p.id)}
+                  className="text-text-muted hover:text-danger transition-colors cursor-pointer p-1"
+                >
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -62,7 +77,7 @@ export default function ProjectsView() {
       {showNew && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowNew(false)}>
           <div className="bg-bg-layer2 border border-border-strong rounded-xl p-6 w-[440px] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-base font-semibold text-text-strong mb-4">New Project</h2>
+            <h2 className="text-base font-semibold text-text-strong mb-4">{t('common.new')}</h2>
             <input
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
@@ -72,8 +87,16 @@ export default function ProjectsView() {
               className="w-full px-3 py-2 bg-bg-base border border-border-base/50 rounded-lg text-[13px] text-text-strong outline-none placeholder:text-text-faint mb-4"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-md text-[13px] text-text-base hover:bg-bg-layer3 cursor-pointer transition-colors">Cancel</button>
-              <button onClick={handleCreate} disabled={!newQuestion.trim()} className="px-3 py-1.5 rounded-md bg-accent text-white text-[13px] font-medium disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Create</button>
+              <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-md text-[13px] text-text-base hover:bg-bg-layer3 cursor-pointer transition-colors">
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!newQuestion.trim()}
+                className="px-3 py-1.5 rounded-md bg-accent text-white text-[13px] font-medium disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Create
+              </button>
             </div>
           </div>
         </div>

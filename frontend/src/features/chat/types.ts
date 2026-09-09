@@ -49,8 +49,4 @@ export interface ChatMessage {
   needsApproval?: boolean;
   approvalSummary?: string;
   approvalRunId?: string;
-
-  /** 兼容旧数据 */
-  isThinking?: boolean;
-  thinkingText?: string;
 }

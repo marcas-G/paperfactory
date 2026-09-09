@@ -1,16 +1,19 @@
+/**
+ * PapersView —— 全页文献库。
+ * 重构：projectId 改读 projectStore.currentProjectId（修复旧版 /papers 路由
+ * 永远拿不到参数导致列表恒空的问题）；证据链抽屉复用 features/evidence。
+ */
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Download, ExternalLink, ChevronDown, ChevronRight, Link2 } from 'lucide-react';
-import client from '@/api/client';
 import { pf } from '@/api/pfClient';
-import EvidenceChainDrawer, { type ChainTarget } from '@/components/layout/EvidenceChainDrawer';
+import { useProjectStore } from '@/stores/projectStore';
+import EvidenceChainDrawer, { type ChainTarget } from '@/features/evidence/EvidenceChainDrawer';
 import type { Paper } from '@/api/types';
 
 export default function PapersView() {
-  const { projectId } = useParams<{ projectId: string }>();
-  const navigate = useNavigate();
   const { t } = useTranslation();
+  const projectId = useProjectStore((s) => s.currentProjectId);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -18,30 +21,40 @@ export default function PapersView() {
   const [chainTarget, setChainTarget] = useState<ChainTarget | null>(null);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId) {
+      setPapers([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     pf.getProjectPapers(projectId)
-      .then((data) => setPapers(Array.isArray(data) ? data : []))
+      .then((data) => setPapers(Array.isArray(data) ? (data as Paper[]) : []))
       .catch(() => setPapers([]))
       .finally(() => setLoading(false));
   }, [projectId]);
 
   const filtered = papers.filter((p) =>
-    !search || p.sourceTitle.toLowerCase().includes(search.toLowerCase()) || (((p as unknown as Record<string, unknown>).authors as string[] | undefined)?.join('') ?? '').toLowerCase().includes(search.toLowerCase())
+    !search ||
+    p.sourceTitle.toLowerCase().includes(search.toLowerCase()) ||
+    (((p as unknown as Record<string, unknown>).authors as string[] | undefined)?.join('') ?? '')
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
   const downloadPdf = async (citationId: string) => {
-    try { await pf.downloadPaperPdf(citationId); } catch {}
+    try {
+      await pf.downloadPaperPdf(citationId);
+    } catch {
+      /* 下载失败静默（状态由后端记录） */
+    }
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* Header */}
       <div className="px-6 py-4 border-b border-border-base/50 bg-bg-layer1">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-text-muted hover:text-text-strong text-sm cursor-pointer">← Back</button>
             <h1 className="text-lg font-semibold text-text-strong">{t('nav.papers')}</h1>
             <span className="text-[12px] text-text-muted">{papers.length} papers</span>
           </div>
@@ -51,7 +64,7 @@ export default function PapersView() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search papers..."
+            placeholder={t('papers.searchPlaceholder') as string}
             className="flex-1 bg-transparent text-[13px] text-text-strong outline-none placeholder:text-text-faint"
           />
         </div>
@@ -59,10 +72,12 @@ export default function PapersView() {
 
       {/* Paper list */}
       <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4">
-        {loading ? (
-          <div className="text-center py-16 text-text-faint text-sm">Loading...</div>
+        {!projectId ? (
+          <div className="text-center py-16 text-text-faint text-sm">{t('papers.noProject')}</div>
+        ) : loading ? (
+          <div className="text-center py-16 text-text-faint text-sm">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-text-faint text-sm">No papers found</div>
+          <div className="text-center py-16 text-text-faint text-sm">{t('papers.empty')}</div>
         ) : (
           <div className="space-y-2">
             {filtered.map((paper) => (
@@ -113,9 +128,13 @@ export default function PapersView() {
           </div>
         )}
       </div>
-      </div>
+
       {chainTarget && projectId && (
-        <EvidenceChainDrawer target={chainTarget} projectId={projectId} onClose={() => setChainTarget(null)} />
+        <EvidenceChainDrawer
+          target={chainTarget}
+          projectId={projectId}
+          onClose={() => setChainTarget(null)}
+        />
       )}
     </div>
   );

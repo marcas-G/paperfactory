@@ -1,17 +1,20 @@
+/**
+ * MessageList —— 消息列表（原 ChatArea 演化）。
+ * 数据从 researchStore 读，回调由 ChatView 注入；空态保留示例问题。
+ */
 import { useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
-import UserMessage from '@/components/chat/UserMessage';
-import AIMessage from '@/components/chat/AIMessage';
-import type { ChatMessage } from '@/components/chat/types';
+import { useResearchStore } from '@/stores/researchStore';
+import UserMessage from './components/UserMessage';
+import AIMessage from './components/AIMessage';
 
-interface ChatAreaProps {
-  messages: ChatMessage[];
+interface MessageListProps {
   onApprove?: (runId: string) => void;
   onModify?: (runId: string, feedback: string) => void;
   onReject?: (runId: string, reason: string) => void;
-  /** 证据链下钻入口（REQ-G3） */
   onOpenHypothesisChain?: (statement: string, hypothesisId?: string) => void;
   onOpenReportChain?: (reportId: string) => void;
+  onPickExample?: (question: string) => void;
 }
 
 const EXAMPLES = [
@@ -20,7 +23,15 @@ const EXAMPLES = [
   'How effective is chain-of-thought prompting on small models?',
 ];
 
-export default function ChatArea({ messages, onApprove, onModify, onReject, onOpenHypothesisChain, onOpenReportChain }: ChatAreaProps) {
+export default function MessageList({
+  onApprove,
+  onModify,
+  onReject,
+  onOpenHypothesisChain,
+  onOpenReportChain,
+  onPickExample,
+}: MessageListProps) {
+  const messages = useResearchStore((s) => s.messages);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 新消息/活动更新时自动滚到底部
@@ -42,12 +53,13 @@ export default function ChatArea({ messages, onApprove, onModify, onReject, onOp
         </div>
         <div className="flex flex-col gap-2 w-full max-w-lg">
           {EXAMPLES.map((q) => (
-            <div
+            <button
               key={q}
-              className="px-4 py-2.5 rounded-xl border border-border-base bg-bg-layer1 text-[13px] text-text-base hover:border-border-strong hover:text-text-strong transition-colors cursor-default truncate"
+              onClick={() => onPickExample?.(q)}
+              className="px-4 py-2.5 rounded-xl border border-border-base bg-bg-layer1 text-[13px] text-text-base hover:border-border-strong hover:text-text-strong transition-colors text-left truncate cursor-pointer"
             >
               {q}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -61,7 +73,15 @@ export default function ChatArea({ messages, onApprove, onModify, onReject, onOp
           msg.role === 'user' ? (
             <UserMessage key={msg.id} content={msg.content} />
           ) : (
-            <AIMessage key={msg.id} msg={msg} onApprove={onApprove} onModify={onModify} onReject={onReject} onOpenHypothesisChain={onOpenHypothesisChain} onOpenReportChain={onOpenReportChain} />
+            <AIMessage
+              key={msg.id}
+              msg={msg}
+              onApprove={onApprove}
+              onModify={onModify}
+              onReject={onReject}
+              onOpenHypothesisChain={onOpenHypothesisChain}
+              onOpenReportChain={onOpenReportChain}
+            />
           )
         )}
       </div>

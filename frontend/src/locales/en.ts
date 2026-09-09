@@ -19,6 +19,7 @@ export default {
     evidence_evaluation: 'Evidence Evaluation',
     conclusion: 'Conclusion',
     report: 'Report',
+    empty: 'No phase data yet',
   },
   btn: {
     startResearch: 'Start Research',
@@ -47,6 +48,8 @@ export default {
     complete: 'Research complete.',
     running: 'Research in progress',
     waiting: 'Researching...',
+    resume: 'Resume',
+    callingTool: 'Calling tool',
     unknownError: 'Unknown error',
     decisionFailed: 'Decision failed',
   },
@@ -60,5 +63,24 @@ export default {
     viewOrigin: 'View raw object',
     hideOrigin: 'Hide raw object',
     visited: 'shown',
+  },
+  artifact: {
+    evidence: 'Evidence',
+    reports: 'Reports',
+    phases: 'Phases',
+  },
+  evidence: {
+    empty: 'No evidence yet',
+    noProject: 'Select a project first',
+    source: 'Source',
+  },
+  reports: {
+    empty: 'No reports yet',
+    noProject: 'Select a project first',
+  },
+  papers: {
+    empty: 'No papers found',
+    noProject: 'Select a project first',
+    searchPlaceholder: 'Search papers...',
   },
 };

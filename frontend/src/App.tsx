@@ -1,22 +1,26 @@
 import { Routes, Route } from 'react-router-dom';
-import Sidebar from '@/components/layout/Sidebar';
-import ResearchView from '@/views/ResearchView';
-import WelcomeView from '@/views/WelcomeView';
-import ProjectsView from '@/views/ProjectsView';
-import PapersView from '@/views/PapersView';
+import AppShell from '@/layout/AppShell';
+import ChatView from '@/features/chat/ChatView';
+import PapersView from '@/features/papers/PapersView';
+import ProjectsView from '@/features/projects/ProjectsView';
 
+/**
+ * 路由结构：
+ *   AppShell（三栏骨架 + 全局事件流 + 全局抽屉）
+ *     /                  → ChatView（欢迎态或当前项目会话）
+ *     /research/:projectId → ChatView（路由参数同步 currentProjectId）
+ *     /papers            → PapersView（全页文献库，跟随当前项目）
+ *     /projects          → ProjectsView（全页项目管理）
+ */
 export default function App() {
   return (
-    <div className="flex h-screen bg-bg-base text-text-base overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 flex overflow-hidden">
-        <Routes>
-          <Route path="/" element={<WelcomeView />} />
-          <Route path="/research/:projectId" element={<ResearchView />} />
-          <Route path="/projects" element={<ProjectsView />} />
-          <Route path="/papers" element={<PapersView />} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route path="/" element={<ChatView />} />
+        <Route path="/research/:projectId" element={<ChatView />} />
+        <Route path="/papers" element={<PapersView />} />
+        <Route path="/projects" element={<ProjectsView />} />
+      </Route>
+    </Routes>
   );
 }

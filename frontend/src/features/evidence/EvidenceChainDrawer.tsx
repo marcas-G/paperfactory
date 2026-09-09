@@ -1,8 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
-import { X, Link2, ChevronDown, ChevronRight, Loader2, Inbox } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { pf } from '@/api/pfClient';
-
 /**
  * EvidenceChainDrawer —— REQ-G3 审计追溯下钻（C3：结论→证据→实验→文献）。
  *
@@ -11,7 +6,14 @@ import { pf } from '@/api/pfClient';
  *   downstream = 该对象为 target 的边（Evidence --supports--> Hypothesis）
  * 因此逐层下钻由前端懒加载完成：每个节点首次展开时再调一次 chain 端点，递归渲染。
  * 环路防护：visited 集合传递，已展示节点只渲染徽章、不再展开。
+ *
+ * 重构：由 components/layout/ 搬入 features/evidence/；改为右侧 fixed overlay。
  */
+
+import { useCallback, useEffect, useState } from 'react';
+import { X, Link2, ChevronDown, ChevronRight, Loader2, Inbox } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { pf } from '@/api/pfClient';
 
 /** 与 SDK EvidenceChainLink 同构（避免组件层深层相对路径 import） */
 interface ChainData {
@@ -73,7 +75,7 @@ interface NodeProps {
   onOpenOrigin?: (objectType: string, objectId: string) => void;
 }
 
-function ChainNode({ projectId, objectType, objectId, relation, depth, visited, defaultOpen, onOpenOrigin }: NodeProps) {
+function ChainNode({ projectId, objectType, objectId, relation, depth, visited, defaultOpen }: NodeProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const [loading, setLoading] = useState(false);
@@ -188,7 +190,6 @@ function ChainNode({ projectId, objectType, objectId, relation, depth, visited, 
                   relation={l.relation}
                   depth={depth + 1}
                   visited={new Set([...visited, key])}
-                  onOpenOrigin={onOpenOrigin}
                 />
               ))}
             </div>
@@ -209,7 +210,6 @@ function ChainNode({ projectId, objectType, objectId, relation, depth, visited, 
                   relation={l.relation}
                   depth={depth + 1}
                   visited={new Set([...visited, key])}
-                  onOpenOrigin={onOpenOrigin}
                 />
               ))}
             </div>
@@ -237,7 +237,7 @@ export default function EvidenceChainDrawer({ target, projectId, onClose }: Prop
   const { t } = useTranslation();
 
   return (
-    <div className="w-[360px] min-w-[360px] flex flex-col bg-bg-layer1 border-l border-border-base/50 overflow-hidden">
+    <div className="fixed right-0 top-0 bottom-0 w-[380px] z-40 flex flex-col bg-bg-layer1 border-l border-border-base/50 shadow-2xl shadow-black/40 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-base/50">
         <div className="flex items-center gap-2 min-w-0">
