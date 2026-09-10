@@ -7,6 +7,7 @@ import {
   ANSI,
   PHASE_LABELS,
   approvalCard,
+  approvalDetailText,
   emptyModel,
   helpOverlayLines,
   hypothesisCard,
@@ -17,7 +18,9 @@ import {
   queuedLine,
   renderMarkdown,
   renderModel,
+  renderPhase,
   renderTimeline,
+  scrollIndicatorLine,
   splitAtDisplay,
   statusLine,
   stripAnsi,
@@ -27,6 +30,8 @@ import {
   truncate,
   visibleWidth,
   padEndDisplay,
+  APPROVAL_DETAIL_LINES,
+  type PhaseLine,
   type PhaseState,
   type RunModel,
 } from "../../packages/tui/src/render";
@@ -58,7 +63,7 @@ describe("阶段头 phaseHeader", () => {
     const line = phaseHeader("literature_search", "complete", 120_000, 60);
     const plain = stripAnsi(line);
     expect(plain).toContain("● 文献调研");
-    expect(plain).toContain("✓ 2m 00s");
+    expect(plain).toContain("✓ 02m 00s");
     expect(plain).toMatch(/─+ ✓/);
     expect(line).toContain(ANSI.green);
   });
@@ -90,7 +95,7 @@ describe("活动行", () => {
     const plain = stripAnsi(line);
     expect(plain).toContain("第 3 轮");
     expect(plain).toContain("正在比较两篇 scaling law");
-    expect(plain).toContain("(12s)");
+    expect(plain).toContain("(00m 12s)");
     expect(line).toContain("⠋");
   });
 
@@ -100,7 +105,7 @@ describe("活动行", () => {
     expect(calling).toContain('"scaling law"');
     expect(calling).toContain("⠋"); // tick=0 首帧 spinner（calling 态持续视觉反馈）
     const waiting = stripAnsi(toolLine("literature_search", "calling", '"q"', undefined, 5200, 3));
-    expect(waiting).toContain("(5s)");
+    expect(waiting).toContain("(00m 05s)");
     const done = stripAnsi(toolLine("literature_search", "done", undefined, "5 papers"));
     expect(done).toContain("✓");
     expect(done).toContain("5 papers");
@@ -130,6 +135,89 @@ describe("活动行", () => {
     expect(card[0]).toContain("⚠ 等待审批");
     expect(card[0]).toContain("3 个关键发现");
     expect(card[1]).toContain("[a] 批准  [m] 修改  [r] 拒绝");
+    expect(card[1]).toContain("[d] 详情"); // 收起态提示可展开
+  });
+
+  it("approvalCard 展开态：显示 [d] 收起 + 详情行", () => {
+    const detail = "发现 1: scaling law 维度根源\n\n发现 2: 数据质量决定上限\n发现 3: 评估基准偏移";
+    const card = approvalCard("找到 3 个关键发现", { expanded: true, detail, width: 80 }).map(stripAnsi);
+    expect(card[1]).toContain("[d] 收起");
+    expect(card.join("\n")).toContain("发现 1: scaling law 维度根源");
+    expect(card.join("\n")).toContain("发现 3: 评估基准偏移");
+  });
+
+  it("approvalCard 展开态：只保留最后 10 行非空内容", () => {
+    const detail = Array.from({ length: 20 }, (_, i) => `row-${String(i).padStart(2, "0")}`).join("\n\n");
+    const card = approvalCard("s", { expanded: true, detail, width: 80 }).map(stripAnsi);
+    const all = card.join("\n");
+    for (let i = 0; i < 10; i++) expect(all).not.toContain(`row-${String(i).padStart(2, "0")}\n`);
+    for (let i = 10; i < 20; i++) expect(all).toContain(`row-${String(i).padStart(2, "0")}`);
+    expect(card.slice(2).length).toBeLessThanOrEqual(APPROVAL_DETAIL_LINES);
+  });
+
+  it("approvalCard 展开态：详情按终端宽度截断", () => {
+    const detail = "x".repeat(200);
+    const card = approvalCard("s", { expanded: true, detail, width: 40 });
+    for (const row of card.slice(2)) {
+      expect(visibleWidth(row)).toBeLessThanOrEqual(40);
+    }
+  });
+
+  it("approvalCard 展开态无内容：显示 无详细信息", () => {
+    const card = approvalCard("s", { expanded: true, detail: null, width: 80 }).map(stripAnsi);
+    expect(card[2]).toContain("无详细信息");
+    const blank = approvalCard("s", { expanded: true, detail: "  \n\n ", width: 80 }).map(stripAnsi);
+    expect(blank[2]).toContain("无详细信息");
+  });
+
+  it("approvalDetailText：取阶段最后一个 self-review/thinking/progress 的文本", () => {
+    const phase: PhaseState = {
+      name: "gap_identification",
+      status: "running",
+      startedAt: 0,
+      lines: [
+        { kind: "thinking", iteration: 1, note: "第 1 轮推理中...", since: 0 },
+        { kind: "progress", text: "进度提示" },
+        { kind: "self-review", passed: true, text: "自评通过：识别出 4 个缺口" },
+      ],
+    };
+    expect(approvalDetailText(phase)).toBe("自评通过：识别出 4 个缺口");
+    phase.lines.push({ kind: "thinking", iteration: 2, note: "第 2 轮：确认缺口真实性", since: 0 });
+    expect(approvalDetailText(phase)).toBe("第 2 轮：确认缺口真实性");
+    const empty: PhaseState = { name: "x", status: "running", startedAt: 0, lines: [] };
+    expect(approvalDetailText(empty)).toBeNull();
+  });
+
+  it("renderPhase：审批行 expanded 联动阶段详情渲染", () => {
+    // self-review 行自身恒显示（截断 50 字符）；卡片详情展示更长原文 —— 用长度区分两者
+    const longText = "D".repeat(70);
+    const phase: PhaseState = {
+      name: "gap_identification",
+      status: "running",
+      startedAt: 0,
+      lines: [
+        { kind: "self-review", passed: true, text: longText },
+        { kind: "approval", summary: "发现 8 个关键发现", phaseRunId: "pr-1", expanded: true },
+      ],
+    };
+    const lines = renderPhase(phase, 0, 0, 80).map(stripAnsi);
+    expect(lines.join("\n")).toContain("D".repeat(60)); // 展开态详情 > self-review 行的 50 截断
+    (phase.lines[1] as Extract<PhaseLine, { kind: "approval" }>).expanded = false;
+    const collapsed = renderPhase(phase, 0, 0, 80).map(stripAnsi);
+    expect(collapsed.join("\n")).not.toContain("D".repeat(60)); // 收起态只剩 50 字符行摘要
+    expect(collapsed.join("\n")).toContain("D".repeat(40)); // self-review 行仍在
+  });
+});
+
+describe("滚动指示条", () => {
+  it("回看时提示条显示当前位置与回底键", () => {
+    const line = stripAnsi(scrollIndicatorLine(5, 40));
+    expect(line).toContain("↑ 滚动中");
+    expect(line).toContain("第 5/40 行");
+    expect(line).toContain("按End回底部");
+  });
+  it("位置下限保护（空 buffer 不出现第 0 行）", () => {
+    expect(stripAnsi(scrollIndicatorLine(0, 0))).toContain("第 1/1 行");
   });
 });
 

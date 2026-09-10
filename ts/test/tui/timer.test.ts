@@ -5,22 +5,35 @@ import { describe, it, expect } from "vitest";
 import { compactCount, estimateTokens, formatDuration, SPINNER_FRAMES, spinnerFrame } from "../../packages/tui/src/timer";
 
 describe("formatDuration", () => {
-  it("秒级", () => {
-    expect(formatDuration(0)).toBe("0s");
-    expect(formatDuration(45_000)).toBe("45s");
-    expect(formatDuration(59_999)).toBe("59s");
+  it("秒级（固定宽度 00m SSs）", () => {
+    expect(formatDuration(0)).toBe("00m 00s");
+    expect(formatDuration(45_000)).toBe("00m 45s");
+    expect(formatDuration(59_999)).toBe("00m 59s");
   });
-  it("分级（秒两位补零）", () => {
-    expect(formatDuration(60_000)).toBe("1m 00s");
-    expect(formatDuration(192_000)).toBe("3m 12s");
+  it("分级（秒恒两位、分至少两位）", () => {
+    expect(formatDuration(60_000)).toBe("01m 00s");
+    expect(formatDuration(68_000)).toBe("01m 08s");
+    expect(formatDuration(192_000)).toBe("03m 12s");
+    expect(formatDuration(962_000)).toBe("16m 02s");
   });
-  it("时级", () => {
-    expect(formatDuration(3_600_000)).toBe("1h 00m");
-    expect(formatDuration(7_260_000)).toBe("2h 01m");
+  it("分钟累加不进位小时（分钟自然增长到 3 位）", () => {
+    expect(formatDuration(3_600_000)).toBe("60m 00s");
+    expect(formatDuration(7_260_000)).toBe("121m 00s");
+    expect(formatDuration(7_425_000)).toBe("123m 45s");
   });
   it("非法输入容错", () => {
-    expect(formatDuration(-5)).toBe("0s");
-    expect(formatDuration(Number.NaN)).toBe("0s");
+    expect(formatDuration(-5)).toBe("00m 00s");
+    expect(formatDuration(Number.NaN)).toBe("00m 00s");
+  });
+  it("固定宽度：相邻秒刷新显示宽度一致（布局不跳动的根因回归）", () => {
+    for (const ms of [67_000, 68_000, 69_000, 70_000, 599_000, 600_000]) {
+      expect(formatDuration(ms).length).toBe(7); // MMm SSs
+    }
+    // 两位分钟区间内宽度恒定
+    const widths = new Set<number>();
+    for (let s = 0; s < 60 * 100; s += 7) widths.add(formatDuration(s * 1000).length);
+    expect(widths.size).toBe(1);
+    expect([...widths][0]).toBe(7);
   });
 });
 

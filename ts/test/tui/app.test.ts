@@ -228,3 +228,138 @@ describe("排队可视化（stream 集成已在 stream.test.ts 覆盖纯逻辑�
     app.handleKey({ type: "ctrl-c" });
   });
 });
+
+describe("主区域滚动（TuiApp 键位集成）", () => {
+  interface ScrollLike {
+    offset: number;
+    total: number;
+  }
+  interface AppLike {
+    scroll: ScrollLike;
+    screen: { mainRows: number };
+  }
+  function makeApp(lineCount: number): { app: TuiApp; inner: AppLike } {
+    const app = new TuiApp("http://localhost:9", "auto", { onExit: vi.fn() });
+    app.model.status = "complete";
+    app.model.startedAt = 1000;
+    app.model.endedAt = 2000;
+    app.model.epilogue.push(...Array.from({ length: lineCount }, (_, i) => `第 ${i} 行内容`));
+    const inner = app as unknown as AppLike;
+    return { app, inner };
+  }
+
+  it("↑ 滚动主区域（内容超屏时），多次累加；↓ 向下回落", () => {
+    const { app, inner } = makeApp(60); // 远超一屏
+    app.handleKey({ type: "up" });
+    expect(inner.scroll.offset).toBe(1);
+    app.handleKey({ type: "up" });
+    app.handleKey({ type: "up" });
+    expect(inner.scroll.offset).toBe(3);
+    app.handleKey({ type: "down" });
+    expect(inner.scroll.offset).toBe(2);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("PgUp/PgDn 半屏滚动", () => {
+    const { app, inner } = makeApp(60);
+    const half = Math.max(1, Math.floor(inner.screen.mainRows / 2));
+    app.handleKey({ type: "pageup" });
+    expect(inner.scroll.offset).toBe(half);
+    app.handleKey({ type: "pageup" });
+    expect(inner.scroll.offset).toBe(half * 2);
+    app.handleKey({ type: "pagedown" });
+    expect(inner.scroll.offset).toBe(half);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("End 回底恢复跟随；未滚动时 End 仍是输入行尾", () => {
+    const { app, inner } = makeApp(60);
+    app.handleKey({ type: "pageup" });
+    expect(inner.scroll.offset).toBeGreaterThan(0);
+    app.handleKey({ type: "end" });
+    expect(inner.scroll.offset).toBe(0); // 跳回底部
+    // 未滚动态：End 移动输入光标到行尾（不产生滚动）
+    (app as unknown as { state: { insert: (t: string) => void } }).state.insert("abc");
+    app.handleKey({ type: "home" });
+    app.handleKey({ type: "end" });
+    expect(inner.scroll.offset).toBe(0);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("开始打字自动跳回底部（输入行获得焦点语义）", () => {
+    const { app, inner } = makeApp(60);
+    app.handleKey({ type: "pageup" });
+    expect(inner.scroll.offset).toBeGreaterThan(0);
+    app.handleKey({ type: "text", text: "x" });
+    expect(inner.scroll.offset).toBe(0);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("内容不满一屏时 ↑/↓ 仍翻输入历史（不滚动）", () => {
+    const { app, inner } = makeApp(3);
+    app.handleKey({ type: "up" });
+    expect(inner.scroll.offset).toBe(0);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("滚动不越界：顶=total-视口，向下不过 0", () => {
+    const lineCount = 120; // 远超任何终端一屏
+    const { app, inner } = makeApp(lineCount);
+    for (let i = 0; i < 300; i++) app.handleKey({ type: "up" });
+    expect(inner.scroll.offset).toBe(lineCount - inner.screen.mainRows); // 钳到最大偏移
+    for (let i = 0; i < 300; i++) app.handleKey({ type: "down" });
+    expect(inner.scroll.offset).toBe(0); // 向下不过底
+    app.handleKey({ type: "ctrl-c" });
+  });
+});
+
+describe("审批详情展开（TuiApp d 键集成）", () => {
+  function approvalApp(): { app: TuiApp; line: () => { kind: string; expanded?: boolean } | undefined } {
+    const app = new TuiApp("http://localhost:9", "manual", { onExit: vi.fn() });
+    app.model.status = "running";
+    app.tracker.handle({
+      type: "run:start",
+      projectId: "p1",
+      runId: "run-1",
+      data: { question: "q" },
+    });
+    app.tracker.handle({ type: "phase:start", projectId: "p1", runId: "run-1", phase: "gap_identification" });
+    app.tracker.handle({
+      type: "self:review",
+      projectId: "p1",
+      runId: "run-1",
+      phase: "gap_identification",
+      data: { content: "8 个发现、4 个空白", passed: true },
+    });
+    app.tracker.handle({
+      type: "phase:awaiting_approval",
+      projectId: "p1",
+      runId: "phase-run-9",
+      phase: "gap_identification",
+      data: { summary: "找到 8 个关键发现" },
+    });
+    return {
+      app,
+      line: () =>
+        app.model.phases[0].lines.find((l) => l.kind === "approval"),
+    };
+  }
+
+  it("d 展开 → d 收起；不进输入缓冲", () => {
+    const { app, line } = approvalApp();
+    expect(app.model.approval).not.toBeNull();
+    app.handleKey({ type: "text", text: "d" });
+    expect(line()?.expanded).toBe(true);
+    app.handleKey({ type: "text", text: "d" });
+    expect(line()?.expanded).toBe(false);
+    expect((app as unknown as { state: { buf: string } }).state.buf).toBe(""); // d 不进缓冲
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("审批等待时其他字母正常进缓冲（仅 a/m/r/d 拦截）", () => {
+    const { app } = approvalApp();
+    app.handleKey({ type: "text", text: "x" });
+    expect((app as unknown as { state: { buf: string } }).state.buf).toBe("x");
+    app.handleKey({ type: "ctrl-c" });
+  });
+});

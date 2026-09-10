@@ -114,6 +114,35 @@ describe("RunTracker 状态机", () => {
     expect(line).toMatchObject({ kind: "approval", resolved: "已批准" });
   });
 
+  it("toggleApprovalDetail：展开/收起待审批卡片；处理完的卡不再响应", () => {
+    const t = tracker();
+    t.handle(ev("run:start", { data: { question: "q" } }));
+    t.handle(ev("phase:start", { phase: "gap_identification" }));
+    t.handle(ev("self:review", { phase: "gap_identification", data: { content: "8 个发现、4 个空白", passed: true } }));
+    t.handle(
+      ev("phase:awaiting_approval", {
+        runId: "phase-run-7",
+        phase: "gap_identification",
+        data: { summary: "找到 8 个关键发现" },
+      }),
+    );
+    const approvalLine = (): { kind: string; expanded?: boolean } | undefined =>
+      t.model.phases[0].lines.find((l) => l.kind === "approval");
+    expect(approvalLine()?.expanded).toBeFalsy(); // 默认收起
+    expect(t.toggleApprovalDetail()).toBe(true);
+    expect(approvalLine()?.expanded).toBe(true); // d 展开
+    expect(t.toggleApprovalDetail()).toBe(true);
+    expect(approvalLine()?.expanded).toBe(false); // 再 d 收起
+    t.resolveApproval("reject");
+    expect(approvalLine()?.expanded).toBe(false); // 处理后强制收起
+    expect(t.toggleApprovalDetail()).toBe(false); // 无待审批 → 不响应
+  });
+
+  it("无审批时 toggleApprovalDetail 返回 false", () => {
+    const t = tracker();
+    expect(t.toggleApprovalDetail()).toBe(false);
+  });
+
   it("run:complete：状态/收尾统计/假设卡片/token 清算", () => {
     const t = tracker();
     t.handle(ev("run:start", { data: { question: "q" } }));

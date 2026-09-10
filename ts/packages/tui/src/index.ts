@@ -9,8 +9,9 @@
  *   pf-tui --resume                               # 从最近项目恢复（数字选择）
  *
  * 按键：Enter 发送/排队 · Esc 停止 run · Tab 切 auto/manual · Ctrl+C 连按两次退出
- *       ↑/↓ 输入历史 · ←/→ Home/End 光标移动 · r 报告阅读 · ? 帮助覆盖层
- * 审批等待时：a 批准 / m 修改 / r 拒绝
+ *       ↑/↓ 滚动主区域（PgUp/PgDn 半屏 · End 回底；内容不满一屏时 ↑/↓ 翻输入历史）
+ *       ←/→ Home 光标移动 · r 报告阅读 · ? 帮助覆盖层
+ * 审批等待时：a 批准 / m 修改 / r 拒绝 / d 展开/收起详情
  * 命令：:help :mode :chain <objectType> <objectId> :resume <projectId> :report :stop :clear :quit
  */
 import * as readline from "node:readline";
@@ -33,12 +34,21 @@ import { Screen } from "./screen";
 import { RunTracker, type Decision } from "./stream";
 import { createPager, pagerMove, pagerView, type PagerState } from "./pager";
 import {
+  createScroll,
+  isScrolled,
+  scrollBy,
+  snapToBottom,
+  updateTotal,
+  viewRange,
+} from "./scroll";
+import {
   ANSI,
   PHASE_ORDER,
   helpOverlayLines,
   promptHint,
   renderMarkdown,
   renderModel,
+  scrollIndicatorLine,
   splitAtDisplay,
   statusLine,
   stripAnsi,
@@ -311,6 +321,8 @@ export class TuiApp {
   private pager: PagerState | null = null;
   /** :resume 项目选择器 */
   private picker: PickerItem[] | null = null;
+  /** 主区域滚动状态（offset=0 跟随底部；>0 回看历史，底行钉提示条） */
+  private scroll = createScroll();
 
   constructor(
     readonly url: string,
@@ -346,6 +358,34 @@ export class TuiApp {
 
   get model() {
     return this.tracker.model;
+  }
+
+  /** 主区域可视行数（滚动钳制的视口高度） */
+  private viewportRows(): number {
+    return this.screen.mainRows;
+  }
+
+  /** 半屏滚动步长 */
+  private halfPage(): number {
+    return Math.max(1, Math.floor(this.viewportRows() / 2));
+  }
+
+  /** 当前主区域逻辑行总数（按键即时求值，不依赖节流后的渲染帧） */
+  private totalMainLines(): number {
+    return renderModel(this.model, Date.now(), this.tick, this.screen.contentCols).length;
+  }
+
+  /** 相对滚动主区域（delta>0 回看历史），先按当前 buffer 钳制再移动 */
+  private scrollMain(delta: number): void {
+    updateTotal(this.scroll, this.totalMainLines(), this.viewportRows());
+    scrollBy(this.scroll, delta, this.viewportRows());
+  }
+
+  /** 是否有可滚动的主内容（或已在滚动态）——↑/↓ 在滚动与输入历史间切换语义 */
+  private canScrollMain(): boolean {
+    if (isScrolled(this.scroll)) return true;
+    updateTotal(this.scroll, this.totalMainLines(), this.viewportRows());
+    return isScrolled(this.scroll) || this.scroll.total > this.viewportRows();
   }
 
   /* ---------------- 生命周期 ---------------- */
@@ -433,7 +473,15 @@ export class TuiApp {
       return;
     }
 
-    let mainLines = renderModel(this.model, now, this.tick, cols);
+    // 主区域：渲染完整逻辑行 buffer → 同步滚动钳制 → 按偏移切视口（回看时底行钉提示条）
+    const base = renderModel(this.model, now, this.tick, cols);
+    const rows = this.viewportRows();
+    updateTotal(this.scroll, base.length, rows);
+    let mainLines = base;
+    if (isScrolled(this.scroll)) {
+      const { start, end } = viewRange(base.length, this.scroll.offset, Math.max(1, rows - 1));
+      mainLines = [...base.slice(start, end), scrollIndicatorLine(start + 1, base.length)];
+    }
     let title = "PaperFactory Research Agent";
     if (this.overlay === "help") {
       // 半透明效果：主内容剥色变暗，帮助浮层居中盖在上面
@@ -543,11 +591,14 @@ export class TuiApp {
         this.scheduleRender();
         break;
       case "up":
-        this.state.prevHistory();
+        // 主内容可滚动时 ↑ 回看历史；不满一屏时保留输入历史语义
+        if (this.canScrollMain()) this.scrollMain(1);
+        else this.state.prevHistory();
         this.scheduleRender();
         break;
       case "down":
-        this.state.nextHistory();
+        if (isScrolled(this.scroll)) this.scrollMain(-1);
+        else this.state.nextHistory();
         this.scheduleRender();
         break;
       case "home":
@@ -555,17 +606,34 @@ export class TuiApp {
         this.scheduleRender();
         break;
       case "end":
-        this.state.end();
+        // 回看时 End 跳回底部恢复跟随；否则输入光标行尾
+        if (isScrolled(this.scroll)) snapToBottom(this.scroll);
+        else this.state.end();
+        this.scheduleRender();
+        break;
+      case "pageup":
+        this.scrollMain(this.halfPage());
+        this.scheduleRender();
+        break;
+      case "pagedown":
+        this.scrollMain(-this.halfPage());
         this.scheduleRender();
         break;
       default:
-        break; // pageup/pagedown/ignored 主界面无操作
+        break; // ignored 主界面无操作
     }
   }
 
   private onText(text: string): void {
-    // 审批等待：单键 a/m/r 直达（不进输入缓冲）
-    if (this.model.approval && /^[amr]$/.test(text)) {
+    // 审批等待：单键 a/m/r/d 直达（不进输入缓冲）
+    if (this.model.approval && /^[amrd]$/.test(text)) {
+      if (text === "d") {
+        if (this.tracker.toggleApprovalDetail()) {
+          snapToBottom(this.scroll); // 详情卡片在底部，展开时回到可视区
+          this.scheduleRender();
+        }
+        return;
+      }
       void this.decide(text === "a" ? "approve" : text === "m" ? "modify" : "reject");
       return;
     }
@@ -581,6 +649,8 @@ export class TuiApp {
       return;
     }
     this.state.insert(text);
+    // 开始打字 = 输入行获得焦点：跳回底部恢复自动跟随
+    snapToBottom(this.scroll);
     this.scheduleRender();
   }
 
@@ -742,6 +812,7 @@ export class TuiApp {
 
   private onSubmit(): void {
     this.submit(this.state.commit());
+    snapToBottom(this.scroll); // 发送后回到底部跟随输出
     this.scheduleRender();
   }
 
@@ -821,6 +892,7 @@ export class TuiApp {
       case "clear":
         this.tracker.reset();
         this.tracker.setNotice(undefined);
+        snapToBottom(this.scroll);
         this.screen.invalidate();
         break;
       case "quit":
@@ -837,6 +909,7 @@ export class TuiApp {
 
   async startRun(question: string): Promise<void> {
     this.tracker.reset(); // reset 保留 mode + queued
+    snapToBottom(this.scroll);
     this.model.status = "running";
     this.model.question = question;
     this.model.startedAt = Date.now();
@@ -857,6 +930,7 @@ export class TuiApp {
 
   async resumeRun(projectId: string): Promise<void> {
     this.tracker.reset();
+    snapToBottom(this.scroll);
     this.model.status = "running";
     this.model.projectId = projectId;
     this.model.startedAt = Date.now();
@@ -946,6 +1020,7 @@ export class TuiApp {
     } catch (err) {
       this.tracker.setNotice(`审批提交失败: ${String(err).slice(0, 80)}`);
     }
+    snapToBottom(this.scroll); // 审批完成后跟随后续输出
     this.scheduleRender();
   }
 

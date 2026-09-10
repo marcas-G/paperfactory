@@ -1,21 +1,19 @@
 /**
  * 计时与统计 —— 纯函数/可注入时钟，无 IO。
  *
- * - formatDuration: 毫秒 → `3m 12s` / `45s` / `2h 01m` 紧凑人类可读
+ * - formatDuration: 毫秒 → `03m 12s` 固定宽度（分≥2位、秒恒2位；分钟超 60 不进位，
+ *   如 `123m 45s`）—— 每秒刷新时宽度不变，thinking 行/状态栏不再左右跳动
  * - estimateTokens: 无 usage 事件时的客户端口径估算（CJK 1 字 ≈ 1 tok，ASCII 4 字符 ≈ 1 tok）
  * - SPINNER_FRAMES: running 状态的动画帧（方案B：后端无 text:delta 时的“活着”信号）
  */
 
-/** 毫秒 → 紧凑时长（<1m 显示秒；>=1m 显示 m s；>=1h 显示 h m） */
+/** 毫秒 → 固定宽度时长 `MMm SSs`（秒恒两位、分至少两位；分钟累加不进位小时） */
 export function formatDuration(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return "0s";
+  if (!Number.isFinite(ms) || ms < 0) return "00m 00s";
   const total = Math.floor(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
+  const m = Math.floor(total / 60);
   const s = total % 60;
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
+  return `${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 }
 
 /** token 估算（客户端口径：只统计事件流里经过的文本，标 `~` 前缀由调用方加） */

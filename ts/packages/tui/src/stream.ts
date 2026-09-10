@@ -243,10 +243,26 @@ export class RunTracker {
         const line = lines[j];
         if (line.kind === "approval" && !line.resolved) {
           line.resolved = decision === "approve" ? "已批准" : decision === "modify" ? "已要求修改" : "已拒绝";
+          line.expanded = false; // 已处理的卡片收起详情
           return;
         }
       }
     }
+  }
+
+  /** 审批等待时按 d：展开/收起当前审批卡的详情（返回是否找到待处理审批） */
+  toggleApprovalDetail(): boolean {
+    for (let i = this.model.phases.length - 1; i >= 0; i--) {
+      const lines = this.model.phases[i].lines;
+      for (let j = lines.length - 1; j >= 0; j--) {
+        const line = lines[j];
+        if (line.kind === "approval" && !line.resolved) {
+          line.expanded = !line.expanded;
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private onSelfReview(event: DomainEvent): void {

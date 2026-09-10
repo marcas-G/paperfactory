@@ -141,7 +141,7 @@ export type PhaseLine =
   | { kind: "progress"; text: string }
   | { kind: "self-review"; passed: boolean; text: string }
   | { kind: "interrupt"; text: string }
-  | { kind: "approval"; summary: string; phaseRunId: string; resolved?: string }
+  | { kind: "approval"; summary: string; phaseRunId: string; resolved?: string; expanded?: boolean }
   | { kind: "hypothesis"; statement: string }
   | { kind: "note"; text: string; style?: "dim" | "error" | "ok" | "warn" };
 
@@ -295,12 +295,52 @@ export function hypothesisCard(statement: string): string[] {
   ];
 }
 
-/** 审批卡片 */
-export function approvalCard(summary: string): string[] {
-  return [
+/** 审批卡片可展开的详情行数上限 */
+export const APPROVAL_DETAIL_LINES = 10;
+
+/**
+ * 审批详情内容 —— 该阶段最后一个 self-review / thinking / progress 行的文本
+ * （按事件流语义即"最后一个 self-review 或 message 事件的 content"）。
+ */
+export function approvalDetailText(phase: PhaseState): string | null {
+  for (let i = phase.lines.length - 1; i >= 0; i--) {
+    const line = phase.lines[i];
+    if (line.kind === "self-review") return line.text;
+    if (line.kind === "thinking") return line.note;
+    if (line.kind === "progress") return line.text;
+  }
+  return null;
+}
+
+/** 审批卡片（expanded 时展开最后 10 行详情内容，按终端宽度截断） */
+export function approvalCard(
+  summary: string,
+  opts: { expanded?: boolean; detail?: string | null; width?: number } = {},
+): string[] {
+  const width = opts.width ?? 76;
+  const lines = [
     `${ANSI.yellow}${ANSI.bold}⚠ 等待审批:${ANSI.reset} ${truncate(summary, 60)}`,
-    `${ANSI.dim}   [a] 批准  [m] 修改  [r] 拒绝${ANSI.reset}`,
+    `${ANSI.dim}   [a] 批准  [m] 修改  [r] 拒绝  [d] ${opts.expanded ? "收起" : "详情"}${ANSI.reset}`,
   ];
+  if (!opts.expanded) return lines;
+  const rows = (opts.detail ?? "")
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length > 0)
+    .slice(-APPROVAL_DETAIL_LINES);
+  if (rows.length === 0) {
+    lines.push(`${ANSI.dim}   无详细信息${ANSI.reset}`);
+    return lines;
+  }
+  for (const row of rows) {
+    lines.push(`${ANSI.dim}   │ ${truncate(row, Math.max(10, width - 5))}${ANSI.reset}`);
+  }
+  return lines;
+}
+
+/** 回看提示条：滚动时钉在主区域底行 */
+export function scrollIndicatorLine(firstVisible: number, totalLines: number): string {
+  return `${ANSI.yellow}↑ 滚动中 (第 ${Math.max(1, firstVisible)}/${Math.max(1, totalLines)} 行) — 按End回底部${ANSI.reset}`;
 }
 
 /** 树前缀：`│  ├ ` / `│  └ `（末行） */
@@ -322,7 +362,7 @@ export function renderPhase(phase: PhaseState, now: number, tick: number, conten
   const lastIdx = phase.lines.length - 1;
   phase.lines.forEach((line, i) => {
     const prefix = childPrefix(i === lastIdx);
-    const body = renderPhaseLine(line, now, tick);
+    const body = renderPhaseLine(line, now, tick, phase, contentWidth);
     if (Array.isArray(body)) {
       body.forEach((b, j) => {
         lines.push(j === 0 ? prefix + b : NEST_PREFIX + b);
@@ -334,7 +374,13 @@ export function renderPhase(phase: PhaseState, now: number, tick: number, conten
   return lines;
 }
 
-function renderPhaseLine(line: PhaseLine, now: number, tick: number): string | string[] | null {
+function renderPhaseLine(
+  line: PhaseLine,
+  now: number,
+  tick: number,
+  phase: PhaseState,
+  contentWidth: number,
+): string | string[] | null {
   switch (line.kind) {
     case "thinking":
       return thinkingLine(line.iteration, line.note, now - line.since, tick);
@@ -359,7 +405,11 @@ function renderPhaseLine(line: PhaseLine, now: number, tick: number): string | s
       if (line.resolved) {
         return `${ANSI.dim}审批已处理: ${line.resolved}${ANSI.reset}`;
       }
-      return approvalCard(line.summary);
+      return approvalCard(line.summary, {
+        expanded: line.expanded ?? false,
+        detail: approvalDetailText(phase),
+        width: contentWidth,
+      });
     }
     case "hypothesis":
       return hypothesisCard(line.statement);
@@ -398,7 +448,7 @@ export function statusLine(model: RunModel, now: number): string {
   const errors = model.phases.filter((p) => p.status === "error").length;
   const current = model.phases.find((p) => p.status === "running");
   const arrow = current ? `${model.phases.filter((p) => p.status !== "running").map((p) => phaseLabel(p.name)).slice(-1)[0] ?? "启动"} → ${phaseLabel(current.name)}` : model.status === "running" ? "准备中" : "空闲";
-  const elapsed = model.startedAt ? formatDuration((model.endedAt ?? now) - model.startedAt) : "0s";
+  const elapsed = model.startedAt ? formatDuration((model.endedAt ?? now) - model.startedAt) : "00m 00s";
   const approvalTag = model.approval ? `${ANSI.yellow}${ANSI.bold}⏸ 待审批${ANSI.reset} · ` : "";
   const errTag = errors > 0 ? ` · ${errors}✗` : "";
   return `${approvalTag}${truncate(arrow, 28)} · ${processed}/${total} 阶段${errTag} · ${elapsed} · ~${compactCount(model.tokens)} tok · ${model.mode}`;
@@ -406,7 +456,7 @@ export function statusLine(model: RunModel, now: number): string {
 
 /** 输入行提示（空闲/运行中/审批中三种语境） */
 export function promptHint(model: RunModel): string {
-  if (model.approval) return "a/m/r 审批 · Esc 停止";
+  if (model.approval) return "a/m/r 审批 · d 详情 · Esc 停止";
   if (model.status === "running") return "Enter 排队 · Esc 停止";
   if (model.reportLines) return "Enter 发送 · r 读报告 · Tab 切模式";
   return "Enter 发送 · Tab 切模式 · ? 帮助";
@@ -457,15 +507,17 @@ export const HELP_ENTRIES: HelpEntry[] = [
   { key: "Enter", desc: "发送问题（运行中 = 排队下一轮）" },
   { key: "Esc", desc: "停止当前 run" },
   { key: "Tab", desc: "切换 auto / manual 模式" },
-  { key: "↑ / ↓", desc: "输入历史（翻阅已发送的问题）" },
-  { key: "← / →", desc: "移动输入光标" },
-  { key: "Home / End", desc: "跳到输入行首 / 行尾" },
+  { key: "↑ / ↓", desc: "滚动主区域（内容不满一屏时翻输入历史）" },
+  { key: "PgUp / PgDn", desc: "主区域半屏滚动" },
+  { key: "End", desc: "跳回底部（回看时）；输入行尾（其他）" },
+  { key: "← / → / Home", desc: "移动输入光标 / 跳行首" },
   { key: "Backspace / Del", desc: "删除光标前 / 后的字符" },
   { key: "Ctrl+C", desc: "连按两次退出（防误触）" },
   { key: "Ctrl+L", desc: "强制整屏重绘" },
   { key: "?", desc: "显示本帮助" },
   { key: "r", desc: "阅读完整报告（run 完成后）" },
   { key: "a / m / r", desc: "审批：批准 / 修改 / 拒绝" },
+  { key: "d", desc: "审批等待时：展开 / 收起该阶段详情" },
   { key: ":chain <type> <id>", desc: "查看证据链" },
   { key: ":resume [projectId]", desc: "恢复最近的项目（可数字选择）" },
   { key: ":mode auto|manual", desc: "直接设定模式" },
