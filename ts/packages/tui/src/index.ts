@@ -14,6 +14,11 @@
  *       ←/→ Home 光标移动 · r 报告阅读 · ? 帮助覆盖层
  * 审批等待时：a 批准 / m 修改 / r 拒绝 / d 展开/收起详情
  * 命令：:help :mode :chain <objectType> <objectId> :resume <projectId> :report :stop :clear :quit
+ *
+ * 鼠标优先（零学习成本）：审批按钮/展开详情/翻页/回底/关闭/状态栏切模式/resume 选择器
+ * 全部可点击（反色按钮 = 可点）；点击主区域空白进入滚动回看，点击输入行聚焦输入。
+ * 键盘全部保留为备选。实现：render 产出反色按钮 span → renderNow 后 scanButtons 重建
+ * HitRegion（物理坐标）→ click 事件碰撞检测分发。
  */
 import * as readline from "node:readline";
 import {
@@ -45,11 +50,14 @@ import {
 import {
   ANSI,
   PHASE_ORDER,
+  button,
   helpOverlayLines,
+  pagerNavLine,
   parseReportContent,
   promptHint,
   renderMarkdown,
   renderModel,
+  scanButtons,
   scrollIndicatorLine,
   splitAtDisplay,
   statusLine,
@@ -301,6 +309,31 @@ interface PickerItem {
   createdAt: string;
 }
 
+/** 可点击区域：渲染时记录屏幕坐标（1-based 物理行列，闭区间），click 事件碰撞检测 */
+export interface HitRegion {
+  /** 动作语义键（按钮文本 / "pick:N" / "mode"） */
+  id: string;
+  /** 物理行号（1-based，整屏坐标） */
+  row: number;
+  /** 起始物理列（1-based，含） */
+  colStart: number;
+  /** 结束物理列（1-based，含） */
+  colEnd: number;
+  /** 命中后执行的动作 */
+  action: () => void;
+}
+
+/** createdAt ISO → 相对时间标签（picker 行尾展示） */
+export function agoLabel(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const s = Math.max(0, Math.floor((now - t) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86_400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86_400)}d ago`;
+}
+
 export class TuiApp {
   readonly client: ClientAdapter;
   readonly tracker: RunTracker;
@@ -325,15 +358,30 @@ export class TuiApp {
   private picker: PickerItem[] | null = null;
   /** 主区域滚动状态（offset=0 跟随底部；>0 回看历史，底行钉提示条） */
   private scroll = createScroll();
+  /** 最近一帧的可点击区域（renderNow 重建；click 事件碰撞检测数据源） */
+  private hitRegions: HitRegion[] = [];
 
   constructor(
     readonly url: string,
     mode: "auto" | "manual",
-    opts: { modelLabel?: string; onExit?: (code: number) => void } = {},
+    opts: {
+      modelLabel?: string;
+      onExit?: (code: number) => void;
+      /** Screen 写出口注入（测试静默渲染）；缺省 process.stdout */
+      stdoutWrite?: (s: string) => void;
+      /** 固定屏幕尺寸（测试坐标确定性）；缺省跟随 TTY */
+      screenRows?: number;
+      screenCols?: number;
+    } = {},
   ) {
     this.client = fetchAdapter(url);
     this.tracker = new RunTracker(mode);
-    this.screen = new Screen();
+    this.screen = new Screen({
+      ...(opts.stdoutWrite !== undefined ? { write: opts.stdoutWrite } : {}),
+      ...(opts.screenRows !== undefined && opts.screenCols !== undefined
+        ? { rows: opts.screenRows, cols: opts.screenCols }
+        : {}),
+    });
     this.input = new InputHandler({
       onText: (t) => this.handleKey({ type: "text", text: t }),
       onEnter: () => this.handleKey({ type: "enter" }),
@@ -465,15 +513,26 @@ export class TuiApp {
 
     if (this.pager) {
       const view = pagerView(this.pager);
+      // 底部导航行：可点击的翻页/关闭按钮 + dim 键盘提示
+      const lines = [
+        "",
+        ...view.slice,
+        "",
+        pagerNavLine(this.pager.page + 1, view.pages),
+        "",
+        `${ANSI.dim}${view.footer}${ANSI.reset}`,
+      ];
+      const v = lines.slice(-this.screen.mainRows);
       this.screen.frame({
         title: "PaperFactory Report",
         titleSuffix: "阅读模式",
-        mainLines: ["", ...view.slice, "", `${ANSI.dim}${view.footer}${ANSI.reset}`],
-        status: "空格 下一页 · b 上一页 · g/G 首末页 · q 退出",
+        mainLines: v,
+        status: "点击按钮翻页 · 空格/b/g/G/q 亦可",
         hint: "",
         input: "",
         cursorCol: 0,
       });
+      this.rebuildHitRegions(v, null);
       return;
     }
 
@@ -504,30 +563,168 @@ export class TuiApp {
       title = "Resume Project";
     }
 
+    const status = statusLine(this.model, now);
+    // 与 Screen.buildRows 相同的视口截断：region 坐标必须与实际显示行一致
+    const v = mainLines.slice(-this.screen.mainRows);
     this.screen.frame({
       title,
       titleSuffix: this.modelLabel ? `${this.model.mode} · ${this.modelLabel}` : this.model.mode,
-      mainLines,
-      status: statusLine(this.model, now),
+      mainLines: v,
+      status,
       hint: promptHint(this.model),
       input: inputView.text,
       cursorCol: inputView.cursorCol,
     });
+    this.rebuildHitRegions(v, status, mainLines);
+  }
+
+  /* ---------------- 鼠标点击（HitRegion 碰撞检测） ---------------- */
+
+  /**
+   * 重建可点击区域。坐标换算（对应 Screen.buildRows 布局）：
+   *   主区域 view[j] → 物理行 2+j；逻辑行 display col c → 物理列 3+c（`│ ` 边框前缀 2 列）
+   *   状态栏 → 物理行 rows-3（pager 模式传 null 不注册）
+   * mainLines 为切片前的完整逻辑行（picker 行号定位用；超屏时头部被切）
+   */
+  private rebuildHitRegions(view: string[], status: string | null, mainLines: string[] = view): void {
+    const regions: HitRegion[] = [];
+    for (const span of scanButtons(view)) {
+      const action = this.actionForButton(span.text);
+      if (action) {
+        regions.push({
+          id: span.text,
+          row: 2 + span.line,
+          colStart: 3 + span.colStart,
+          colEnd: 3 + span.colEnd,
+          action,
+        });
+      }
+    }
+    if (this.picker) {
+      // picker 项目整行可点（行首数字按钮只是视觉锚点）；行号按视口切片偏移换算
+      const cols = this.screen.size().cols;
+      const cut = Math.max(0, mainLines.length - view.length);
+      this.picker.forEach((_, i) => {
+        const logical = 2 + i; // mainLines 内项目行下标（[0]=标题、[1]=空行）
+        if (logical < cut) return; // 头部被视口切掉：不可见不注册
+        regions.push({
+          id: `pick:${i}`,
+          row: 2 + logical - cut,
+          colStart: 3,
+          colEnd: cols - 2,
+          action: () => this.pickResume(i),
+        });
+      });
+    }
+    if (status !== null) {
+      const { rows } = this.screen.size();
+      for (const span of scanButtons([status])) {
+        if (span.text === "auto" || span.text === "manual") {
+          regions.push({
+            id: "mode",
+            row: rows - 3,
+            colStart: 3 + span.colStart,
+            colEnd: 3 + span.colEnd,
+            action: () => this.toggleMode(),
+          });
+        }
+      }
+    }
+    this.hitRegions = regions;
+  }
+
+  /** 按钮文本 → 动作（审批/展开/回底/翻页/关闭/切模式/picker 数字） */
+  private actionForButton(text: string): (() => void) | null {
+    switch (text) {
+      case "✓ 批准":
+        return this.model.approval ? () => void this.decide("approve") : null;
+      case "✎ 修改":
+        return this.model.approval ? () => void this.decide("modify") : null;
+      case "✗ 拒绝":
+        return this.model.approval ? () => void this.decide("reject") : null;
+      case "▼ 展开详情":
+      case "▲ 收起详情":
+        return () => {
+          if (this.tracker.toggleApprovalDetail()) snapToBottom(this.scroll);
+        };
+      case "回到底部":
+        return () => snapToBottom(this.scroll);
+      case "← 上一页":
+        return this.pager ? () => pagerMove(this.pager as PagerState, "prev") : null;
+      case "下一页 →":
+        return this.pager ? () => pagerMove(this.pager as PagerState, "next") : null;
+      case "✕ 关闭":
+        return this.pager ? () => this.closePager() : null;
+      case "关闭":
+        return this.overlay === "help"
+          ? () => {
+              this.overlay = null;
+              this.screen.invalidate();
+            }
+          : null;
+      default: {
+        const n = Number.parseInt(text, 10);
+        if (Number.isInteger(n) && n >= 1) return () => this.pickResume(n - 1);
+        return null;
+      }
+    }
+  }
+
+  /** click 事件入口：命中区域执行动作；未命中按区域语义降级 */
+  private handleClick(col: number, row: number): void {
+    const hit = this.hitRegions.find((r) => r.row === row && col >= r.colStart && col <= r.colEnd);
+    if (hit) {
+      hit.action();
+      this.scheduleRender();
+      return;
+    }
+    if (this.overlay) {
+      // 帮助层：点击任意处关闭（同任意键关闭）
+      this.overlay = null;
+      this.screen.invalidate();
+      this.scheduleRender();
+      return;
+    }
+    const { rows } = this.screen.size();
+    if (this.pager || this.picker) return; // 阅读模式/选择器空白处点击不误触
+    if (row === rows - 1) {
+      // 输入行：聚焦输入（回底跟随输出）
+      snapToBottom(this.scroll);
+      this.scheduleRender();
+      return;
+    }
+    if (row >= 2 && row <= rows - 4) {
+      // 主区域空白：进入滚动回看
+      this.scrollMain(1);
+      this.scheduleRender();
+    }
   }
 
   private pickerLines(cols: number): string[] {
     if (!this.picker) return [];
     const lines: string[] = [
-      `${ANSI.bold}${ANSI.cyan}  选择要恢复的项目${ANSI.reset}  ${ANSI.dim}（数字键选择 · q 取消）${ANSI.reset}`,
+      `${ANSI.bold}${ANSI.cyan}  选择要恢复的项目${ANSI.reset}  ${ANSI.dim}（点击项目或数字键选择 · q 取消）${ANSI.reset}`,
       "",
     ];
-    this.picker.forEach((p, i) => {
-      const num = `${ANSI.yellow}${i + 1}${ANSI.reset}`;
+    // 视口内最多放 mainRows-2 个项目：标题行恒可见，且与 HitRegion 行号假设一致
+    const maxItems = Math.max(1, this.screen.mainRows - 2);
+    this.picker.slice(0, maxItems).forEach((p, i) => {
+      const num = button(String(i + 1));
+      const ago = agoLabel(p.createdAt);
       lines.push(
-        `  ${num} ${ANSI.gray}${p.id.slice(0, 8)}${ANSI.reset} ${p.status.padEnd(8)} ${truncate(p.name, Math.max(10, cols - 30))}`,
+        `  ${num} ${ANSI.gray}${p.id.slice(0, 8)}${ANSI.reset} ${p.status.padEnd(8)} ${truncate(p.name, Math.max(10, cols - 40))}${ANSI.dim}${ago ? ` (${ago})` : ""}${ANSI.reset}`,
       );
     });
     return lines;
+  }
+
+  /** picker 项目选择（数字键与点击共用）：关闭选择器并发起 resume */
+  private pickResume(i: number): void {
+    const item = this.picker?.[i];
+    if (!item) return;
+    this.picker = null;
+    this.screen.invalidate();
+    void this.resumeRun(item.id);
   }
 
   /* ---------------- 按键总路由 ---------------- */
@@ -542,6 +739,11 @@ export class TuiApp {
     if (key.type === "ctrl-l") {
       this.screen.invalidate();
       this.scheduleRender();
+      return;
+    }
+    // 鼠标点击统一走 HitRegion 碰撞检测（region 已按当前模式构建）
+    if (key.type === "click") {
+      this.handleClick(key.col, key.row);
       return;
     }
     if (this.pager) {
@@ -574,8 +776,7 @@ export class TuiApp {
         void this.stopRun();
         break;
       case "tab":
-        this.model.mode = this.model.mode === "auto" ? "manual" : "auto";
-        this.tracker.setNotice(`模式已切换为 ${this.model.mode}（下一个 run 生效）`);
+        this.toggleMode();
         this.scheduleRender();
         break;
       case "backspace":
@@ -628,11 +829,15 @@ export class TuiApp {
         this.scrollMain(key.direction === "up" ? 1 : -1);
         this.scheduleRender();
         break;
-      case "click":
-        break; // 鼠标点击暂无交互语义；吞掉防止误触输入
       default:
-        break; // ignored 主界面无操作
+        break; // ignored / click（click 在 handleKey 顶部统一处理）主界面无操作
     }
+  }
+
+  /** auto/manual 切换（Tab 与状态栏点击共用；下一 run 生效） */
+  private toggleMode(): void {
+    this.model.mode = this.model.mode === "auto" ? "manual" : "auto";
+    this.tracker.setNotice(`模式已切换为 ${this.model.mode}（下一个 run 生效）`);
   }
 
   private onText(text: string): void {
@@ -812,11 +1017,8 @@ export class TuiApp {
         return;
       }
       const n = Number.parseInt(key.text, 10);
-      if (Number.isInteger(n) && n >= 1 && this.picker && n <= this.picker.length) {
-        const item = this.picker[n - 1];
-        this.picker = null;
-        this.screen.invalidate();
-        void this.resumeRun(item.id);
+      if (Number.isInteger(n) && n >= 1 && n <= (this.picker?.length ?? 0)) {
+        this.pickResume(n - 1);
         return;
       }
     }

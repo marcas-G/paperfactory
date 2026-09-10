@@ -129,7 +129,7 @@ describe("活动行", () => {
     expect(plain[3]).toContain("arxiv.org/abs/2503.10198");
   });
 
-  it("hypothesisCard / approvalCard：盒线与按键提示", () => {
+  it("hypothesisCard / approvalCard：盒线与可点击按钮", () => {
     const hyp = hypothesisCard("RAG 减少 hallucination").map(stripAnsi);
     expect(hyp[0]).toMatch(/┌ hypothesis ─+┐/);
     expect(hyp[1]).toContain("RAG 减少 hallucination");
@@ -138,16 +138,23 @@ describe("活动行", () => {
     const card = approvalCard("找到 3 个关键发现").map(stripAnsi);
     expect(card[0]).toContain("⚠ 等待审批");
     expect(card[0]).toContain("3 个关键发现");
-    expect(card[1]).toContain("[a] 批准  [m] 修改  [r] 拒绝");
-    expect(card[1]).toContain("[d] 详情"); // 收起态提示可展开
+    expect(card[1]).toContain("▼ 展开详情"); // 收起态提示可展开
+    expect(card[2]).toContain("批准"); // 鼠标优先：可点击按钮行
+    expect(card[2]).toContain("修改");
+    expect(card[2]).toContain("拒绝");
+    expect(card[2]).toContain("a/m/r"); // 键盘备选保留
+    const raw = approvalCard("s");
+    expect(raw[2]).toContain("\x1b[7m"); // 反色 = 可点击
+    expect(raw[1]).toContain("\x1b[7m"); // 展开按钮同样可点
   });
 
-  it("approvalCard 展开态：显示 [d] 收起 + 详情行", () => {
+  it("approvalCard 展开态：显示收起按钮 + 详情行", () => {
     const detail = "发现 1: scaling law 维度根源\n\n发现 2: 数据质量决定上限\n发现 3: 评估基准偏移";
     const card = approvalCard("找到 3 个关键发现", { expanded: true, detail, width: 80 }).map(stripAnsi);
-    expect(card[1]).toContain("[d] 收起");
+    expect(card[1]).toContain("▲ 收起详情");
     expect(card.join("\n")).toContain("发现 1: scaling law 维度根源");
     expect(card.join("\n")).toContain("发现 3: 评估基准偏移");
+    expect(card[card.length - 1]).toContain("批准"); // 展开态按钮行钉在详情之后
   });
 
   it("approvalCard 展开态：只保留最后 10 行非空内容", () => {
@@ -156,14 +163,14 @@ describe("活动行", () => {
     const all = card.join("\n");
     for (let i = 0; i < 10; i++) expect(all).not.toContain(`row-${String(i).padStart(2, "0")}\n`);
     for (let i = 10; i < 20; i++) expect(all).toContain(`row-${String(i).padStart(2, "0")}`);
-    expect(card.slice(2).length).toBeLessThanOrEqual(APPROVAL_DETAIL_LINES);
+    expect(card.slice(2, -1).length).toBeLessThanOrEqual(APPROVAL_DETAIL_LINES); // 详情区（去掉标题/toggle/按钮行）
   });
 
   it("approvalCard 展开态：详情按终端宽度截断", () => {
     const detail = "x".repeat(200);
-    const card = approvalCard("s", { expanded: true, detail, width: 40 });
-    for (const row of card.slice(2)) {
-      expect(visibleWidth(row)).toBeLessThanOrEqual(40);
+    const card = approvalCard("s", { expanded: true, detail, width: 44 });
+    for (const row of card.slice(2, -1)) {
+      expect(visibleWidth(row)).toBeLessThanOrEqual(44);
     }
   });
 
@@ -243,7 +250,7 @@ describe("活动行", () => {
     const output = Array.from({ length: 20 }, (_, i) => `row-${i}`);
     const card = approvalCard("s", { expanded: true, output, width: 80 }).map(stripAnsi);
     expect(card[2]).toContain("─── 阶段产出 ───");
-    expect(card).toHaveLength(3 + 15); // 标题 2 行 + 分隔线 + 15 行产出
+    expect(card).toHaveLength(4 + 15); // 标题 + toggle + 分隔线 + 15 行产出 + 按钮行
     expect(card.join("\n")).toContain("row-19");
     expect(card.join("\n")).not.toContain("row-4"); // 只保留最后 15 行（row-5..row-19）
     // output 为空时回退 detail 路径
@@ -254,11 +261,14 @@ describe("活动行", () => {
 });
 
 describe("滚动指示条", () => {
-  it("回看时提示条显示当前位置与回底键", () => {
-    const line = stripAnsi(scrollIndicatorLine(5, 40));
+  it("回看时提示条显示当前位置与回底按钮（可点击）", () => {
+    const raw = scrollIndicatorLine(5, 40);
+    const line = stripAnsi(raw);
     expect(line).toContain("↑ 滚动中");
     expect(line).toContain("第 5/40 行");
-    expect(line).toContain("按End回底部");
+    expect(line).toContain("回到底部"); // 反色可点击按钮
+    expect(raw).toContain("\x1b[7m");
+    expect(line).toContain("End"); // 键盘备选保留
   });
   it("位置下限保护（空 buffer 不出现第 0 行）", () => {
     expect(stripAnsi(scrollIndicatorLine(0, 0))).toContain("第 1/1 行");
@@ -417,10 +427,12 @@ describe("排队可视化与帮助覆盖层", () => {
     expect(out.indexOf("排一")).toBeLessThan(out.indexOf("已排队：当前运行")); // queued 在 notice 前
   });
 
-  it("helpOverlayLines：标题 + 全部条目 + 关闭提示", () => {
+  it("helpOverlayLines：标题 + 全部条目 + 可点击关闭", () => {
     const lines = helpOverlayLines(76);
     const out = stripAnsi(lines.join("\n"));
-    expect(out).toContain("按任意键关闭");
+    expect(out).toContain("关闭"); // 反色关闭按钮
+    expect(lines[0]).toContain("\x1b[7m");
+    expect(out).toContain("点击任意处"); // 空白点击同样关闭
     expect(out).toContain("Enter");
     expect(out).toContain("↑ / ↓");
     expect(out).toContain("Ctrl+C");

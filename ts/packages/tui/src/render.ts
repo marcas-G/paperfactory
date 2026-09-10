@@ -20,6 +20,10 @@ export const ANSI = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
   dim: "\x1b[2m",
+  inverse: "\x1b[7m",
+  noInverse: "\x1b[27m",
+  underline: "\x1b[4m",
+  noUnderline: "\x1b[24m",
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
@@ -28,6 +32,55 @@ export const ANSI = {
   cyan: "\x1b[36m",
   gray: "\x1b[90m",
 } as const;
+
+/* ------------------------------------------------------------------ */
+/*  可点击元素（鼠标优先交互）                                           */
+/* ------------------------------------------------------------------ */
+
+/** 反色按钮：终端无 hover，用反色块表达"可点击"（文本两侧各留一列反色空隙） */
+export function button(text: string): string {
+  return `${ANSI.inverse} ${text} ${ANSI.noInverse}`;
+}
+
+/** 下划线链接（次级可点击：展开/收起等） */
+export function clickableLink(text: string): string {
+  return `${ANSI.underline}${text}${ANSI.noUnderline}`;
+}
+
+/** 可点击 span 的逻辑行内位置（display col，闭区间；colStart/colEnd 相对逻辑行首） */
+export interface ClickSpan {
+  /** 所在逻辑行下标（调用方传入数组的 index） */
+  line: number;
+  /** span 首列（0-based display col） */
+  colStart: number;
+  /** span 末列（0-based display col，闭区间） */
+  colEnd: number;
+  /** span 纯文本（trimmed，作为动作语义键） */
+  text: string;
+}
+
+/** 反色按钮 span 匹配（ESC 字面量用码点构造，规避 no-control-regex 与 TDZ） */
+const BUTTON_ESC = String.fromCharCode(27);
+const BUTTON_RE = new RegExp(BUTTON_ESC + "\\[7m([^" + BUTTON_ESC + "]*)" + BUTTON_ESC + "\\[27m", "g");
+
+/**
+ * 扫描逻辑行里的反色按钮 span（button() 的产物）。
+ * 只识别完整的反色开闭对——被截断剥色的按钮自然不产生区域（窄屏兜底）。
+ */
+export function scanButtons(lines: string[]): ClickSpan[] {
+  const spans: ClickSpan[] = [];
+  const re = BUTTON_RE;
+  lines.forEach((raw, line) => {
+    re.lastIndex = 0;
+    for (let m = re.exec(raw); m !== null; m = re.exec(raw)) {
+      const text = (m[1] ?? "").trim();
+      if (!text) continue;
+      const colStart = visibleWidth(stripAnsi(raw.slice(0, m.index)));
+      spans.push({ line, colStart, colEnd: colStart + visibleWidth(m[1]) - 1, text });
+    }
+  });
+  return spans;
+}
 
 /* ------------------------------------------------------------------ */
 /*  阶段目录（中文映射）                                                 */
@@ -409,17 +462,27 @@ export function approvalPhaseOutput(phase: PhaseState): string[] {
   return out;
 }
 
-/** 审批卡片（expanded 时优先显示聚合阶段产出，回退最后 10 行单行详情） */
+/** 审批卡片按钮行：反色可点击按钮（键盘 a/m/r 作为备选保留 dim 提示） */
+function approvalButtonRow(): string {
+  return `${button("✓ 批准")}  ${button("✎ 修改")}  ${button("✗ 拒绝")}  ${ANSI.dim}· a/m/r${ANSI.reset}`;
+}
+
+/** 审批卡片（expanded 时优先显示聚合阶段产出，回退最后 10 行单行详情）。
+ *  鼠标优先：展开/收起为下划线链接，批准/修改/拒绝为反色按钮（点击即执行）。 */
 export function approvalCard(
   summary: string,
   opts: { expanded?: boolean; detail?: string | null; output?: string[]; width?: number } = {},
 ): string[] {
   const width = opts.width ?? 76;
+  const toggle = opts.expanded ? "▲ 收起详情" : "▼ 展开详情";
   const lines = [
     `${ANSI.yellow}${ANSI.bold}⚠ 等待审批:${ANSI.reset} ${truncate(summary, 60)}`,
-    `${ANSI.dim}   [a] 批准  [m] 修改  [r] 拒绝  [d] ${opts.expanded ? "收起" : "详情"}${ANSI.reset}`,
+    `${button(toggle)}  ${ANSI.dim}· d${ANSI.reset}`,
   ];
-  if (!opts.expanded) return lines;
+  if (!opts.expanded) {
+    lines.push(approvalButtonRow());
+    return lines;
+  }
   const outputRows = (opts.output ?? [])
     .map((l) => l.trimEnd())
     .filter((l) => l.length > 0)
@@ -429,6 +492,7 @@ export function approvalCard(
     for (const row of outputRows) {
       lines.push(`${ANSI.dim}   │ ${truncate(row, Math.max(10, width - 5))}${ANSI.reset}`);
     }
+    lines.push(approvalButtonRow());
     return lines;
   }
   const rows = (opts.detail ?? "")
@@ -438,17 +502,19 @@ export function approvalCard(
     .slice(-APPROVAL_DETAIL_LINES);
   if (rows.length === 0) {
     lines.push(`${ANSI.dim}   无详细信息${ANSI.reset}`);
+    lines.push(approvalButtonRow());
     return lines;
   }
   for (const row of rows) {
     lines.push(`${ANSI.dim}   │ ${truncate(row, Math.max(10, width - 5))}${ANSI.reset}`);
   }
+  lines.push(approvalButtonRow());
   return lines;
 }
 
-/** 回看提示条：滚动时钉在主区域底行 */
+/** 回看提示条：滚动时钉在主区域底行（回底为可点击按钮，End 键盘备选） */
 export function scrollIndicatorLine(firstVisible: number, totalLines: number): string {
-  return `${ANSI.yellow}↑ 滚动中 (第 ${Math.max(1, firstVisible)}/${Math.max(1, totalLines)} 行) — 按End回底部${ANSI.reset}`;
+  return `${ANSI.yellow}↑ 滚动中 (第 ${Math.max(1, firstVisible)}/${Math.max(1, totalLines)} 行)${ANSI.reset}  ${button("回到底部")}  ${ANSI.dim}· End${ANSI.reset}`;
 }
 
 /** 树前缀：`│  ├ ` / `│  └ `（末行） */
@@ -551,7 +617,8 @@ export function runCompleteLines(evidenceCount: number, knowledgeCount: number, 
   ];
 }
 
-/** 状态栏：`文献调研 → 缺口识别 · 2/8 阶段 · 3m 12s · ~1.2k tok · auto` */
+/** 状态栏：`文献调研 → 缺口识别 · 2/8 阶段 · 3m 12s · ~1.2k tok · [auto]`
+ *  模式为反色可点击按钮（点击切换 auto/manual，Tab 键盘备选） */
 export function statusLine(model: RunModel, now: number): string {
   const total = PHASE_ORDER.length;
   const processed = model.phases.filter((p) => p.status !== "running").length;
@@ -561,15 +628,15 @@ export function statusLine(model: RunModel, now: number): string {
   const elapsed = model.startedAt ? formatDuration((model.endedAt ?? now) - model.startedAt) : "00m 00s";
   const approvalTag = model.approval ? `${ANSI.yellow}${ANSI.bold}⏸ 待审批${ANSI.reset} · ` : "";
   const errTag = errors > 0 ? ` · ${errors}✗` : "";
-  return `${approvalTag}${truncate(arrow, 28)} · ${processed}/${total} 阶段${errTag} · ${elapsed} · ~${compactCount(model.tokens)} tok · ${model.mode}`;
+  return `${approvalTag}${truncate(arrow, 28)} · ${processed}/${total} 阶段${errTag} · ${elapsed} · ~${compactCount(model.tokens)} tok · ${button(model.mode)}${ANSI.dim} ⟳${ANSI.reset}`;
 }
 
-/** 输入行提示（空闲/运行中/审批中三种语境） */
+/** 输入行提示（空闲/运行中/审批中三种语境；鼠标优先，键盘为备选） */
 export function promptHint(model: RunModel): string {
-  if (model.approval) return "a/m/r 审批 · d 详情 · Esc 停止";
+  if (model.approval) return "点击 批准/修改/拒绝 · a/m/r 审批 · Esc 停止";
   if (model.status === "running") return "Enter 排队 · Esc 停止";
   if (model.reportLines) return "Enter 发送 · r 读报告 · Tab 切模式";
-  return "Enter 发送 · Tab 切模式 · ? 帮助";
+  return "Enter 发送 · Tab/点击状态栏切模式 · ? 帮助";
 }
 
 /** 排队问题行：`◇ 已排队: {text}`（主区域可视化，下一轮开始自动转为正式输入） */
@@ -614,6 +681,7 @@ export interface HelpEntry {
 
 /** 帮助条目（覆盖层主体；index.ts 组装 dim 化的主内容 + 浮层） */
 export const HELP_ENTRIES: HelpEntry[] = [
+  { key: "鼠标点击", desc: "反色按钮 / 状态栏模式直接点击（审批·翻页·回底·关闭）" },
   { key: "Enter", desc: "发送问题（运行中 = 排队下一轮）" },
   { key: "Esc", desc: "停止当前 run" },
   { key: "Tab", desc: "切换 auto / manual 模式" },
@@ -636,11 +704,11 @@ export const HELP_ENTRIES: HelpEntry[] = [
   { key: ":stop / :clear / :quit", desc: "停止 / 清屏 / 退出" },
 ];
 
-/** 帮助覆盖层行（主内容 dim 后浮在上面；按任意键关闭） */
+/** 帮助覆盖层行（主内容 dim 后浮在上面；任意键或点击任意处关闭） */
 export function helpOverlayLines(contentWidth: number): string[] {
   const keyWidth = 24;
   const lines: string[] = [
-    `${ANSI.bold}${ANSI.cyan}  键盘快捷键 ─ 按任意键关闭${ANSI.reset}`,
+    `${ANSI.bold}${ANSI.cyan}  键盘快捷键${ANSI.reset}  ${button("关闭")}  ${ANSI.dim}· 任意键 / 点击任意处${ANSI.reset}`,
     "",
   ];
   for (const e of HELP_ENTRIES) {
@@ -648,6 +716,11 @@ export function helpOverlayLines(contentWidth: number): string[] {
     lines.push(`  ${ANSI.yellow}${key}${ANSI.reset}${truncate(e.desc, contentWidth - keyWidth - 4)}`);
   }
   return lines;
+}
+
+/** 报告阅读模式导航行：`[← 上一页]  第 2/5 页  [下一页 →]  [✕ 关闭]`（全可点击） */
+export function pagerNavLine(page: number, pages: number): string {
+  return `${button("← 上一页")}   第 ${page}/${pages} 页   ${button("下一页 →")}   ${button("✕ 关闭")}`;
 }
 
 /* ------------------------------------------------------------------ */
