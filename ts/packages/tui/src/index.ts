@@ -10,6 +10,7 @@
  *
  * 按键：Enter 发送/排队 · Esc 停止 run · Tab 切 auto/manual · Ctrl+C 连按两次退出
  *       ↑/↓ 滚动主区域（PgUp/PgDn 半屏 · End 回底；内容不满一屏时 ↑/↓ 翻输入历史）
+ *       鼠标滚轮 滚动主区域/报告翻页（SGR 模式，enter 时自动启用）
  *       ←/→ Home 光标移动 · r 报告阅读 · ? 帮助覆盖层
  * 审批等待时：a 批准 / m 修改 / r 拒绝 / d 展开/收起详情
  * 命令：:help :mode :chain <objectType> <objectId> :resume <projectId> :report :stop :clear :quit
@@ -45,6 +46,7 @@ import {
   ANSI,
   PHASE_ORDER,
   helpOverlayLines,
+  parseReportContent,
   promptHint,
   renderMarkdown,
   renderModel,
@@ -347,6 +349,8 @@ export class TuiApp {
       onEnd: () => this.handleKey({ type: "end" }),
       onPageUp: () => this.handleKey({ type: "pageup" }),
       onPageDown: () => this.handleKey({ type: "pagedown" }),
+      onScroll: (direction) => this.handleKey({ type: "scroll", direction }),
+      onClick: (col, row) => this.handleKey({ type: "click", col, row }),
       onCtrlC: () => this.handleKey({ type: "ctrl-c" }),
       onCtrlL: () => this.handleKey({ type: "ctrl-l" }),
     });
@@ -428,8 +432,8 @@ export class TuiApp {
   private restoreTerminal(): void {
     if (this.terminalRestored) return;
     this.terminalRestored = true;
-    // 光标可见 + 滚动区复位 + 清屏回顶；raw mode 由 InputHandler.stop 关闭
-    process.stdout.write("\x1b[?25h\x1b[r\x1b[2J\x1b[H");
+    // 关鼠标模式 + 光标可见 + 滚动区复位 + 清屏回顶；raw mode 由 InputHandler.stop 关闭
+    process.stdout.write("\x1b[?1000l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[r\x1b[2J\x1b[H");
   }
 
   /* ---------------- 渲染调度（16ms 节流 + dirty） ---------------- */
@@ -619,6 +623,13 @@ export class TuiApp {
         this.scrollMain(-this.halfPage());
         this.scheduleRender();
         break;
+      case "scroll":
+        // 鼠标滚轮：只滚主区域（不触发输入历史浏览），到底/到顶自然钳制
+        this.scrollMain(key.direction === "up" ? 1 : -1);
+        this.scheduleRender();
+        break;
+      case "click":
+        break; // 鼠标点击暂无交互语义；吞掉防止误触输入
       default:
         break; // ignored 主界面无操作
     }
@@ -742,6 +753,9 @@ export class TuiApp {
         break;
       case "down":
         pagerMove(pager, "next");
+        break;
+      case "scroll":
+        pagerMove(pager, key.direction === "up" ? "prev" : "next");
         break;
       case "home":
         pagerMove(pager, "first");
@@ -1038,11 +1052,13 @@ export class TuiApp {
         (latest.data as { content?: unknown } | undefined)?.content;
       if (typeof raw !== "string" || !raw) return;
       if (this.model.runId !== runId || this.exiting) return; // run 已被替换
-      this.rawReport = raw;
+      // 报告 content 是 report_generation 的 JSON 输出（{abstract,sections}）——解析成可读 Markdown
+      const readable = parseReportContent(raw);
+      this.rawReport = readable;
       this.model.reportLines = [
         "",
-        `${ANSI.dim}── report (${stripAnsi(raw).split("\n").length} lines · 按 r 全屏阅读) ──${ANSI.reset}`,
-        ...renderMarkdown(raw),
+        `${ANSI.dim}── report (${stripAnsi(readable).split("\n").length} lines · 按 r 全屏阅读) ──${ANSI.reset}`,
+        ...renderMarkdown(readable),
       ];
       this.scheduleRender();
     } catch {

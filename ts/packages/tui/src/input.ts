@@ -12,6 +12,11 @@
  *   方向键 \x1b[A/B/C/D → up/down/right/left（输入历史 / 光标移动）
  *   Home/End → \x1b[H/F 或 \x1b[1~/4~ · Delete → \x1b[3~
  *   PageUp/PageDown → \x1b[5~/6~（报告分页）
+ *
+ * SGR 鼠标（\x1b[?1006h 启用后）：
+ *   \x1b[<{btn};{col};{row}M 按下 / m 释放
+ *   btn=64/65 → 滚轮上/下（scroll）；btn=0 且按下 → 左键 click
+ *   修饰/拖动/中右键 → 吞掉
  */
 
 export type Key =
@@ -29,6 +34,8 @@ export type Key =
   | { type: "end" }
   | { type: "pageup" }
   | { type: "pagedown" }
+  | { type: "scroll"; direction: "up" | "down" }
+  | { type: "click"; col: number; row: number }
   | { type: "ctrl-c" }
   | { type: "ctrl-l" }
   | { type: "ignored" };
@@ -47,8 +54,28 @@ function digitValue(byte: number): number {
   return byte >= 0x30 && byte <= 0x39 ? byte - 0x30 : Number.NaN;
 }
 
+/** SGR 鼠标序列 → 语义键（\x1b[<btn;col;row M/m；滚轮/左键点击，其余吞掉） */
+function decodeMouse(params: number[], final: number): Key | null {
+  const raw = String.fromCharCode(...params); // e.g. "<64;12;5"
+  const parts = raw.slice(1).split(";");
+  if (parts.length < 3) return null;
+  const btn = Number.parseInt(parts[0] ?? "", 10);
+  const col = Number.parseInt(parts[1] ?? "", 10);
+  const row = Number.parseInt(parts[2] ?? "", 10);
+  if (!Number.isFinite(btn) || !Number.isFinite(col) || !Number.isFinite(row)) return null;
+  if (btn === 64) return { type: "scroll", direction: "up" };
+  if (btn === 65) return { type: "scroll", direction: "down" };
+  // 左键按下 = click（释放 m / 修饰键 b≥4 / 拖动 b≥32 / 中右键不映射）
+  if (final === 0x4d && btn === 0) return { type: "click", col, row };
+  return null;
+}
+
 /** CSI/SS3 序列 → 语义键（不认识的吞掉） */
 function decodeSequence(intro: number, params: number[], final: number): Key | null {
+  // SGR 鼠标：intro=[ 且参数区以 < 开头，final 为 M（按下）/m（释放）
+  if (intro === 0x5b && params[0] === 0x3c && (final === 0x4d || final === 0x6d)) {
+    return decodeMouse(params, final);
+  }
   // SS3（\x1bO）与 CSI（\x1b[）的 A/B/C/D/H/F 语义一致；带参数的（修饰键组合）不映射
   if (params.length === 0) {
     switch (final) {
@@ -216,6 +243,8 @@ export interface InputCallbacks {
   onEnd?(): void;
   onPageUp?(): void;
   onPageDown?(): void;
+  onScroll?(direction: "up" | "down"): void;
+  onClick?(col: number, row: number): void;
   onCtrlC?(): void;
   onCtrlL?(): void;
   onIgnored?(): void;
@@ -266,6 +295,12 @@ export function dispatchKeys(keys: Key[], cb: InputCallbacks): void {
         break;
       case "pagedown":
         cb.onPageDown?.();
+        break;
+      case "scroll":
+        cb.onScroll?.(key.direction);
+        break;
+      case "click":
+        cb.onClick?.(key.col, key.row);
         break;
       case "ctrl-c":
         cb.onCtrlC?.();

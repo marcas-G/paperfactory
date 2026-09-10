@@ -102,14 +102,14 @@ export class Screen {
     return { rows: this.rows, cols: this.cols };
   }
 
-  /** 进入 TUI：藏光标 + 清屏回顶 */
+  /** 进入 TUI：藏光标 + 开 SGR 鼠标模式（1000 点击 + 1002 拖动 + 1006 SGR 编码）+ 清屏回顶 */
   enter(): void {
-    this.write("\x1b[?25l\x1b[2J\x1b[H");
+    this.write("\x1b[?25l\x1b[?1000h\x1b[?1002h\x1b[?1006h\x1b[2J\x1b[H");
   }
 
-  /** 退出 TUI：恢复光标/滚动区 + 清屏回顶（调用方再关 raw mode） */
+  /** 退出 TUI：关鼠标模式 + 恢复光标/滚动区 + 清屏回顶（调用方再关 raw mode） */
   exit(): void {
-    this.write("\x1b[?25h\x1b[r\x1b[2J\x1b[H");
+    this.write("\x1b[?1000l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[r\x1b[2J\x1b[H");
   }
 
   /** 清除整屏（不动终端模式）；同时丢弃增量缓存（下一帧全画） */

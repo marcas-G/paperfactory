@@ -26,16 +26,16 @@ const FRAME = {
 };
 
 describe("Screen ANSI 序列", () => {
-  it("enter：藏光标 + 清屏 + 回顶", () => {
+  it("enter：藏光标 + 开 SGR 鼠标模式 + 清屏 + 回顶", () => {
     const { screen, out } = makeScreen(24, 80);
     screen.enter();
-    expect(out[0]).toBe("\x1b[?25l\x1b[2J\x1b[H");
+    expect(out[0]).toBe("\x1b[?25l\x1b[?1000h\x1b[?1002h\x1b[?1006h\x1b[2J\x1b[H");
   });
 
-  it("exit：恢复光标 + 复位滚动区 + 清屏回顶", () => {
+  it("exit：关鼠标模式 + 恢复光标 + 复位滚动区 + 清屏回顶", () => {
     const { screen, out } = makeScreen(24, 80);
     screen.exit();
-    expect(out[0]).toBe("\x1b[?25h\x1b[r\x1b[2J\x1b[H");
+    expect(out[0]).toBe("\x1b[?1000l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[r\x1b[2J\x1b[H");
   });
 
   it("frame：以 \x1b[H 开头定位，行间 \r\n，行首 \x1b[K 清行尾", () => {

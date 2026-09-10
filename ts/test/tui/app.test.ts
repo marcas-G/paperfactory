@@ -363,3 +363,73 @@ describe("审批详情展开（TuiApp d 键集成）", () => {
     app.handleKey({ type: "ctrl-c" });
   });
 });
+
+describe("鼠标滚轮（SGR scroll 事件集成）", () => {
+  interface ScrollLike {
+    offset: number;
+    total: number;
+  }
+  interface AppLike {
+    scroll: ScrollLike;
+    screen: { mainRows: number };
+    input: { push: (c: string) => void };
+    pager: { page: number } | null;
+  }
+  function makeApp(lineCount: number): { app: TuiApp; inner: AppLike } {
+    const app = new TuiApp("http://localhost:9", "auto", { onExit: vi.fn() });
+    app.model.status = "complete";
+    app.model.startedAt = 1000;
+    app.model.endedAt = 2000;
+    app.model.epilogue.push(...Array.from({ length: lineCount }, (_, i) => `第 ${i} 行内容`));
+    return { app, inner: app as unknown as AppLike };
+  }
+
+  it("滚轮上 = 回看一行、滚轮下 = 回落一行（同 ↑/↓ 滚动语义）", () => {
+    const { app, inner } = makeApp(60);
+    app.handleKey({ type: "scroll", direction: "up" });
+    app.handleKey({ type: "scroll", direction: "up" });
+    expect(inner.scroll.offset).toBe(2);
+    app.handleKey({ type: "scroll", direction: "down" });
+    expect(inner.scroll.offset).toBe(1);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("内容不满一屏时滚轮不翻输入历史（与 ↑ 不同，也无滚动）", () => {
+    const { app, inner } = makeApp(3);
+    app.handleKey({ type: "text", text: "草稿" });
+    app.handleKey({ type: "enter" }); // 入历史
+    (app as unknown as { state: { buf: string } }).state.buf = "";
+    app.handleKey({ type: "scroll", direction: "up" });
+    expect(inner.scroll.offset).toBe(0);
+    expect((app as unknown as { state: { buf: string } }).state.buf).toBe(""); // 未翻历史
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("InputHandler 直喂 SGR 序列：滚轮解码 → 主区域滚动（端到端）", () => {
+    const { app, inner } = makeApp(60);
+    inner.input.push("\x1b[<64;10;5M"); // 滚轮上
+    expect(inner.scroll.offset).toBe(1);
+    inner.input.push("\x1b[<65;10;5M"); // 滚轮下
+    expect(inner.scroll.offset).toBe(0);
+    app.handleKey({ type: "ctrl-c" });
+  });
+
+  it("报告阅读模式：滚轮上/下翻页", () => {
+    const app = new TuiApp("http://localhost:9", "auto", { onExit: vi.fn() });
+    (app as unknown as { rawReport: string | null }).rawReport = Array.from(
+      { length: 120 },
+      (_, i) => `报告行 ${i}`,
+    ).join("\n");
+    app.model.reportLines = ["", "── report ──", "报告行 0"];
+    app.model.status = "complete";
+    app.handleKey({ type: "text", text: "r" });
+    const inner = app as unknown as AppLike;
+    expect(inner.pager!.page).toBe(0);
+    app.handleKey({ type: "scroll", direction: "down" });
+    expect(inner.pager!.page).toBe(1);
+    app.handleKey({ type: "scroll", direction: "up" });
+    expect(inner.pager!.page).toBe(0);
+    app.handleKey({ type: "text", text: "q" });
+    app.handleKey({ type: "ctrl-c" });
+  });
+});

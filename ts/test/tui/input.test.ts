@@ -104,3 +104,44 @@ describe("dispatchKeys 回调分发", () => {
     expect(cb.onCtrlC).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("KeyDecoder SGR 鼠标（\\x1b[?1006h 模式）", () => {
+  it("滚轮上/下：\\x1b[<64;col;rowM / \\x1b[<65;col;rowM", () => {
+    const d = new KeyDecoder();
+    expect(d.push("\x1b[<64;12;5M")).toEqual([{ type: "scroll", direction: "up" }]);
+    expect(d.push("\x1b[<65;12;5M")).toEqual([{ type: "scroll", direction: "down" }]);
+  });
+
+  it("左键按下 = click（col/row 1-based）；释放 m 不产生键", () => {
+    const d = new KeyDecoder();
+    expect(d.push("\x1b[<0;10;3M")).toEqual([{ type: "click", col: 10, row: 3 }]);
+    expect(d.push("\x1b[<0;10;3m")).toEqual([]);
+  });
+
+  it("修饰键/拖动/中右键滚轮外的按钮吞掉，不影响后续按键", () => {
+    const d = new KeyDecoder();
+    // Shift+左键(b=4)、拖动(b=32)、中键(b=1)、水平滚轮(b=66)
+    expect(d.push("\x1b[<4;1;1M\x1b[<32;1;1M\x1b[<1;1;1M\x1b[<66;1;1M\x1b[A")).toEqual([{ type: "up" }]);
+  });
+
+  it("鼠标序列跨 chunk 分片仍完整解出", () => {
+    const d = new KeyDecoder();
+    expect(d.push("\x1b[<6")).toEqual([]);
+    expect(d.push("4;2;2M")).toEqual([{ type: "scroll", direction: "up" }]);
+  });
+
+  it("dispatchKeys 路由 onScroll / onClick", () => {
+    const cb = { onScroll: vi.fn(), onClick: vi.fn() };
+    dispatchKeys(
+      [
+        { type: "scroll", direction: "up" },
+        { type: "scroll", direction: "down" },
+        { type: "click", col: 5, row: 7 },
+      ],
+      cb,
+    );
+    expect(cb.onScroll).toHaveBeenCalledWith("up");
+    expect(cb.onScroll).toHaveBeenCalledWith("down");
+    expect(cb.onClick).toHaveBeenCalledWith(5, 7);
+  });
+});

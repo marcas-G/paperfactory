@@ -87,6 +87,24 @@ function isWideCodePoint(code: number): boolean {
   );
 }
 
+/** 按显示宽度保留尾部截断（超出前置 `…`）——流式增长的文本看末尾最新内容 */
+export function truncateTail(text: string, maxWidth: number): string {
+  if (visibleWidth(text) <= maxWidth) return text;
+  const limit = Math.max(2, maxWidth);
+  const body = stripAnsi(text);
+  const chars = Array.from(body);
+  let w = 0;
+  let out = "";
+  for (let i = chars.length - 1; i >= 0; i--) {
+    const ch = chars[i];
+    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    if (w + cw > limit - 1) break;
+    out = ch + out;
+    w += cw;
+  }
+  return "…" + out;
+}
+
 /** 按显示宽度截断（超出补 `…`； ANSI 前缀保留） */
 export function truncate(text: string, maxWidth: number): string {
   if (visibleWidth(text) <= maxWidth) return text;
@@ -252,8 +270,11 @@ export function thinkingDots(tick: number): string {
 export function thinkingLine(iteration: number, note: string, waitedMs: number, tick: number): string {
   const spin = spinnerFrame(tick);
   const wait = waitedMs > 3000 ? ` ${ANSI.dim}(${formatDuration(waitedMs)})${ANSI.reset}` : "";
-  // note 自带轮次前缀（后端原样发"第 N 轮推理中..."）时去重
-  const body = /^第\s*\d+\s*轮/.test(note) ? note : `第 ${iteration} 轮${note ? ` — ${note}` : ""}`;
+  // 流式 note 逐渐增长 → 截断保留尾部（最新内容）；轮次前缀钉在行首不被挤掉
+  const m = note.match(/^(第\s*\d+\s*轮)(?:[\s:：—-]*(.*))?$/);
+  const prefix = m ? m[1] : `第 ${iteration} 轮`;
+  const rest = m ? (m[2] ?? "") : note;
+  const body = rest ? `${prefix} — ${truncateTail(rest, 60 - visibleWidth(prefix) - 3)}` : prefix;
   return `${ANSI.yellow}${spin}${ANSI.reset} ${padLabel("thinking")}${truncate(body, 60)}${ANSI.dim}${thinkingDots(tick)}${ANSI.reset}${wait}`;
 }
 
@@ -288,13 +309,42 @@ export function paperEntries(papers: PaperItem[], startIndex = 0): string[] {
   return lines;
 }
 
-/** 假设卡片（单行紧凑版，盒线在窄终端下不可靠） */
-export function hypothesisCard(statement: string): string[] {
-  return [
-    `${ANSI.magenta}┌ hypothesis ${"─".repeat(Math.max(3, 40))}┐${ANSI.reset}`,
-    `${ANSI.magenta}│${ANSI.reset} ${truncate(statement, 66)}`,
-    `${ANSI.magenta}└${"─".repeat(Math.max(3, 52))}┘${ANSI.reset}`,
+/** 按显示宽度换行（CJK 不劈半字；空白归一）；maxLines 限制行数，超出末行 `…` 收尾 */
+export function wrapDisplay(text: string, width: number, maxLines = Infinity): string[] {
+  const normalized = text.replace(/\s*\n\s*/g, " ").trim();
+  if (normalized === "") return [""];
+  const all: string[] = [];
+  let rest = normalized;
+  while (rest.length > 0 && all.length < maxLines) {
+    if (visibleWidth(rest) <= width) {
+      all.push(rest);
+      rest = "";
+      break;
+    }
+    const [head, tail] = splitAtDisplay(rest, width);
+    // 避免行首悬空空白
+    all.push(head.trimEnd());
+    rest = tail.trimStart();
+  }
+  if (rest.length > 0) {
+    // 超出行数上限：末行收尾补 …（保头部信息，前 maxLines-1 行完整展示）
+    const merged = all[maxLines - 1] + " " + rest.trim();
+    all[maxLines - 1] = truncate(merged, width);
+  }
+  return all;
+}
+
+/** 假设卡片：CJK 感知多行换行（最多 3 行，超出末行 `…`），盒框包正文 */
+export function hypothesisCard(statement: string, width = 72): string[] {
+  const textWidth = Math.max(10, width - 6);
+  const rows = wrapDisplay(statement, textWidth, 3);
+  const topWidth = Math.max(3, textWidth - 10); // `┌ hypothesis ` 占 13 列
+  const lines = [
+    `${ANSI.magenta}┌ hypothesis ${"─".repeat(topWidth)}┐${ANSI.reset}`,
+    ...rows.map((r) => `${ANSI.magenta}│${ANSI.reset} ${padEndDisplay(r, textWidth)} ${ANSI.magenta}│${ANSI.reset}`),
+    `${ANSI.magenta}└${"─".repeat(textWidth + 2)}┘${ANSI.reset}`,
   ];
+  return lines;
 }
 
 /** 审批卡片可展开的详情行数上限 */
@@ -414,7 +464,7 @@ function renderPhaseLine(
       });
     }
     case "hypothesis":
-      return hypothesisCard(line.statement);
+      return hypothesisCard(line.statement, contentWidth);
     case "note":
       return colorNote(line.text, line.style);
     default:
@@ -510,6 +560,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
   { key: "Esc", desc: "停止当前 run" },
   { key: "Tab", desc: "切换 auto / manual 模式" },
   { key: "↑ / ↓", desc: "滚动主区域（内容不满一屏时翻输入历史）" },
+  { key: "鼠标滚轮", desc: "滚动主区域（同 ↑/↓；报告阅读模式翻页）" },
   { key: "PgUp / PgDn", desc: "主区域半屏滚动" },
   { key: "End", desc: "跳回底部（回看时）；输入行尾（其他）" },
   { key: "← / → / Home", desc: "移动输入光标 / 跳行首" },
@@ -539,6 +590,49 @@ export function helpOverlayLines(contentWidth: number): string[] {
     lines.push(`  ${ANSI.yellow}${key}${ANSI.reset}${truncate(e.desc, contentWidth - keyWidth - 4)}`);
   }
   return lines;
+}
+
+/* ------------------------------------------------------------------ */
+/*  报告 JSON 解析（report_generation 的 LLM 输出是 JSON 字符串落库）      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 报告内容 JSON → 可读 Markdown。
+ * 后端 report_generation 的输出 schema：`{"abstract":"…","sections":[{"title":"…","content":"…"}]}`
+ * 兼容通用字段（introduction/methods/results/conclusion/content/body/text）；
+ * 非 JSON（纯文本 markdown）原样返回。
+ */
+export function parseReportContent(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return raw;
+  let obj: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return raw;
+    obj = parsed as Record<string, unknown>;
+  } catch {
+    return raw;
+  }
+  const str = (v: unknown): string => (typeof v === "string" && v.trim() ? v : "");
+  const parts: string[] = [];
+  const abstract = str(obj.abstract);
+  if (abstract) parts.push(`## Abstract\n${abstract}`);
+  const sections = Array.isArray(obj.sections) ? obj.sections : [];
+  for (const s of sections) {
+    if (s === null || typeof s !== "object") continue;
+    const title = str((s as Record<string, unknown>).title);
+    const content = str((s as Record<string, unknown>).content);
+    if (title || content) parts.push(`## ${title || "(untitled)"}\n${content}`);
+  }
+  for (const key of ["introduction", "methods", "results", "conclusion"] as const) {
+    const v = str(obj[key]);
+    if (v) parts.push(`## ${key[0].toUpperCase()}${key.slice(1)}\n${v}`);
+  }
+  for (const key of ["content", "body", "text"] as const) {
+    const v = str(obj[key]);
+    if (v) parts.push(v);
+  }
+  return parts.length > 0 ? parts.join("\n\n") : raw;
 }
 
 /* ------------------------------------------------------------------ */

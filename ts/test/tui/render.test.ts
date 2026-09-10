@@ -30,6 +30,9 @@ import {
   truncate,
   visibleWidth,
   padEndDisplay,
+  parseReportContent,
+  truncateTail,
+  wrapDisplay,
   APPROVAL_DETAIL_LINES,
   type PhaseLine,
   type PhaseState,
@@ -388,5 +391,122 @@ describe("排队可视化与帮助覆盖层", () => {
     model.status = "complete";
     model.reportLines = ["报告"];
     expect(promptHint(model)).toContain("r 读报告");
+  });
+});
+
+describe("尾部截断与 thinking 流式显示", () => {
+  it("truncateTail：短文本原样、长文本保尾部 + 前置 …", () => {
+    expect(truncateTail("abc", 10)).toBe("abc");
+    expect(truncateTail("abcdefghij", 10)).toBe("abcdefghij");
+    expect(truncateTail("0123456789abcdef", 10)).toBe("…789abcdef");
+    expect(truncateTail("文献调研缺口识别假设生成", 11)).toBe("…别假设生成"); // CJK 不劈半字（10+…=11）
+    expect(visibleWidth(truncateTail("文献调研缺口识别假设生成", 11))).toBe(11);
+  });
+
+  it("thinkingLine：长 note 尾部截断（流式末尾最新），轮次前缀不被挤掉", () => {
+    const note = "组件贡献解耦、多/单agent复杂度阈值、反思收益递减、工具调用成本建模与记忆压缩率的权衡分析正在推进";
+    const line = thinkingLine(1, note, 0, 0);
+    const plain = stripAnsi(line);
+    expect(plain).toContain("第 1 轮"); // 轮次前缀钉在行首
+    expect(plain).toContain("…"); // 截断标记
+    expect(plain).toContain("权衡分析正在推进"); // 尾部（最新）内容可见
+    expect(plain).not.toContain("组件贡献解耦"); // 头部被截掉
+  });
+
+  it("thinkingLine：note 自带轮次前缀时整体尾部截断", () => {
+    const note = "第 1 轮推理中——组件贡献解耦与反思收益递减的长期权衡分析仍在继续推进当中";
+    const plain = stripAnsi(thinkingLine(1, note, 0, 0));
+    expect(plain).toContain("第 1 轮");
+    expect(plain).toContain("推进当中");
+  });
+});
+
+describe("假设卡片多行显示", () => {
+  it("短假设：单行正文，盒框完整", () => {
+    const card = hypothesisCard("RAG 减少 hallucination").map(stripAnsi);
+    expect(card).toHaveLength(3);
+    expect(card[0]).toMatch(/┌ hypothesis ─+┐/);
+    expect(card[1]).toContain("RAG 减少 hallucination");
+    expect(card[2]).toMatch(/└─+┘/);
+  });
+
+  it("长假设（CJK）：按宽度-6 换行，最多 3 行，超出末行 … 收尾", () => {
+    const width = 72;
+    const statement =
+      "在受控实验中，agent架构的规划、记忆、工具调用、反思四大核心组件对任务完成率的影响可以解耦量化，且各组件的边际收益随任务复杂度呈现不同的阈值效应，多agent协作仅在超过特定复杂度后优于单agent，且该复杂度阈值随上下文长度增加而显著上移，需要通过消融实验逐项验证各组件的独立贡献";
+    const card = hypothesisCard(statement, width).map(stripAnsi);
+    expect(card[0]).toMatch(/┌ hypothesis ─+┐/);
+    expect(card[card.length - 1]).toMatch(/└─+┘/);
+    const body = card.slice(1, -1);
+    expect(body).toHaveLength(3); // 最多 3 行
+    expect(body.join("")).toContain("…"); // 超出截断标记
+    // 每行正文显示宽度 = width - 6（`│ ` + 正文 + ` │`）
+    for (const row of body) {
+      expect(visibleWidth(row)).toBe(width - 2);
+    }
+    // 头部信息保留（前两行完整展示）
+    expect(body[0]).toContain("在受控实验中");
+    expect(body[0]).toContain("agent"); // 前部内容在第 1 行可见
+    expect(body[1]).toContain("边际收益"); // 第 2 行承接后续内容
+  });
+
+  it("wrapDisplay：换行不劈半 CJK、行数上限生效", () => {
+    const rows = wrapDisplay("文献调研缺口识别假设生成实验执行", 10);
+    for (const r of rows) expect(visibleWidth(r)).toBeLessThanOrEqual(10);
+    expect(rows.join("")).toBe("文献调研缺口识别假设生成实验执行"); // 无内容丢失
+    const capped = wrapDisplay("a".repeat(100), 10, 2);
+    expect(capped).toHaveLength(2);
+    expect(capped[1].endsWith("…")).toBe(true);
+    // 换行符归一为空格
+    expect(wrapDisplay("第一行\n第二行", 40)).toEqual(["第一行 第二行"]);
+  });
+});
+
+describe("报告 JSON 解析 parseReportContent", () => {
+  it("后端真实 schema：{abstract, sections:[{title,content}]} → Markdown", () => {
+    const raw = JSON.stringify({
+      abstract: "本报告基于四个待验证假设（db44d3a1）系统评估 agent 架构组件贡献。",
+      sections: [
+        { title: "Introduction", content: "研究背景与动机。" },
+        { title: "Results", content: "规划组件贡献最大。" },
+      ],
+    });
+    const out = parseReportContent(raw);
+    expect(out).toContain("## Abstract");
+    expect(out).toContain("本报告基于四个待验证假设");
+    expect(out).toContain("## Introduction");
+    expect(out).toContain("研究背景与动机。");
+    expect(out).toContain("## Results");
+    expect(out).not.toContain('{"abstract"'); // 不再是 raw JSON
+  });
+
+  it("通用字段：introduction/methods/results/conclusion/content/body/text", () => {
+    const out = parseReportContent(
+      JSON.stringify({ introduction: "背景", methods: "方法", results: "结果", conclusion: "结论" }),
+    );
+    expect(out).toContain("## Introduction\n背景");
+    expect(out).toContain("## Methods\n方法");
+    expect(out).toContain("## Results\n结果");
+    expect(out).toContain("## Conclusion\n结论");
+    const out2 = parseReportContent(JSON.stringify({ content: "正文" }));
+    expect(out2).toBe("正文");
+    const out3 = parseReportContent(JSON.stringify({ body: "主体" }));
+    expect(out3).toBe("主体");
+    const out4 = parseReportContent(JSON.stringify({ text: "文本" }));
+    expect(out4).toBe("文本");
+  });
+
+  it("非 JSON / 坏 JSON / 非对象 JSON：原样返回", () => {
+    const md = "# 研究报告\n\n正文 Markdown。";
+    expect(parseReportContent(md)).toBe(md);
+    expect(parseReportContent("{broken json")).toBe("{broken json");
+    expect(parseReportContent("[1,2]")).toBe("[1,2]");
+    expect(parseReportContent(JSON.stringify({ noKnownField: 1 }))).toBe(JSON.stringify({ noKnownField: 1 }));
+  });
+
+  it("空字段跳过、sections 非法条目忽略", () => {
+    const out = parseReportContent(JSON.stringify({ abstract: "  ", sections: [null, 42, { title: "T", content: "C" }] }));
+    expect(out).toContain("## T\nC");
+    expect(out).not.toContain("## Abstract");
   });
 });
