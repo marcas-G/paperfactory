@@ -243,7 +243,9 @@ function padLabel(label: string): string {
 
 /** thinking 行的渐进点动画（1-3 个点循环，随 tick 变化给出"在打字"的流式感） */
 export function thinkingDots(tick: number): string {
-  return ".".repeat((tick % 3) + 1);
+  // 固定 3 字符宽度：dots 动画不改变行宽，时间不再被推拉
+  const active = (tick % 3) + 1;
+  return "·".repeat(active) + " ".repeat(3 - active);
 }
 
 /** thinking 行：`│  ├ thinking    ⠋ 第 3 轮推理中... (12s)`（dots 随 tick 流动） */

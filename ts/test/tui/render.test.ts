@@ -328,19 +328,21 @@ describe("renderModel 与 Markdown", () => {
 });
 
 describe("流式 thinking / 动画行（OpenCode 对标）", () => {
-  it("thinkingDots：1-3 个点随 tick 循环（流式打字感）", () => {
-    expect(thinkingDots(0)).toBe(".");
-    expect(thinkingDots(1)).toBe("..");
-    expect(thinkingDots(2)).toBe("...");
-    expect(thinkingDots(3)).toBe("."); // 循环
+  it("thinkingDots：固定 3 字符宽度，dots 位置随 tick 循环", () => {
+    expect(thinkingDots(0)).toBe("·  ");
+    expect(thinkingDots(1)).toBe("·· ");
+    expect(thinkingDots(2)).toBe("···");
+    expect(thinkingDots(3)).toBe("·  "); // 循环
+    // 所有可能的输出长度一致（不跳动）
+    for (let t = 0; t < 10; t++) expect(thinkingDots(t).length).toBe(3);
   });
 
   it("thinkingLine：不同 tick 产出不同文本（随时间更新而非静态）", () => {
     const a = stripAnsi(thinkingLine(1, "第 1 轮推理中", 0, 0));
     const b = stripAnsi(thinkingLine(1, "第 1 轮推理中", 0, 1));
     expect(a).not.toBe(b);
-    expect(a.endsWith(".")).toBe(true);
-    expect(b.endsWith("..")).toBe(true);
+    // dots 部分固定宽度（不导致行宽变化）
+    expect(a.length).toBe(b.length);
   });
 
   it("splitAtDisplay：按显示宽度切分（CJK 边界对齐）", () => {
