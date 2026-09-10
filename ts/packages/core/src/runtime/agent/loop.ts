@@ -1,6 +1,7 @@
 import * as Effect from "effect/Effect";
+import * as Stream from "effect/Stream";
 
-import { Provider, Message, ToolDefinition } from "../provider";
+import { Provider, Message, ToolDefinition, ProviderResponse, StreamEvent } from "../provider";
 import { ToolRegistry } from "../tools/registry";
 import { ToolInput, ToolOutput } from "../tools/contracts";
 import { getCognitiveModeByName } from "@pf/core/cognition/modes";
@@ -95,27 +96,69 @@ export async function runAgentLoop(
 
     realEmit({ type: "thinking", content: `第 ${iteration} 轮推理中...`, iteration });
 
-    // REC5: LLM 调用超时刹车（超时分支返回 {content}，正常分支返回 Either）
-    const responseOpt = await raceTimeout(
-      Effect.runPromise(Effect.either(provider.sendMessages(messages, { tools }))),
-      LLM_TIMEOUT_MS,
-      "LLM call",
-    );
+    // 方案A：流式 LLM 调用——逐 token 发 thinking 事件，消灭"90 秒黑洞"
+    // 优先用 streamResponse；不支持时降级 sendMessages（行为不变）
+    let response: ProviderResponse | undefined;
+    try {
+      const stream = await Effect.runPromise(provider.streamResponse(messages, { tools }));
+      let text = "";
+      const toolCalls: Array<{ toolCallId: string; toolName: string; arguments: Record<string, unknown> }> = [];
+      let stopReason = "";
 
-    if (!("_tag" in responseOpt)) {
-      const err = `Error: ${(responseOpt as { content: string }).content}`;
-      realEmit({ type: "error", content: err });
-      messages.push({ role: "assistant", content: err });
-      return { finalContent: err, messages, toolCalls, events };
-    }
-    if (responseOpt._tag === "Left") {
-      const err = `Error: ${responseOpt.left}`;
-      realEmit({ type: "error", content: err });
-      messages.push({ role: "assistant", content: err });
-      return { finalContent: err, messages, toolCalls, events };
+      // 逐 token 收集，有新文本就 emit（TUI 端看到 thinking 行实时更新）
+      const processed = await Effect.runPromise(
+        Stream.runForEach(stream, (event: StreamEvent) =>
+          Effect.sync(() => {
+            if (event.type === "text") {
+              text += String(event.data);
+              realEmit({ type: "thinking", content: text.slice(-80), iteration });
+            } else if (event.type === "tool_use") {
+              const tc = event.data as { id?: string; toolCallId?: string; name?: string; toolName?: string; arguments: Record<string, unknown> };
+              toolCalls.push({
+                toolCallId: tc.toolCallId ?? tc.id ?? "",
+                toolName: tc.toolName ?? tc.name ?? "",
+                arguments: tc.arguments,
+              });
+            } else if (event.type === "stop") {
+              stopReason = String(event.data);
+            }
+          }),
+        ),
+      );
+
+      response = {
+        content: text.trim(),
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        stopReason,
+      };
+    } catch {
+      // streamResponse 不可用（provider 不支持或网络问题），降级 sendMessages
+      realEmit({ type: "thinking", content: `第 ${iteration} 轮推理中（等待响应）...`, iteration });
+      const responseOpt = await raceTimeout(
+        Effect.runPromise(Effect.either(provider.sendMessages(messages, { tools }))),
+        LLM_TIMEOUT_MS,
+        "LLM call",
+      );
+
+      if (!("_tag" in responseOpt)) {
+        const err = `Error: ${(responseOpt as { content: string }).content}`;
+        realEmit({ type: "error", content: err });
+        messages.push({ role: "assistant", content: err });
+        return { finalContent: err, messages, toolCalls, events };
+      }
+      if (responseOpt._tag === "Left") {
+        const err = `Error: ${responseOpt.left}`;
+        realEmit({ type: "error", content: err });
+        messages.push({ role: "assistant", content: err });
+        return { finalContent: err, messages, toolCalls, events };
+      }
+      response = responseOpt.right;
     }
 
-    const response = responseOpt.right;
+    if (!response) {
+      realEmit({ type: "error", content: "LLM returned no response" });
+      return { finalContent: "error", messages, toolCalls, events };
+    }
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       const content = response.content;
