@@ -278,8 +278,8 @@ export function thinkingLine(iteration: number, note: string, waitedMs: number, 
   return `${ANSI.yellow}${spin}${ANSI.reset} ${padLabel("thinking")}${truncate(body, 60)}${ANSI.dim}${thinkingDots(tick)}${ANSI.reset}${wait}`;
 }
 
-/** 工具行：calling `⠙ literature_search  "query"... (3s)` / result `├ literature_search  5 papers ✓`
- *  calling 态带 spinner + 等待时长（tool:calling → tool:result 之间的持续视觉反馈） */
+/** 工具行：calling `⠙ literature_search  "query"... (3s)` / result `├ literature_search  5 papers: 标题A / ...`
+ *  calling 态带 spinner + 等待时长；done 态摘要按终端宽度截断（内容透明：显示实际内容而非计数） */
 export function toolLine(
   toolName: string,
   state: "calling" | "done" | "failed",
@@ -287,6 +287,7 @@ export function toolLine(
   resultSummary: string | undefined,
   waitedMs = 0,
   tick = 0,
+  contentWidth = 76,
 ): string {
   const label = padLabel(toolName);
   if (state === "calling") {
@@ -295,7 +296,9 @@ export function toolLine(
     return `${ANSI.cyan}${spinnerFrame(tick)}${ANSI.reset} ${label}${ANSI.dim}${arg}...${ANSI.reset}${wait}`;
   }
   const mark = state === "done" ? `${ANSI.green}✓${ANSI.reset}` : `${ANSI.red}✗${ANSI.reset}`;
-  const summary = resultSummary ? ` ${truncate(resultSummary, 48)}` : "";
+  // 摘要可用宽度：总宽 - 前缀(2) - 工具名列(20) - 余量(4)，长内容摘要仍能看到完整标题列表的头部
+  const summaryWidth = Math.max(24, contentWidth - 26);
+  const summary = resultSummary ? ` ${truncate(resultSummary, summaryWidth)}` : "";
   return `${mark} ${label}${summary}`;
 }
 
@@ -347,8 +350,11 @@ export function hypothesisCard(statement: string, width = 72): string[] {
   return lines;
 }
 
-/** 审批卡片可展开的详情行数上限 */
+/** 审批卡片可展开的详情行数上限（旧单行 detail 路径） */
 export const APPROVAL_DETAIL_LINES = 10;
+
+/** 审批卡片展开的聚合阶段产出行数上限 */
+export const APPROVAL_OUTPUT_LINES = 15;
 
 /**
  * 审批详情内容 —— 该阶段最后一个 self-review / thinking / progress 行的文本
@@ -364,10 +370,49 @@ export function approvalDetailText(phase: PhaseState): string | null {
   return null;
 }
 
-/** 审批卡片（expanded 时展开最后 10 行详情内容，按终端宽度截断） */
+/**
+ * 聚合阶段产出（审批详情的主体，信息透明度核心）：
+ * 该阶段全部 tool 结果摘要（工具 → 实际内容）+ 文献标题 + self-review 文本
+ * + progress 文本 + 最后一条 thinking。渲染时实时聚合，展开时看到的是最新状态。
+ */
+export function approvalPhaseOutput(phase: PhaseState): string[] {
+  const out: string[] = [];
+  let lastThinking = "";
+  for (const line of phase.lines) {
+    switch (line.kind) {
+      case "tool": {
+        if (line.state === "calling") break;
+        const mark = line.state === "failed" ? "✗" : "✓";
+        const args = line.argSummary ? ` ${line.argSummary}` : "";
+        out.push(`${mark} ${line.toolName}${args} → ${line.resultSummary ?? ""}`.replace(/\s+$/, ""));
+        break;
+      }
+      case "papers":
+        for (const p of line.papers.slice(0, 3)) {
+          out.push(`  · ${p.title || "(untitled)"}`);
+        }
+        break;
+      case "self-review":
+        out.push(`self-review ${line.passed ? "✓" : "✗"}: ${line.text}`);
+        break;
+      case "progress":
+        out.push(line.text);
+        break;
+      case "thinking":
+        if (line.note.trim()) lastThinking = line.note.trim();
+        break;
+      default:
+        break;
+    }
+  }
+  if (lastThinking) out.push(`思考: ${lastThinking}`);
+  return out;
+}
+
+/** 审批卡片（expanded 时优先显示聚合阶段产出，回退最后 10 行单行详情） */
 export function approvalCard(
   summary: string,
-  opts: { expanded?: boolean; detail?: string | null; width?: number } = {},
+  opts: { expanded?: boolean; detail?: string | null; output?: string[]; width?: number } = {},
 ): string[] {
   const width = opts.width ?? 76;
   const lines = [
@@ -375,6 +420,17 @@ export function approvalCard(
     `${ANSI.dim}   [a] 批准  [m] 修改  [r] 拒绝  [d] ${opts.expanded ? "收起" : "详情"}${ANSI.reset}`,
   ];
   if (!opts.expanded) return lines;
+  const outputRows = (opts.output ?? [])
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length > 0)
+    .slice(-APPROVAL_OUTPUT_LINES);
+  if (outputRows.length > 0) {
+    lines.push(`${ANSI.dim}   ─── 阶段产出 ───${ANSI.reset}`);
+    for (const row of outputRows) {
+      lines.push(`${ANSI.dim}   │ ${truncate(row, Math.max(10, width - 5))}${ANSI.reset}`);
+    }
+    return lines;
+  }
   const rows = (opts.detail ?? "")
     .split("\n")
     .map((l) => l.trimEnd())
@@ -444,6 +500,7 @@ function renderPhaseLine(
         line.resultSummary,
         line.since !== undefined ? now - line.since : 0,
         tick,
+        contentWidth,
       );
     case "papers":
       return paperEntries(line.papers);
@@ -460,6 +517,7 @@ function renderPhaseLine(
       return approvalCard(line.summary, {
         expanded: line.expanded ?? false,
         detail: approvalDetailText(phase),
+        output: approvalPhaseOutput(phase),
         width: contentWidth,
       });
     }

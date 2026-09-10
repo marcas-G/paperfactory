@@ -8,6 +8,7 @@ import {
   PHASE_LABELS,
   approvalCard,
   approvalDetailText,
+  approvalPhaseOutput,
   emptyModel,
   helpOverlayLines,
   hypothesisCard,
@@ -204,11 +205,51 @@ describe("活动行", () => {
       ],
     };
     const lines = renderPhase(phase, 0, 0, 80).map(stripAnsi);
-    expect(lines.join("\n")).toContain("D".repeat(60)); // 展开态详情 > self-review 行的 50 截断
+    expect(lines.join("\n")).toContain("─── 阶段产出 ───"); // 聚合产出分区标题
+    expect(lines.join("\n")).toContain("D".repeat(55)); // 展开态详情 > self-review 行的 50 截断
     (phase.lines[1] as Extract<PhaseLine, { kind: "approval" }>).expanded = false;
     const collapsed = renderPhase(phase, 0, 0, 80).map(stripAnsi);
-    expect(collapsed.join("\n")).not.toContain("D".repeat(60)); // 收起态只剩 50 字符行摘要
+    expect(collapsed.join("\n")).not.toContain("D".repeat(55)); // 收起态只剩 50 字符行摘要
     expect(collapsed.join("\n")).toContain("D".repeat(40)); // self-review 行仍在
+  });
+
+  it("approvalPhaseOutput：聚合 tool 摘要 + 文献标题 + self-review + progress + 最后 thinking", () => {
+    const phase: PhaseState = {
+      name: "literature_search",
+      status: "running",
+      startedAt: 0,
+      lines: [
+        { kind: "thinking", iteration: 1, note: "第 1 轮规划检索词", since: 0 },
+        { kind: "tool", toolName: "literature_search", state: "done", argSummary: '"agent arch"', resultSummary: "2 papers: Paper A / Paper B" },
+        { kind: "papers", papers: [{ title: "Paper A", url: "u1" }, { title: "Paper B", url: "u2" }] },
+        { kind: "tool", toolName: "code", state: "failed", resultSummary: "Error: timeout" },
+        { kind: "progress", text: "已保存 2 条引用" },
+        { kind: "self-review", passed: false, text: "发现引用缺失" },
+        { kind: "thinking", iteration: 2, note: "第 2 轮反思检索充分性", since: 0 },
+      ],
+    };
+    const out = approvalPhaseOutput(phase);
+    expect(out).toContain('✓ literature_search "agent arch" → 2 papers: Paper A / Paper B');
+    expect(out).toContain("  · Paper A");
+    expect(out).toContain("  · Paper B");
+    expect(out).toContain("✗ code → Error: timeout");
+    expect(out).toContain("已保存 2 条引用");
+    expect(out).toContain("self-review ✗: 发现引用缺失");
+    expect(out).toContain("思考: 第 2 轮反思检索充分性"); // thinking 取最后一条
+    expect(out.some((l) => l.includes("第 1 轮"))).toBe(false); // 前几轮 thinking 不重复
+  });
+
+  it("approvalCard 展开态 output 路径：首行分隔线，最多 15 行（保最新）", () => {
+    const output = Array.from({ length: 20 }, (_, i) => `row-${i}`);
+    const card = approvalCard("s", { expanded: true, output, width: 80 }).map(stripAnsi);
+    expect(card[2]).toContain("─── 阶段产出 ───");
+    expect(card).toHaveLength(3 + 15); // 标题 2 行 + 分隔线 + 15 行产出
+    expect(card.join("\n")).toContain("row-19");
+    expect(card.join("\n")).not.toContain("row-4"); // 只保留最后 15 行（row-5..row-19）
+    // output 为空时回退 detail 路径
+    const fallback = approvalCard("s", { expanded: true, output: [], detail: "line1\nline2", width: 80 }).map(stripAnsi);
+    expect(fallback.join("\n")).toContain("line1");
+    expect(fallback.join("\n")).not.toContain("阶段产出");
   });
 });
 

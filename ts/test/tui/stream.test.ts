@@ -82,9 +82,72 @@ describe("RunTracker 状态机", () => {
       }),
     );
     const lines = t.model.phases[0].lines;
-    expect(lines[0]).toMatchObject({ kind: "tool", toolName: "literature_search", state: "done", resultSummary: "2 papers" });
+    expect(lines[0]).toMatchObject({ kind: "tool", toolName: "literature_search", state: "done", resultSummary: "2 papers: Paper A / Paper B" });
     expect(lines[1]).toMatchObject({ kind: "papers" });
     expect((lines[1] as { papers: { title: string }[] }).papers[1].title).toBe("Paper B");
+  });
+
+  it("tool:result（search 工具）：content JSON 里的 results 解析出文献标题摘要 + papers 展开", () => {
+    const t = tracker();
+    t.handle(ev("run:start", { data: { question: "q" } }));
+    t.handle(ev("phase:start", { phase: "literature_search" }));
+    t.handle(
+      ev("tool:result", {
+        phase: "literature_search",
+        data: {
+          toolName: "search",
+          content: JSON.stringify({
+            query: "agent arch",
+            results: [
+              { title: "Scaling Laws for MoE", url: "https://s1" },
+              { title: "Neural Scaling", url: "https://s2" },
+            ],
+            count: 2,
+          }),
+          toolResult: {
+            content: JSON.stringify({
+              query: "agent arch",
+              results: [
+                { title: "Scaling Laws for MoE", url: "https://s1" },
+                { title: "Neural Scaling", url: "https://s2" },
+              ],
+              count: 2,
+            }),
+          },
+        },
+      }),
+    );
+    const lines = t.model.phases[0].lines;
+    expect(lines[0]).toMatchObject({
+      kind: "tool",
+      toolName: "search",
+      state: "done",
+      resultSummary: "2 papers: Scaling Laws for MoE / Neural Scaling",
+    });
+    expect(lines[1]).toMatchObject({ kind: "papers" });
+    expect((lines[1] as { papers: { title: string }[] }).papers[0].title).toBe("Scaling Laws for MoE");
+  });
+
+  it("tool:result：无 papers 时优先用 server 附带的 summary，其次解析 content JSON", () => {
+    const t = tracker();
+    t.handle(ev("run:start", { data: { question: "q" } }));
+    t.handle(ev("phase:start", { phase: "experiment_execution" }));
+    t.handle(
+      ev("tool:result", {
+        phase: "experiment_execution",
+        data: { toolName: "code", content: "experiment executed successfully", summary: "3 results: A / B / C" },
+      }),
+    );
+    expect(t.model.phases[0].lines[0]).toMatchObject({ kind: "tool", resultSummary: "3 results: A / B / C" });
+
+    t.handle(ev("phase:start", { phase: "confirmation" }));
+    t.handle(
+      ev("tool:result", {
+        phase: "confirmation",
+        data: { toolName: "analyze", content: '{"status":"CONFIRMED","reasoning":"..."}' },
+      }),
+    );
+    expect(t.model.phases[1].lines[0]).toMatchObject({ kind: "tool", resultSummary: "{status, reasoning}" });
   });
 
   it("tool:result 失败（Error: 前缀）标记 failed", () => {

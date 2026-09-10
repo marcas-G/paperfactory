@@ -357,18 +357,103 @@ function numField(event: DomainEvent, key: string): number | undefined {
   return typeof v === "number" ? v : undefined;
 }
 
-/** literature_search 的 toolResult.papers（{title,url}[]） */
-function extractPapers(event: DomainEvent): PaperItem[] | null {
-  const tr = (event.data as { toolResult?: unknown } | undefined)?.toolResult;
-  if (tr === null || typeof tr !== "object") return null;
-  const papers = (tr as { papers?: unknown }).papers;
-  if (!Array.isArray(papers)) return null;
-  return papers
-    .filter((p): p is { title?: unknown; url?: unknown } => typeof p === "object" && p !== null)
+/** 未知对象数组 → {title,url}[]（至少一个有效 title 才算文献列表） */
+function toPaperItems(arr: unknown[]): PaperItem[] | null {
+  const items = arr
+    .filter((p): p is Record<string, unknown> => typeof p === "object" && p !== null)
     .map((p) => ({
       title: typeof p.title === "string" ? p.title : "",
       url: typeof p.url === "string" ? p.url : "",
-    }));
+    }))
+    .filter((p) => p.title.length > 0);
+  return items.length > 0 ? items : null;
+}
+
+/** JSON 字符串里的文献数组：顶层数组或 {papers|results: [...]} */
+function papersFromJson(text: unknown): PaperItem[] | null {
+  if (typeof text !== "string") return null;
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return toPaperItems(parsed);
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as { papers?: unknown; results?: unknown };
+      if (Array.isArray(obj.papers)) return toPaperItems(obj.papers);
+      if (Array.isArray(obj.results)) return toPaperItems(obj.results);
+    }
+  } catch {
+    /* not JSON */
+  }
+  return null;
+}
+
+/**
+ * 文献列表提取（三种来源按序尝试）：
+ *   1. toolResult.papers（literature_search 工具顶层字段）
+ *   2. toolResult.content 里的 JSON（search 工具：{query,results,count}）
+ *   3. 事件 content 字段里的 JSON
+ */
+function extractPapers(event: DomainEvent): PaperItem[] | null {
+  const tr = (event.data as { toolResult?: unknown } | undefined)?.toolResult;
+  if (tr === null || typeof tr !== "object" || Array.isArray(tr)) {
+    return papersFromJson(contentOf(event));
+  }
+  const record = tr as { papers?: unknown; content?: unknown };
+  if (Array.isArray(record.papers)) {
+    const items = toPaperItems(record.papers);
+    if (items) return items;
+  }
+  return papersFromJson(record.content) ?? papersFromJson(contentOf(event));
+}
+
+/** 文献列表的一行内容摘要："5 papers: 标题A / 标题B / 标题C" */
+function papersBrief(papers: PaperItem[]): string {
+  const titles = papers.slice(0, 3).map((p) => p.title.slice(0, 50)).filter(Boolean);
+  return titles.length > 0 ? `${papers.length} papers: ${titles.join(" / ")}` : `${papers.length} papers`;
+}
+
+/** 工具结果 JSON 文本 → 内容摘要（数组/结果集 → 数量+标题；对象 → 字段名） */
+function contentJsonBrief(content: string): string | null {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      const titles = parsed
+        .slice(0, 3)
+        .map((p) => (typeof p === "object" && p !== null ? String((p as { title?: unknown }).title ?? "").slice(0, 50) : ""))
+        .filter(Boolean);
+      return titles.length > 0 ? `${parsed.length} results: ${titles.join(" / ")}` : `${parsed.length} results`;
+    }
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as { papers?: unknown; results?: unknown };
+      if (Array.isArray(obj.papers) || Array.isArray(obj.results)) {
+        const arr = (obj.papers ?? obj.results) as unknown[];
+        const titles = arr
+          .slice(0, 3)
+          .map((p) => (typeof p === "object" && p !== null ? String((p as { title?: unknown }).title ?? "").slice(0, 50) : ""))
+          .filter(Boolean);
+        return titles.length > 0 ? `${arr.length} results: ${titles.join(" / ")}` : `${arr.length} results`;
+      }
+      const keys = Object.keys(parsed as Record<string, unknown>).slice(0, 5).join(", ");
+      return `{${keys}}`;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return null;
+}
+
+/**
+ * 工具结果摘要（信息透明度核心）：papers → 标题列表；
+ * 否则 server 附带的 summary；否则 content JSON 解析；回退纯文本首行。
+ */
+function summarizeToolResult(event: DomainEvent, content: string, papers: PaperItem[] | null): string {
+  if (papers && papers.length > 0) return papersBrief(papers);
+  const server = strField(event, "summary");
+  if (server) return server;
+  return contentJsonBrief(content) ?? brief(content);
 }
 
 /** 工具参数的一行摘要（literature_search 显示 query，其余 JSON 截断） */
