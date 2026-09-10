@@ -162,6 +162,7 @@ export class RunTracker {
     this.model.tokens += estimateTokens(content);
     const failed = content.startsWith("Error:");
     const papers = extractPapers(event);
+    const summary = summarizeToolResult(event, content, papers);
 
     // 找当前/最近阶段里最后一个同名 calling 行，就地更新
     let updated = false;
@@ -171,13 +172,12 @@ export class RunTracker {
         const line = lines[j];
         if (line.kind === "tool" && line.toolName === name && line.state === "calling") {
           line.state = failed ? "failed" : "done";
-          line.resultSummary = papers ? `${papers.length} papers` : brief(content);
+          line.resultSummary = summary;
           updated = true;
           break;
         }
       }
     }
-    const summary = papers ? `${papers.length} papers` : brief(content);
     if (!updated) {
       this.appendLine({
         kind: "tool",

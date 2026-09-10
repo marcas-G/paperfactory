@@ -10,6 +10,44 @@ import type { AgentEvent } from "@pf/core/runtime/agent/loop";
 
 export type PhaseDecision = "approve" | "modify" | "reject";
 
+/**
+ * 工具结果 → 有意义的内容摘要（信息透明度：SSE 流里除原始 JSON 外带一行可读摘要）。
+ * 覆盖三种形态：
+ *   - literature_search: ToolOutput 顶层带 papers 数组（title/url）
+ *   - search: content 为 `{"query","results":[{title,...}],"count"}` JSON 字符串
+ *   - 其余: content 纯文本（code 输出等）取首行
+ */
+export function extractToolSummary(toolResult: unknown): string {
+  if (!toolResult || typeof toolResult !== "object") return "";
+  const record = toolResult as { content?: unknown; papers?: unknown; results?: unknown };
+  const titleList = (arr: unknown[]): string => {
+    const titles = arr
+      .slice(0, 3)
+      .map((p) => (typeof p === "object" && p !== null ? String((p as { title?: unknown }).title ?? "").slice(0, 50) : ""))
+      .filter(Boolean);
+    return titles.length > 0 ? `${arr.length} results: ${titles.join(" / ")}` : `${arr.length} results`;
+  };
+  if (Array.isArray(record.papers)) return titleList(record.papers);
+  if (Array.isArray(record.results)) return titleList(record.results);
+  const content = typeof record.content === "string" ? record.content : "";
+  if (!content) return "";
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (Array.isArray(parsed)) return titleList(parsed);
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as { papers?: unknown; results?: unknown; count?: unknown };
+      if (Array.isArray(obj.papers)) return titleList(obj.papers);
+      if (Array.isArray(obj.results)) return titleList(obj.results);
+      const keys = Object.keys(parsed as Record<string, unknown>).slice(0, 5).join(", ");
+      return `{${keys}}`;
+    }
+  } catch {
+    /* not JSON */
+  }
+  const firstLine = content.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  return firstLine.slice(0, 100);
+}
+
 export interface ResearchRunState {
   stopped: () => boolean;
   setStopped: (v: boolean) => void;
@@ -101,6 +139,9 @@ export function createResearchRunRoutes(
                 toolResult: event.toolResult,
                 iteration: event.iteration,
                 passed: event.passed,
+                ...(event.type === "tool:result" && event.toolResult
+                  ? { summary: extractToolSummary(event.toolResult) }
+                  : {}),
               },
             });
           },
@@ -209,6 +250,9 @@ export function createResearchRunRoutes(
                 toolResult: event.toolResult,
                 iteration: event.iteration,
                 passed: event.passed,
+                ...(event.type === "tool:result" && event.toolResult
+                  ? { summary: extractToolSummary(event.toolResult) }
+                  : {}),
               },
             });
           },

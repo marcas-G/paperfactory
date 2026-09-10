@@ -2,27 +2,28 @@
 
 > 阶段唯一问题：**哪些系统元素承担 P3 的逻辑责任？**
 
-## 元素总览（ts/packages 六包 + 协议）
+## 元素总览（ts/packages 六包 + 协议，2026-09-10 刷新）
 
 ```text
 ┌─ 壳层（可替换、可增）──────────────────────────────┐
-│  apps: web(React) · packages/tui · 未来 app/desktop │
-│      只依赖：@pf/protocol 契约 + @pf/client 生成SDK  │
+│ frontend/ (React+SolidJS) · packages/tui (ANSI)     │
+│      只依赖：@pf/protocol + @pf/client 生成SDK      │
 ├─ 协议层 ──────────────────────────────────────────┤
-│  @pf/protocol  端点契约表 + 事件目录（唯一权威）      │
-│  @pf/client    codegen 生成的 typed SDK + adapter   │
+│ @pf/protocol  端点契约表（34端点）+ 事件目录          │
+│ @pf/client    codegen typed SDK + adapter 注入      │
 ├─ 接入层 ──────────────────────────────────────────┤
-│  @pf/server    Hono 路由 + SSE(/api/events) + 审批  │
+│ @pf/server    Hono路由 + /api/events SSE           │
+│               + 统一事件总线（SQLite append-only）   │
 ├─ 领域层 ──────────────────────────────────────────┤
-│  @pf/research  研究编排：phase-contracts·agent-research│
-│  @pf/core      状态机·gates·agent loop·工具·账本·存储 │
-│  @pf/schema    研究对象契约（最底层，零依赖）          │
+│ @pf/research  编排·phase-contracts·citation-gate    │
+│ @pf/core      状态机·gates·agent-loop(流式)·工具    │
+│               ·事件账本·投影重建(REQ-REC2)         │
+│ @pf/schema    研究对象契约（最底层，零依赖）          │
 ├─ 外部 ────────────────────────────────────────────┤
-│  LLM 网关 · arXiv/S2 · science-service(Python 沙箱) │
-│  SQLite 账本 · (可选) PostgreSQL                     │
+│ LLM网关(流式) · arXiv/S2 · science-service(Python) │
+│ SQLite账本 · (可选) PostgreSQL(REQ-REC3)           │
 └───────────────────────────────────────────────────┘
-依赖方向铁律：schema←core←research←server；壳只碰协议
-守门：test/architecture/dependency-rules（违规即红）
+依赖铁律由 test/architecture 锁定（违规即红）
 ```
 
 ## 逻辑责任 → 元素映射（P3 → P4 追踪）
@@ -38,8 +39,8 @@
 | L2.1-L2.4 治理 | @pf/core/control + @pf/server（审批端点） |
 | L3.1 记账 | @pf/server/events（EventBus → SQLite 账本） |
 | L3.2 重放 | /api/events + seq + Last-Event-ID |
-| L3.3 重建 | ❌ **无元素承担（REQ-REC2 缺口的架构位）**——规划：core/persistence 增投影器 |
-| L3.4 续跑 | ❌ 无（依赖 L3.3） |
+| L3.3 重建 | ✅ ProjectingObjectStore 双写 + replayObjectsInto（packages/core/src/persistence/projecting-store.ts） |
+| L3.4 续跑 | ✅ POST /api/research/resume（phase级跳段，packages/server/src/routes/research-runs.ts） |
 | L4.1-L4.4 | @pf/protocol + @pf/client + docs/PROTOCOL.md |
 
 ## 关键架构决策（简式 ADR）
